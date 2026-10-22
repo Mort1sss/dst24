@@ -81,8 +81,8 @@ h1{font-size:clamp(14px,2.6vw,20px);color:var(--taxi);text-shadow:3px 3px 0 var(
 .desk-head{display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--dc);color:var(--edge);border-bottom:3px solid var(--edge)}
 .desk-head h2{font-size:10px}
 .desk-head .boss{margin-left:auto;display:flex;align-items:center;gap:8px;text-align:right;font-size:14px;font-weight:600;line-height:1.15;min-width:0}
-.face{width:36px;height:36px;background:var(--panel-2);border:3px solid var(--edge);flex:none}
-.face.big{width:60px;height:60px}
+.face{width:40px;height:40px;background:var(--panel-2);border:3px solid var(--edge);flex:none}
+.face.big{width:64px;height:64px}
 .desk-body{padding:14px;display:grid;gap:12px;min-width:0}
 .desk h3{font-size:10px;line-height:1.6;color:var(--dc);padding-right:70px}
 .ev-text{display:flex;gap:10px;align-items:flex-start}
@@ -227,6 +227,20 @@ input[type=range]{width:100%;accent-color:var(--taxi)}
 body{background:linear-gradient(180deg,#1f1a3c 0%,#18142f 100%) fixed}
 .desk-head{box-shadow:inset 0 -3px 0 rgba(0,0,0,.12)}
 .choice{box-shadow:3px 3px 0 var(--edge),inset 0 2px 0 rgba(255,255,255,.05)}
+.advisor{background:var(--panel);display:flex;gap:12px;align-items:center;padding:10px 14px;border-left:6px solid var(--taxi)}
+.advisor .adv-t{display:grid;gap:2px;flex:1;min-width:0}
+.advisor b{font-family:var(--f-display);font-weight:400;font-size:10px;color:var(--taxi)}
+.advisor span{font-size:16px}
+.choice .cl{display:grid;gap:4px;min-width:0}
+.effs{display:flex;flex-wrap:wrap;gap:4px}
+.eff{font-style:normal;font-size:13px;font-weight:400;padding:0 6px;background:var(--edge);color:var(--muted)}
+.eff.up{color:var(--good)}.eff.down{color:var(--bad)}.eff.risk{color:#ffb04a}.eff.game{color:var(--d1)}
+.newdot{display:inline-block;width:8px;height:8px;background:var(--bad);margin-left:6px;vertical-align:2px}
+.mtab-more{align-self:center;padding:0 12px;color:var(--muted);font-size:14px}
+.hintbox{background:var(--edge);border-left:4px solid var(--d1);padding:8px 12px;font-size:15px;color:var(--ink);max-width:none}
+.bignet{font-family:var(--f-display);font-size:26px;text-align:center;padding:6px 0}
+.more summary{cursor:pointer;color:var(--taxi);font-size:15px;padding:6px 0}
+.more[open] summary{margin-bottom:8px}
 .codebox{width:100%;min-height:110px;resize:vertical;font-family:"PT Mono",monospace;font-size:13px;line-height:1.35;background:var(--edge);color:var(--ink);border:3px solid var(--edge);padding:8px;word-break:break-all}
 .codebox:focus-visible{outline:3px solid var(--taxi);outline-offset:2px}
 .toast{position:fixed;left:50%;bottom:calc(16px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--taxi);color:var(--edge);font-family:var(--f-display);font-size:10px;line-height:1.6;padding:10px 14px;z-index:30;max-width:calc(100% - 32px);text-align:center}
@@ -293,7 +307,7 @@ th{font-size:13px}
 
 <div class="wrap">
   <header>
-    <div class="logo"><canvas class="logo-c" id="logoC" width="8" height="8" aria-hidden="true"></canvas><canvas class="face" id="ownerC" width="12" height="12" aria-label="Владелец"></canvas><h1 id="parkName">Таксопарк «ДСТ-24»</h1></div>
+    <div class="logo"><canvas class="logo-c" id="logoC" width="8" height="8" aria-hidden="true"></canvas><canvas class="face" id="ownerC" width="16" height="16" aria-label="Владелец"></canvas><h1 id="parkName">Таксопарк «ДСТ-24»</h1></div>
     <div class="head-right">
       <span class="rankb px" id="rank"></span>
       <span class="date px" id="date"></span>
@@ -311,6 +325,7 @@ th{font-size:13px}
 
   <div class="scene-box px"><canvas id="scene" width="320" height="150" aria-label="Двор таксопарка"></canvas></div>
 
+  <section class="advisor px" id="advisor"></section>
   <section class="desks" id="desks"></section>
 
   <section class="mgmt px">
@@ -407,7 +422,7 @@ const FOUNDERS=[
 const CHARS={
  gena:HEADS[1][0].face, vitaly:{skin:'#f5d0b0',hair:'#d0a040',style:0,shirt:'#ff8a4c'},
  cat:{cat:1}, goat:{goat:1}, sergey:{skin:'#e8b890',hair:'#2a1a10',style:0,acc:'beard',shirt:'#3a7fa0'},
- oleg:{skin:'#e8b890',hair:'#8a8a8a',style:0,acc:'mustache',shirt:'#4fc7b0'}, zina:{skin:'#f0c8a0',hair:'#d8d8d8',style:3,acc:'glasses',shirt:'#e66fa8'}, vasya:{skin:'#f5d0b0',hair:'#3a2418',style:0,acc:'cap',cap:'#4fc7b0',shirt:'#86c4e0'}, boss:{skin:'#e8b890',hair:'#2a1a10',style:2,acc:'glasses',shirt:'#1c1a24'}, mech:{skin:'#e0a880',hair:'#3a2418',style:0,acc:'cap',cap:'#e66fa8',shirt:'#2e2a40'}};
+ oleg:{skin:'#e8b890',hair:'#8a8a8a',style:0,acc:'mustache',shirt:'#4fc7b0'}, zina:{skin:'#f0c8a0',hair:'#d8d8d8',style:3,acc:'glasses',shirt:'#e66fa8'}, vasya:{skin:'#f5d0b0',hair:'#3a2418',style:0,acc:'cap',cap:'#4fc7b0',shirt:'#86c4e0'}, boss:{skin:'#e8b890',hair:'#2a1a10',style:2,acc:'glasses',shirt:'#1c1a24'}, sveta:{skin:'#f5d0b0',hair:'#6a3a2a',style:1,acc:'glasses',shirt:'#f7c331'}, mech:{skin:'#e0a880',hair:'#3a2418',style:0,acc:'cap',cap:'#e66fa8',shirt:'#2e2a40'}};
 
 /* fx: money, rep, drivers, cars (+ б/у Solaris / − самая слабая), broken, upg, cnt
    chain: id цепочки, которая придёт через пару дней */
@@ -942,6 +957,51 @@ const CHAPTERS=[
   setup:s=>{s.money=500000;s.rep=65},goal:s=>totalCars()>=35&&s.branches.length>=1}];
 const dayLimit=()=>S.mode==='story'?CHAPTERS[S.chapter||0].days:S.mode==='daily'?7:DAYS;
 const hasLimit=()=>['campaign','story','daily'].includes(S.mode);
+/* ---- режим новичка: возможности открываются постепенно ---- */
+const simpleOn=()=>G.simple!==false&&S&&!['sandbox','daily'].includes(S.mode);
+const FEATURE_DAY={quest:3,inspect:5,rival:6,paper:8,auction:10,contract:11,raid:12,union:14,agency:15};
+const TAB_DAY={shop:1,fleet:1,style:2,ach:2,drivers:3,depts:4,fin:5,base:6,map:8,stats:9,biz:10,city:12,branch:12};
+const TAB_HINTS={shop:'Покупайте машины и нанимайте водителей. Больше экипажей на линии — больше выручки. Новые машины надёжнее, б/у дешевле.',
+ fleet:'Все ваши машины: пробег, износ, ремонт. Старые машины ломаются чаще — их можно продать или улучшить тюнингом.',
+ drivers:'Ваши водители. Премия и беседа поднимают лояльность. Если лояльность упадёт до нуля, водитель уйдёт.',
+ depts:'Начальники и сотрудники отделов. Чем больше людей и обучения, тем реже провалы в событиях.',
+ map:'Распределите машины по районам: смотрите, где сегодня высокий спрос (зелёный значок). Не перегружайте один район.',
+ biz:'Дополнительный доход: контракты с компаниями, новые направления, реклама и инвесторы.',
+ branch:'Филиалы — отдельные парки в других районах, работают сами и приносят прибыль.',
+ base:'Постройки для парка: мойка, шиномонтаж, школа водителей и другое. Каждая даёт постоянный бонус.',
+ fin:'Ставки аренды и кредиты. Ставка выше рынка приносит больше денег, но водители уходят.',
+ stats:'Графики: как меняются касса, прибыль, число машин и репутация.',
+ city:'Конкуренты, ваше звание и что нужно для следующего.',
+ style:'Название парка, цвет машин, логотип и аватар. Чисто для красоты.',
+ ach:'Достижения и ваши лучшие результаты.'};
+const tabOpen=k=>!simpleOn()||S.day>=(TAB_DAY[k]||1)||(k==='branch'&&S.rank>=3);
+const featOpen=k=>!simpleOn()||S.day>=(FEATURE_DAY[k]||1);
+const MORNING_PRIO=['tax','meeting','union','paper','inspect','quest','rival','raid','auction','contract','branch','agency'];
+function advice(){
+  const left=S.done.filter(x=>!x).length,working=carsN()-brokenN(),free=working-S.drivers,idle=S.drivers-working;
+  if(S.over)return null;
+  if(S.money<0)return{t:'Касса в минусе! Ничего не покупайте. Поднимите ставки аренды или возьмите кредит во вкладке «Финансы».',tab:'fin'};
+  if(left&&S.day<=2)return{t:`В каждом отделе ждёт задача — осталось ${left}. Под каждым вариантом видно, что он даст: зелёное — хорошо, красное — плохо, «риск» — может пойти не так.`};
+  if(brokenN()>repairCap())return{t:`В ремонте ${brokenN()} машин, а сервис чинит только ${repairCap()} в день. Наймите механика во вкладке «Отделы».`,tab:'depts'};
+  if(free>0)return{t:`${free} ${free===1?'машина стоит':'машины стоят'} без водителя. Разместите вакансию в «Автосалоне» — это 8 000 ₽.`,tab:'shop'};
+  if(idle>0&&S.money>60000)return{t:`${idle} ${idle===1?'водитель сидит':'водителя сидят'} без машины и скоро уйдут. Купите машину в «Автосалоне».`,tab:'shop'};
+  if(S.rep<45)return{t:'Репутация низкая — из-за неё падает выручка. Выбирайте варианты с «+реп» и не экономьте на пассажирах.'};
+  if(carsN()>=S.spots-1)return{t:'Стоянка почти заполнена. Расширьте её во вкладке «База», иначе новые машины некуда ставить.',tab:'base'};
+  for(let d=0;d<3;d++)if(load01(d)>0)return{t:`Отдел «${DEPTS[d].name}» перегружен: парк вырос. Наймите сотрудника во вкладке «Отделы».`,tab:'depts'};
+  if(S.quest&&!S.quest.failed)return{t:`Не забудьте про задание агрегатора: ${S.quest.t||''}. За него дают деньги и приоритет.`};
+  if(S.money>250000&&left===0)return{t:'Денег достаточно для роста. Купите ещё машину и наймите водителя — так выручка растёт быстрее всего.',tab:'shop'};
+  if(left)return{t:`Осталось решить задач: ${left}. Потом нажмите «Закончить день».`};
+  return{t:'Всё под контролем. Нажмите «Закончить день», чтобы увидеть выручку.'};
+}
+function effChips(c){const fx=Object.assign({},c.fx||{}),out=[];
+  if(fx.rep>0)out.push(['up',`+${fx.rep} реп`]);if(fx.rep<0)out.push(['down',`${fx.rep} реп`]);
+  if(fx.drivers>0)out.push(['up',`+${fx.drivers} вод.`]);if(fx.drivers<0)out.push(['down',`${fx.drivers} вод.`]);
+  if(fx.cars>0)out.push(['up',`+${fx.cars} маш.`]);if(fx.cars<0)out.push(['down',`${fx.cars} маш.`]);
+  if(fx.broken>0)out.push(['down','машина в ремонт']);if(fx.loy>0)out.push(['up','водители довольны']);if(fx.loy<0)out.push(['down','водители недовольны']);
+  if(fx.staff<0)out.push(['','−сотрудник']);
+  if(c.r)out.push(isBad(c.r.fx)?['risk','риск']:['up','есть шанс']);
+  if(c.game)out.push(['game','мини-игра']);if(c.chain)out.push(['','будет продолжение']);
+  return out.map(([k,t])=>`<i class="eff ${k}">${t}</i>`).join('')}
 const parkName=()=>(S&&S.custom&&S.custom.name)||'ДСТ-24';
 
 /* ---- районы города ---- */
@@ -1439,10 +1499,14 @@ function endDay(){
   if(S.money<0){S.debt=(S.debt||0)+1;if(S.debt<3)notes.unshift(`<b class="neg">Касса в минусе! Если за ${3-S.debt} дн. не выйти в плюс, парк закроют за долги.</b>`)}else S.debt=0;
   const lose=S.mode!=='sandbox'&&((S.money<0&&S.debt>=3)||S.rep<=0||S.drivers===0);
   sfx(net>=0?'coin':'bad');
-  showModal(`<h2>Итоги дня ${S.day-1}</h2>
+  showModal(`<span class="step">ИТОГИ ДНЯ ${S.day-1}</span><div class="bignet ${net>=0?'pos':'neg'}">${net>=0?'+':''}${rub(net)}</div>
+    <p class="note" style="text-align:center">чистыми за день · в кассе ${rub(S.money)}</p>
+    ${notes.slice(0,3).map(n=>`<p class="note">${n}</p>`).join('')}
+    <details class="more"><summary>Подробнее: доходы и расходы${notes.length>3?` и ещё ${notes.length-3} событ.`:''}</summary>
+    ${notes.slice(3).map(n=>`<p class="note">${n}</p>`).join('')}
     <div class="rows">${lines.map(([a,b])=>`<div class="row"><span>${a}</span><b>${b}</b></div>`).join('')}
     <div class="row total"><span>Чистыми за день</span><b class="${net>=0?'pos':'neg'}">${net>=0?'+':''}${rub(net)}</b></div></div>
-    ${notes.map(n=>`<p class="note">${n}</p>`).join('')}
+    </details>
     <button class="btn" id="next">${lose?'Чем всё кончилось':finished?'Подвести итоги':'Начать день '+S.day}</button>`);
   $('next').onclick=()=>{hideModal();if(lose)gameOver();else if(finished)finale();else startDay()};
   $('next').focus();
@@ -1465,7 +1529,12 @@ function startDay(){
   if(S.day>=S.nextAgency&&HEADS.some(h=>h.some(x=>x.hidden&&!S.agency.includes(x.key))))m.push('agency');
   if(S.day>=S.nextRival)m.push('rival');
   if(!S.quest&&S.day>=S.nextQuest)m.push('quest');
-  S.morning=m;save();render();runMorning();
+  let mm=m.filter(k=>featOpen(k));
+  if(simpleOn()){mm.sort((a,b)=>MORNING_PRIO.indexOf(a)-MORNING_PRIO.indexOf(b));mm=mm.slice(0,1)}
+  // новые вкладки
+  const opened=MTABS.filter(([k])=>simpleOn()&&S.day===(TAB_DAY[k]||1)&&S.day>1).map(([k,l])=>l);
+  if(opened.length){toast(`Открыто: ${opened.join(', ')}`);addLog(`Новые возможности: ${opened.join(', ')}.`)}
+  S.morning=mm;save();render();runMorning();
 }
 function runMorning(){
   if(!S.morning.length||S.over){save();render();return}
@@ -1476,7 +1545,7 @@ const fName=i=>G.founders[i]||FOUNDERS[i].name;
 function inspection(){
   const fi=rand(0,2),d=rand(0,2),F=FOUNDERS[fi];
   S.nextInspect=S.day+rand(5,9);save();
-  showModal(`<div class="who"><canvas class="face big" width="12" height="12" data-face="founder:${fi}"></canvas><div><span class="step">ПРОВЕРКА УЧРЕДИТЕЛЯ</span><h2>${esc(fName(fi))}</h2></div></div>
+  showModal(`<div class="who"><canvas class="face big" width="16" height="16" data-face="founder:${fi}"></canvas><div><span class="step">ПРОВЕРКА УЧРЕДИТЕЛЯ</span><h2>${esc(fName(fi))}</h2></div></div>
     <p>${esc(fName(fi))} ${F.g==='f'?'приехала':'приехал'} без предупреждения и хочет проверить отдел <b style="color:${DEPTS[d].hex}">«${DEPTS[d].name}»</b>. Этот учредитель ${F.about}.</p>
     <p class="note">Начальник отдела: ${esc(S.heads[d].name)}. Сотрудников: ${S.staff[d]}, обучение: ${S.train[d]}/3.</p>
     <div class="modes"><button class="mode" id="iHonest"><b>ПРОЙТИ ПРОВЕРКУ</b><span>${MG_INFO[d]}</span></button>
@@ -1505,7 +1574,7 @@ function inspectResult(fi,d,show,bonus=0,sum=''){mgStop();
   const fire=sc<28;
   if(exposed)text='Показуху раскрыли: под свежей краской нашли старые проблемы. '+text;
   addLog(`Проверка: ${fName(fi)} → «${DEPTS[d].name}»: ${res.toLowerCase()}.`);
-  showModal(`<div class="who"><canvas class="face big" width="12" height="12" data-face="founder:${fi}"></canvas><div><span class="step">ИТОГ ПРОВЕРКИ · ${DEPTS[d].name.toUpperCase()}</span><h2 class="${cls}">${res}</h2></div></div>
+  showModal(`<div class="who"><canvas class="face big" width="16" height="16" data-face="founder:${fi}"></canvas><div><span class="step">ИТОГ ПРОВЕРКИ · ${DEPTS[d].name.toUpperCase()}</span><h2 class="${cls}">${res}</h2></div></div>
     ${sum?`<p class="note">Испытание: ${sum} <b class="${bonus>0?'pos':bonus<0?'neg':''}">(${bonus>0?'+':''}${bonus} к оценке)</b></p>`:''}
     <p>${text}</p>${fire?`<p class="neg">Учредитель требует сменить начальника отдела «${DEPTS[d].name}».</p>`:''}
     <button class="btn" id="iOk">${fire?'Выбрать нового начальника':'Продолжить'}</button>`);
@@ -1615,7 +1684,7 @@ function meeting(){
   showModal(`<span class="step">СОБРАНИЕ УЧРЕДИТЕЛЕЙ · ДЕНЬ ${S.day}</span><h2>Стратегия на месяц</h2>
     <p>Учредители проголосовали. Решающий голос — ваш. Стратегия действует 30 дней.</p>
     <div class="modes">${Object.entries(STRATS).map(([k,v])=>`<button class="mode" id="st_${k}"><b>${v.n.toUpperCase()}</b><span>${v.d}</span>
-      <span class="votes">${(votes[k]||[]).map(i=>`<canvas class="face" width="12" height="12" data-face="founder:${i}" title="${esc(fName(i))}"></canvas>`).join('')||'<small>голосов нет</small>'}</span></button>`).join('')}</div>
+      <span class="votes">${(votes[k]||[]).map(i=>`<canvas class="face" width="16" height="16" data-face="founder:${i}" title="${esc(fName(i))}"></canvas>`).join('')||'<small>голосов нет</small>'}</span></button>`).join('')}</div>
     ${best?`<p class="note">Лучший водитель месяца по рейтингу: ${esc(best.n)} (★${best.r.toFixed(2)}). Наградить его можно во вкладке «Водители».</p>`:''}`);
   drawFaces();sfx('alert');
   Object.keys(STRATS).forEach(k=>$('st_'+k).onclick=()=>{const n=(votes[k]||[]).length;S.strategy={id:k,until:S.day+30};
@@ -1817,7 +1886,7 @@ function agencyEvent(){
   const pool=[];HEADS.forEach((hs,d)=>hs.forEach(h=>{if(h.hidden&&!S.agency.includes(h.key))pool.push([d,h])}));
   if(!pool.length){save();return runMorning()}
   const [d,h]=pool[rand(0,pool.length-1)];save();
-  showModal(`<span class="step">КАДРОВОЕ АГЕНТСТВО</span><div class="who"><canvas class="face big" width="12" height="12" data-face="cand:${d}:${h.key}"></canvas><div><h2>${esc(h.name)}</h2><span class="perk">Кандидат в начальники отдела «${DEPTS[d].name}»</span></div></div>
+  showModal(`<span class="step">КАДРОВОЕ АГЕНТСТВО</span><div class="who"><canvas class="face big" width="16" height="16" data-face="cand:${d}:${h.key}"></canvas><div><h2>${esc(h.name)}</h2><span class="perk">Кандидат в начальники отдела «${DEPTS[d].name}»</span></div></div>
     <p><b style="color:var(--taxi)">${h.perk}.</b> ${h.desc}. Зарплата ${rub(h.pay)}/день.</p>
     <div class="modes"><button class="mode" id="agYes"><b>ВЗЯТЬ РЕЗЮМЕ (−5 000 ₽)</b><span>Кандидат появится в списке «Сменить на» во вкладке «Отделы».</span></button><button class="mode" id="agNo"><b>НЕ СЕЙЧАС</b></button></div>`);
   drawFaces();sfx('alert');
@@ -1846,6 +1915,7 @@ const TUT=[
  ['Три отдела','Посередине три карточки: «Подключение» (водители и поддержка), «Автопарк» (ОСАГО, ДТП, документы) и «Сервис» (ремонт). Решите задачу в каждом — над дверью отдела погаснет красный «!».'],
  ['Показатели и город','Сверху — касса, репутация, водители и машины. Строка «Город» показывает новости, конкурентов и цены на бензин. Утром могут нагрянуть учредители, ГАИ или налоговая.'],
  ['Управление','Внизу вкладки: автосалон, машины, водители, отделы, карта районов, бизнес, филиалы, база, финансы, статистика, город, ваш стиль и достижения. На карте распределяйте машины по районам — спрос в районах меняется каждый день.'],
+ ['Советы','Над отделами сидит секретарь Света: она подсказывает, что сейчас важнее всего. Под каждым вариантом решения видно, что он даст. Новые вкладки открываются постепенно — не спешите.'],
  ['Конец дня','Когда все три задачи решены, нажмите «Закончить день». Вы увидите выручку и расходы. Растите парк, получайте звания — от «Хозяина гаража» до «Короля такси». Удачи!']];
 function tutorial(i=0){
   if(i>=TUT.length){G.tutDone=true;saveG();hideModal();return}
@@ -1929,7 +1999,8 @@ function storyFinale(){
 /* ================= ВЫБОР РЕЖИМА И НАЧАЛЬНИКОВ ================= */
 function pickMode(){
   const R=G.rec;
-  showModal(`<h2>Таксопарк «ДСТ-24»</h2><div class="modes">
+  showModal(`<h2>Таксопарк «${esc(G.custom&&G.custom.name||'ДСТ-24')}»</h2>${!G.tutDone?'<p class="hintbox">Впервые здесь? Начните с «Кампании» на лёгком уровне — игра будет открываться постепенно.</p>':''}
+    <label class="chk"><input type="checkbox" id="simpleChk" ${G.simple!==false?'checked':''}> Режим новичка: возможности открываются постепенно, подсказки и советы</label><div class="modes">
     <button class="mode" id="mCamp"><b>КАМПАНИЯ</b><span>${DAYS} дней. Цель: ${GOAL_CARS} машин, ${rub(GOAL_MONEY)} и репутация 50+.</span></button>
     <button class="mode" id="mEnd"><b>БЕСКОНЕЧНЫЙ РЕЖИМ</b><span>Без лимита дней и машин. Цели идут одна за другой.</span></button>
     <button class="mode" id="mDaily"><b>ИСПЫТАНИЕ ДНЯ</b><span>«${DAILY_SC[dailyIdx()].n}»: ${DAILY_SC[dailyIdx()].d} 7 дней, одно испытание для всех.${G.daily&&G.daily.key===todayKey()?` Ваш рекорд сегодня: ${G.daily.best.toLocaleString('ru-RU')} очков.`:''}</span></button>
@@ -1941,6 +2012,7 @@ function pickMode(){
   $('mCamp').onclick=()=>{ensureAudio();pickDiff('campaign')};
   $('mEnd').onclick=()=>{ensureAudio();pickDiff('endless')};
   $('mStory').onclick=()=>{ensureAudio();pickChapter()};
+  $('simpleChk').onchange=e=>{G.simple=e.target.checked;saveG()};
   $('mDaily').onclick=()=>{ensureAudio();chooseHeads('daily',{diff:'normal'})};
   $('mSand').onclick=()=>{ensureAudio();chooseHeads('sandbox',{diff:'easy'})};
   if($('mCancel'))$('mCancel').onclick=hideModal;
@@ -1951,7 +2023,7 @@ function pickDiff(mode){
   showModal(`<span class="step">${mode==='endless'?'БЕСКОНЕЧНЫЙ РЕЖИМ':'КАМПАНИЯ'}</span><h2>Сложность</h2><div class="modes">
     ${Object.entries(DIFF).map(([k,v])=>`<button class="mode" id="df_${k}"><b>${v.n.toUpperCase()}</b><span>${v.d}</span></button>`).join('')}</div>
     <button class="btn ghost" id="dfBack">Назад</button>`);
-  Object.keys(DIFF).forEach(k=>$('df_'+k).onclick=()=>chooseHeads(mode,{diff:k}));$('dfBack').onclick=pickMode;$('df_normal').focus();
+  Object.keys(DIFF).forEach(k=>$('df_'+k).onclick=()=>chooseHeads(mode,{diff:k}));$('dfBack').onclick=pickMode;$(G.tutDone?'df_normal':'df_easy').focus();
 }
 function pickChapter(){const done=G.story||0;
   showModal(`<span class="step">СЮЖЕТ</span><h2>Выберите главу</h2><div class="modes">
@@ -1975,7 +2047,7 @@ function pickHead(d,done,setup){
   const list=(setup?HEADS[d].filter(h=>!h.hidden):availHeads(d)).filter(h=>h.key!==cur);
   showModal(`<span class="step">${setup?`ШАГ ${d+1} ИЗ 3 · `:''}НАЧАЛЬНИК ОТДЕЛА</span><h2 style="color:${DEPTS[d].hex}">«${DEPTS[d].name}»</h2>
     <p class="note">${setup?'Выберите, кто возглавит отдел. Имя можно поменять и закрепить потом во вкладке «Отделы».':'Учредитель требует замену. Выберите нового начальника.'}</p>
-    <div class="cands">${list.map(h=>`<button class="cand" data-k="${h.key}"><canvas class="face" width="12" height="12" data-face="cand:${d}:${h.key}"></canvas>
+    <div class="cands">${list.map(h=>`<button class="cand" data-k="${h.key}"><canvas class="face" width="16" height="16" data-face="cand:${d}:${h.key}"></canvas>
       <div><b>${esc(h.name)}</b><small><span style="color:var(--taxi)">${h.perk}.</span> ${h.desc}. Зарплата ${rub(h.pay)}/день.</small></div></button>`).join('')}</div>`);
   drawFaces();
   document.querySelectorAll('.cand').forEach(b=>b.onclick=()=>{
@@ -2045,16 +2117,20 @@ function render(prev){
   $('desks').innerHTML=DEPTS.map((D,d)=>{
     const ev=getEv(d,S.today[d]),res=S.done[d],chain=typeof S.today[d]==='string';
     let body=`${ev.f||chain?`<div class="badges">${ev.f?'<span class="funny">СЛУЧАЙ ИЗ ЖИЗНИ</span>':''}${chain?'<span class="chainb">ПРОДОЛЖЕНИЕ ИСТОРИИ</span>':''}</div>`:''}
-      <div class="ev-text">${ev.who?`<canvas class="face" width="12" height="12" data-face="char:${ev.who}"></canvas>`:''}<p>${ev.x}</p></div>`;
+      <div class="ev-text">${ev.who?`<canvas class="face" width="16" height="16" data-face="char:${ev.who}"></canvas>`:''}<p>${ev.x}</p></div>`;
     if(res){body+=`<div class="result"><strong>${ev.c[res.choice].l}</strong><p>${res.msg}</p><div class="chips">${chips(res.delta)}</div></div>`}
     else body+=`<div class="choices">${ev.c.map((c,i)=>{
         const cost=evCost(c,d),gain=(c.fx&&c.fx.money)||0;
         const tag=cost?`<span class="tag">${rub(-cost)}</span>`:gain>0?`<span class="tag plus">+${rub(gain)}</span>`:'';
-        return `<button class="choice" data-d="${d}" data-i="${i}" id="c${d}-${i}"><span>${c.l}</span>${tag}</button>`}).join('')}</div>`;
+        return `<button class="choice" data-d="${d}" data-i="${i}" id="c${d}-${i}"><span class="cl">${c.l}<span class="effs">${effChips(c)}</span></span>${tag}</button>`}).join('')}</div>`;
     return `<article class="desk px" style="--dc:${D.color}">
-      <div class="desk-head"><h2>${D.name}</h2><div class="boss"><span>${esc(S.heads[d].name)}<br><small style="font-weight:400">${headDef(d).perk}</small></span><canvas class="face" width="12" height="12" data-face="head:${d}"></canvas></div></div>
+      <div class="desk-head"><h2>${D.name}</h2><div class="boss"><span>${esc(S.heads[d].name)}<br><small style="font-weight:400">${headDef(d).perk}</small></span><canvas class="face" width="16" height="16" data-face="head:${d}"></canvas></div></div>
       <div class="desk-body"><h3>${ev.t}</h3>${body}</div>${res?'<span class="stamp">РЕШЕНО</span>':''}</article>`}).join('');
 
+  const A=advice();
+  $('advisor').hidden=!A||!simpleOn()&&G.advisor===false;
+  if(A)$('advisor').innerHTML=`<canvas class="face" width="16" height="16" data-face="char:sveta"></canvas><div class="adv-t"><b>Секретарь Света советует</b><span>${A.t}</span></div>${A.tab&&tabOpen(A.tab)?`<button class="buy sm" id="advGo" data-go="${A.tab}">Открыть</button>`:''}`;
+  if($('advGo'))$('advGo').onclick=()=>{uiTab=$('advGo').dataset.go;renderMgmt();drawFaces();document.querySelector('.mgmt').scrollIntoView({behavior:'smooth',block:'start'})};
   renderMgmt();
   const left=S.done.filter(x=>!x).length;
   $('endDay').disabled=left>0||S.over||!!S.preview;
@@ -2068,7 +2144,11 @@ function render(prev){
 
 const MTABS=[['shop','Автосалон'],['fleet','Мой парк'],['drivers','Водители'],['depts','Отделы'],['map','Карта'],['biz','Бизнес'],['branch','Филиалы'],['base','База'],['fin','Финансы'],['stats','Статистика'],['city','Город'],['style','Мой стиль'],['ach','Достижения']];
 function renderMgmt(){
-  $('mtabs').innerHTML=MTABS.map(([k,l])=>`<button class="mtab${uiTab===k?' on':''}" data-mt="${k}" role="tab" aria-selected="${uiTab===k}">${l}</button>`).join('');
+  if(!tabOpen(uiTab))uiTab='shop';
+  G.seenTabs=G.seenTabs||{};
+  const vis=MTABS.filter(([k])=>tabOpen(k));
+  $('mtabs').innerHTML=vis.map(([k,l])=>`<button class="mtab${uiTab===k?' on':''}" data-mt="${k}" role="tab" aria-selected="${uiTab===k}">${l}${simpleOn()&&!G.seenTabs[k]&&uiTab!==k?'<i class="newdot" title="Новое"></i>':''}</button>`).join('')+(simpleOn()&&vis.length<MTABS.length?`<span class="mtab-more">ещё ${MTABS.length-vis.length} откроются позже</span>`:'');
+  if(!G.seenTabs[uiTab]){G.seenTabs[uiTab]=1;saveG()}
   const B=$('mbody'),off=S.over||S.preview,dis=off?'disabled':'';
   if(uiTab==='shop'){
     const full=carsN()>=S.spots,working=carsN()-brokenN();
@@ -2109,7 +2189,7 @@ function renderMgmt(){
   else if(uiTab==='depts'){
     B.innerHTML=`<div class="dept3">${DEPTS.map((D,d)=>{const h=headDef(d),pinned=G.pins[d]&&G.pins[d].key===h.key,r=rm(d);
       return `<div class="dcard" style="--dc:${D.color}"><div class="dh">${D.name.toUpperCase()}</div><div class="db">
-        <div class="who"><canvas class="face big" width="12" height="12" data-face="head:${d}"></canvas><div><b>${esc(S.heads[d].name)}</b><div class="perk"><strong>${h.perk}.</strong> ${h.desc}. Зарплата ${rub(h.pay)}/день.</div></div></div>
+        <div class="who"><canvas class="face big" width="16" height="16" data-face="head:${d}"></canvas><div><b>${esc(S.heads[d].name)}</b><div class="perk"><strong>${h.perk}.</strong> ${h.desc}. Зарплата ${rub(h.pay)}/день.</div></div></div>
         <div class="namefield"><input type="text" id="nm${d}" value="${esc(S.heads[d].name)}" maxlength="40" aria-label="Имя начальника"><button class="buy sm alt" data-rename="${d}">Сохранить</button></div>
         <label class="chk"><input type="checkbox" data-pin="${d}" ${pinned?'checked':''}> Закрепить для новых игр</label>
         <div class="row2"><span>Сменить на:</span><div class="btns">${availHeads(d).filter(x=>x.key!==h.key).map(x=>`<button class="buy sm alt" data-head="${d}:${x.key}" ${dis} title="${x.perk}: ${x.desc}">${esc(x.name)}</button>`).join('')}</div></div>
@@ -2121,7 +2201,7 @@ function renderMgmt(){
         ${d===2?`<p class="sub">Чинит до ${repairCap()} машин в день.</p>`:''}
       </div></div>`}).join('')}</div>
       <div class="dcard" style="--dc:var(--taxi)"><div class="dh">УЧРЕДИТЕЛИ — ПРИЕЗЖАЮТ С ПРОВЕРКАМИ</div><div class="db">
-        <div class="dept3">${FOUNDERS.map((F,i)=>`<div class="who"><canvas class="face big" width="12" height="12" data-face="founder:${i}"></canvas><div style="display:grid;gap:4px;flex:1;min-width:0"><input type="text" id="fn${i}" value="${esc(fName(i))}" maxlength="40" aria-label="Имя учредителя"><span class="perk">${F.about}</span></div></div>`).join('')}</div>
+        <div class="dept3">${FOUNDERS.map((F,i)=>`<div class="who"><canvas class="face big" width="16" height="16" data-face="founder:${i}"></canvas><div style="display:grid;gap:4px;flex:1;min-width:0"><input type="text" id="fn${i}" value="${esc(fName(i))}" maxlength="40" aria-label="Имя учредителя"><span class="perk">${F.about}</span></div></div>`).join('')}</div>
         <div class="btns"><button class="buy sm" id="saveFounders">Сохранить имена учредителей</button></div>
         <p class="sub">Проверка приходит без предупреждения раз в 5–9 дней. Обученный отдел с сильным начальником и без недавних провалов проходит её на «отлично».</p></div></div>`;
   }
@@ -2202,10 +2282,11 @@ function renderMgmt(){
   else if(uiTab==='style'){
     const C=S.custom;
     B.innerHTML=`<div class="grid">
+      <div class="card2"><h3>Режим новичка</h3><label class="chk"><input type="checkbox" id="simpleT" ${G.simple!==false?'checked':''}> Открывать возможности постепенно, показывать подсказки и советы</label><p class="sub">Выключите, чтобы сразу видеть все вкладки и события.</p></div>
       <div class="card2"><h3>Название парка</h3><div class="namefield"><input type="text" id="pkName" value="${esc(C.name)}" maxlength="16" aria-label="Название парка"><button class="buy sm" id="pkSave">Сохранить</button></div><p class="sub">До 16 символов. Появится в заголовке, на вывеске и в газете.</p></div>
       <div class="card2"><h3>Цвет машин</h3><div class="btns">${Object.entries(COLORS).map(([k,c])=>`<button class="buy sm ${C.color===k?'':'alt'}" data-color="${k}">${c.body?`<i class="sw" style="background:${c.body}"></i>`:''}${c.n}</button>`).join('')}</div></div>
       <div class="card2"><h3>Логотип</h3><div class="btns">${Object.keys(LOGOS).map(k=>`<button class="buy sm ${C.logo===k?'':'alt'}" data-logo="${k}"><canvas class="logo-c sm" width="8" height="8" data-logo-draw="${k}"></canvas>${LOGO_N[k]}</button>`).join('')}</div></div>
-      <div class="card2"><h3>Аватар владельца</h3><div class="btns">${AVATARS.map((a,i)=>`<button class="buy sm ${C.avatar===i?'':'alt'}" data-avatar="${i}" aria-label="Аватар ${i+1}"><canvas class="face" width="12" height="12" data-face="av:${i}"></canvas></button>`).join('')}</div></div></div>`;
+      <div class="card2"><h3>Аватар владельца</h3><div class="btns">${AVATARS.map((a,i)=>`<button class="buy sm ${C.avatar===i?'':'alt'}" data-avatar="${i}" aria-label="Аватар ${i+1}"><canvas class="face" width="16" height="16" data-face="av:${i}"></canvas></button>`).join('')}</div></div></div>`;
     document.querySelectorAll('[data-logo-draw]').forEach(el=>drawLogo(el.getContext('2d'),el.dataset.logoDraw,0,0,'#f7c331'));
   }
   else if(uiTab==='branch'){
@@ -2245,6 +2326,7 @@ function renderMgmt(){
         <div class="spec"><span>Дней продержались</span><b>${R.days}</b></div><div class="spec"><span>Машин в парке</span><b>${R.cars}</b></div>
         <div class="spec"><span>Денег в кассе</span><b>${rub(R.money)}</b></div><div class="spec"><span>Целей выполнено</span><b>${R.goals}</b></div></div></div>`;
   }
+  if(simpleOn()&&TAB_HINTS[uiTab])B.insertAdjacentHTML('afterbegin',`<p class="hintbox">${TAB_HINTS[uiTab]}</p>`);
   document.querySelectorAll('canvas.mini').forEach(drawMini);
 }
 
@@ -2282,7 +2364,8 @@ $('mbody').addEventListener('click',e=>{const b=e.target.closest('button');if(!b
   if(ds.logo)return setCustom('logo',ds.logo);
   if(ds.avatar!==undefined)return setCustom('avatar',+ds.avatar);
 });
-$('mbody').addEventListener('change',e=>{const t=e.target;if(S.preview)return;
+$('mbody').addEventListener('change',e=>{const t=e.target;if(t.id==='simpleT'){G.simple=t.checked;saveG();render();return}if(S.preview)return;
+  if(t.id==='simpleT'){G.simple=t.checked;saveG();render();return}
   if(t.dataset.pin)pinHead(+t.dataset.pin,t.checked);
   if(t.dataset.cls!==undefined){S.rents[CLASSES[+t.dataset.cls]]=+t.value;save();render()}
   if(t.dataset.dist){S.alloc[t.dataset.dist]=+t.value;save();render()}
@@ -2377,14 +2460,14 @@ function startMusic(){if(!AC||musicTimer)return;nextNote=AC.currentTime+.05;musi
 function stopMusic(){clearInterval(musicTimer);musicTimer=null}
 
 /* ================= ПИКСЕЛЬ-АРТ ================= */
-const PAL={y:'#f7c331',d:'#c9951a',k:'#1a1530',w:'#9fd3ff',b:'#f3ecdc',c:'#1a1530',h:'#fff6a8',r:'#ff4d4d',o:'#0e0b1c',g:'#a8a0cc',t:'#f7c331'};
+const PAL={l:'#ffe07a',W:'#e8f6ff',H:'#3a2418',P:'#1c1838',y:'#f7c331',d:'#c9951a',k:'#1a1530',w:'#9fd3ff',b:'#f3ecdc',c:'#1a1530',h:'#fff6a8',r:'#ff4d4d',o:'#0e0b1c',g:'#a8a0cc',t:'#f7c331'};
 /* спрайты 24×11: k контур, y кузов, d низ кузова, w стекло, t табличка такси, b/c шашки, h фара, r стоп, o шина, g диск */
 const SEDAN=[
 "..........tt............",
 ".......kkkkkkkkk........",
-"......kwwwkwwwwwkk......",
-".....kwwwwkwwwwwwwk.....",
-"..kkkkyyyyyyyyyyyyykkk..",
+"......kWwwkWwwwwkk......",
+".....kWwwwkWwwwwwwk.....",
+"..kkkklllllllllllllkkk..",
 ".kryyycbcbcbyyyyyyyyyyk.",
 "kyyyybbcbcbcyyyyyyyyyyhk",
 "kddooooddddddddddooooddk",
@@ -2395,9 +2478,9 @@ const SEDAN=[
 const HATCH=[
 "..........tt............",
 "......kkkkkkkkkk........",
-".....kwwwkwwwwwwkk......",
-"....kwwwwkwwwwwwwwk.....",
-"..kkyyyyyyyyyyyyyyykkk..",
+".....kWwwkWwwwwwkk......",
+"....kWwwwkWwwwwwwwk.....",
+"..kklllllllllllllllkkk..",
 ".kryyycbcbcbyyyyyyyyyyk.",
 "kyyyybbcbcbcyyyyyyyyyyhk",
 "kddooooddddddddddooooddk",
@@ -2408,9 +2491,9 @@ const HATCH=[
 const LIMO=[
 "..........tt............",
 "......kkkkkkkkkkk.......",
-".....kwwwwkwwwwwwkk.....",
-"....kwwwwwkwwwwwwwwk....",
-".kkkkyyyyyyyyyyyyyyykkk.",
+".....kWwwwkWwwwwwkk.....",
+"....kWwwwwkWwwwwwwwk....",
+".kkkkllllllllllllllykkk.",
 "kryyyycbcbcbyyyyyyyyyyyk",
 "kyyyybbcbcbcyyyyyyyyyyhh",
 "kddooooddddddddddooooddk",
@@ -2421,9 +2504,9 @@ const LIMO=[
 const SUV=[
 "..........tt............",
 "...kkkkkkkkkkkkkk.......",
-"..kwwwwkwwwwwkwwwkk.....",
-"..kwwwwkwwwwwkwwwwwk....",
-".kkyyyyyyyyyyyyyyyyykk..",
+"..kWwwwkWwwwwkWwwkk.....",
+"..kWwwwkWwwwwkWwwwwk....",
+".kkylllllllllllllllykk..",
 "kryyyycbcbcbyyyyyyyyyyk.",
 "kyyyybbcbcbcyyyyyyyyyyhk",
 "kddooooddddddddddooooddk",
@@ -2434,9 +2517,9 @@ const SUV=[
 const VAN=[
 "..........tt............",
 "kkkkkkkkkkkkkkkkkkkk....",
-"kwwwwkwwwwkwwwwkwwwwk...",
-"kwwwwkwwwwkwwwwkwwwwwk..",
-"kyyyyyyyyyyyyyyyyyyyyykk",
+"kWwwwkWwwwkWwwwkWwwwk...",
+"kWwwwkWwwwkWwwwkWwwwwk..",
+"kyyylllllllllllllllyyykk",
 "kryyyycbcbcbyyyyyyyyyyyk",
 "kyyyybbcbcbcyyyyyyyyyyhk",
 "kddooooddddddddddooooddk",
@@ -2446,28 +2529,65 @@ const VAN=[
 ];
 const TAXI=SEDAN;
 const SHAPE_OF={granta:SEDAN,vesta:SEDAN,moskvich:SUV,solaris:SEDAN,rio:HATCH,solarisNew:SEDAN,octavia:HATCH,tiggo:SUV,jolion:SUV,evolute:HATCH,camry:LIMO,zeekr:LIMO,mercedes:LIMO,monjaro:SUV,carnival:VAN};
-const PERSON=["..bb..","..bb..",".kkkk.",".kkkk.","..kk..","..kk.."];
+const PERSON=[
+"..HHH..",
+".HHHHH.",
+".HbbbH.",
+"..bbb..",
+".kkkkk.",
+"kkkkkkk",
+"k.kkk.k",
+"b.kkk.b",
+"..P.P..",
+"..P.P..",
+".PP.PP."];
 const shapeOf=m=>SHAPE_OF[m]||SEDAN;
-const carPal=m=>{const M=MODELS[m]||MODELS.solaris,C=S&&S.custom&&COLORS[S.custom.color],own=C&&C.body&&!['Комфорт+','Бизнес'].includes(M.cls);return{y:own?C.body:M.body,d:own?C.trim:M.trim,t:M.ev?'#86e06f':'#f7c331',k:['camry','mercedes','monjaro','zeekr'].includes(m)?'#0b0914':'#1a1530',g:m==='mercedes'?'#e8e2d0':'#a8a0cc'}};
+const carPal=m=>{const M=MODELS[m]||MODELS.solaris,C=S&&S.custom&&COLORS[S.custom.color],own=C&&C.body&&!['Комфорт+','Бизнес'].includes(M.cls);const by=own?C.body:M.body;return{y:by,l:shade(by,1.16),d:own?C.trim:M.trim,t:M.ev?'#86e06f':'#f7c331',k:['camry','mercedes','monjaro','zeekr'].includes(m)?'#0b0914':'#1a1530',g:m==='mercedes'?'#e8e2d0':'#a8a0cc'}};
 function spr(g,s,x,y,flip,pal){for(let r=0;r<s.length;r++)for(let c=0;c<s[r].length;c++){const ch=s[r][c];if(ch==='.')continue;
   g.fillStyle=(pal&&pal[ch])||PAL[ch];g.fillRect(x+(flip?s[r].length-1-c:c),y+r,1,1)}}
 function drawMini(el){const g=el.getContext('2d');g.clearRect(0,0,28,13);
-  if(el.dataset.m==='person'){spr(g,PERSON,7,4,false,{b:'#f0c8a0',k:'#4fc7b0'});spr(g,PERSON,15,4,false,{b:'#f0c8a0',k:'#e66fa8'});return}
+  if(el.dataset.m==='person'){spr(g,PERSON,6,1,false,{b:'#f0c8a0',k:'#4fc7b0'});spr(g,PERSON,15,1,false,{b:'#e8b890',k:'#e66fa8',H:'#b05a2a'});return}
+  g.fillStyle='#2a2450';g.fillRect(0,9,28,4);g.fillStyle='#0e0b1c66';g.fillRect(4,11,20,1);
   spr(g,shapeOf(el.dataset.m),2,1,false,carPal(el.dataset.m))}
-function face(g,p){g.clearRect(0,0,12,12);if(!p)return;const R=(x,y,w,h,c)=>{g.fillStyle=c;g.fillRect(x,y,w,h)};
-  if(p.cat){R(3,1,1,2,'#e8883a');R(8,1,1,2,'#e8883a');R(2,3,8,6,'#e8883a');R(3,9,6,2,'#e8883a');R(4,5,1,1,'#3a8a3a');R(7,5,1,1,'#3a8a3a');R(5,6,2,1,'#e66fa8');R(2,4,1,1,'#b8602a');R(9,4,1,1,'#b8602a');R(5,3,2,1,'#b8602a');R(1,6,2,1,'#f3ecdc');R(9,6,2,1,'#f3ecdc');return}
-  if(p.goat){R(2,1,1,2,'#c8c0b0');R(9,1,1,2,'#c8c0b0');R(3,2,6,7,'#f3ecdc');R(4,9,4,2,'#f3ecdc');R(4,5,1,1,'#1a1530');R(7,5,1,1,'#1a1530');R(5,8,2,1,'#e66fa8');R(5,10,2,2,'#c8c0b0');R(1,4,2,1,'#f3ecdc');R(9,4,2,1,'#f3ecdc');return}
-  const hair=p.hair,sk=p.skin;
-  R(2,10,8,2,p.shirt||'#4a4570');R(5,9,2,1,sk);R(3,3,6,6,sk);
-  R(4,5,1,1,'#1a1530');R(7,5,1,1,'#1a1530');R(5,7,2,1,'#9a4a4a');
-  if(p.style===0){R(3,2,6,1,hair);R(3,3,1,1,hair);R(8,3,1,1,hair)}
-  if(p.style===1){R(3,2,6,1,hair);R(2,3,1,6,hair);R(9,3,1,6,hair);R(3,3,1,1,hair);R(8,3,1,1,hair)}
-  if(p.style===2){R(3,4,1,1,hair);R(8,4,1,1,hair)}
-  if(p.style===3){R(5,0,2,2,hair);R(3,2,6,1,hair);R(3,3,1,2,hair);R(8,3,1,2,hair)}
-  if(p.acc==='glasses'){R(3,5,3,1,'#1a1530');R(6,5,3,1,'#1a1530');R(4,5,1,1,'#9fd3ff');R(7,5,1,1,'#9fd3ff')}
-  if(p.acc==='mustache')R(4,6,4,1,hair==='#9a9a9a'||hair==='#8a8a8a'?'#d0d0d0':hair);
-  if(p.acc==='beard'){R(3,7,6,2,hair);R(5,7,2,1,'#9a4a4a')}
-  if(p.acc==='cap'){R(2,1,8,2,p.cap||'#ff8a4c');R(8,3,3,1,p.cap||'#ff8a4c')}
+const shade=(h,k)=>'#'+hx(h).map(v=>Math.max(0,Math.min(255,Math.round(v*k))).toString(16).padStart(2,'0')).join('');
+const HEAD=[
+"................",
+"................",
+".....oooooo.....",
+"....osssssdo....",
+"...ossssssddo...",
+"...osbbssbbdo...",
+"..oosewsewsdoo..",
+"..osdsssssssdo..",
+"...ossssnssdo...",
+"...osscmmcsdo...",
+"....osssssdo....",
+".....okkkko.....",
+"....tttwwttt....",
+"..tTttttwttttT..",
+".tTttttttttttTt.",
+".tTttttttttttTt."];
+function face(g,p){g.clearRect(0,0,16,16);if(!p)return;const R=(x,y,w,h,c)=>{g.fillStyle=c;g.fillRect(x,y,w,h)};
+  R(0,0,16,16,'#2f2858');R(0,0,16,1,'#3a3268');R(0,11,16,5,'#28224c');
+  if(p.cat){const o='#e8883a',d='#b8602a',l='#ffb06a';
+    R(2,2,3,4,d);R(11,2,3,4,d);R(3,3,1,2,'#e66fa8');R(12,3,1,2,'#e66fa8');R(2,5,12,8,o);R(3,4,10,1,o);R(3,13,10,2,o);R(4,5,8,1,l);
+    R(6,5,1,2,d);R(9,5,1,2,d);R(7,4,2,1,d);R(4,8,3,2,'#f3ecdc');R(9,8,3,2,'#f3ecdc');R(5,8,1,2,'#2e7a3a');R(10,8,1,2,'#2e7a3a');R(5,8,1,1,'#86e06f');R(10,8,1,1,'#86e06f');
+    R(7,10,2,1,'#e66fa8');R(6,11,1,1,d);R(9,11,1,1,d);R(7,11,2,1,'#f3ecdc');R(0,10,4,1,'#f3ecdc');R(12,10,4,1,'#f3ecdc');R(0,12,3,1,'#f3ecdc');R(13,12,3,1,'#f3ecdc');return}
+  if(p.goat){const w='#f3ecdc',d='#c8c0b0';
+    R(3,1,2,3,'#8a7a5a');R(11,1,2,3,'#8a7a5a');R(4,3,8,9,w);R(1,5,3,2,d);R(12,5,3,2,d);R(5,12,6,2,w);R(4,4,8,1,'#ffffff');
+    R(5,6,2,2,'#1a1530');R(9,6,2,2,'#1a1530');R(5,6,1,1,'#f7c331');R(9,6,1,1,'#f7c331');R(6,10,4,2,'#e8b0b8');R(7,10,1,1,'#9a4a4a');R(8,10,1,1,'#9a4a4a');R(7,14,2,2,d);return}
+  const sk=p.skin,pal={o:'#1a1530',s:sk,d:shade(sk,.84),b:shade(p.hair,.8),e:'#f3ecdc',w:'#1a1530',n:shade(sk,.78),c:'#e89a9a',m:'#9a4a4a',k:shade(sk,.72),t:p.shirt||'#4a4570',T:shade(p.shirt||'#4a4570',.72)};
+  HEAD.forEach((row,y)=>{for(let x=0;x<16;x++){const ch=row[x];if(ch!=='.'){g.fillStyle=pal[ch];g.fillRect(x,y,1,1)}}});
+  R(7,12,2,2,'#f3ecdc');
+  const hr=p.hair,hD=shade(hr,.72),hL=shade(hr,1.4);
+  if(p.style===0){R(4,2,8,2,hr);R(3,3,1,3,hr);R(12,3,1,3,hD);R(5,1,6,1,'#1a1530');R(6,2,3,1,hL);R(4,4,2,1,hr)}
+  if(p.style===1){R(4,2,8,2,hr);R(2,3,2,10,hr);R(12,3,2,10,hD);R(3,4,1,8,hD);R(5,1,6,1,'#1a1530');R(6,2,4,1,hL);R(4,4,1,2,hr);R(11,4,1,2,hr)}
+  if(p.style===2){R(3,5,1,4,hr);R(12,5,1,4,hD);R(6,3,3,1,shade(sk,1.12))}
+  if(p.style===3){R(6,0,4,2,hr);R(7,0,2,1,hL);R(4,2,8,2,hr);R(3,3,1,3,hr);R(12,3,1,3,hD);R(6,2,3,1,hL)}
+  if(p.acc==='glasses'){const o='#1a1530';R(4,5,3,1,o);R(9,5,3,1,o);R(4,7,3,1,o);R(9,7,3,1,o);R(4,6,1,1,o);R(6,6,1,1,'#9fd3ff');R(11,6,1,1,o);R(9,6,1,1,'#9fd3ff');R(7,6,2,1,o);R(5,6,1,1,'#cfe8ff');R(10,6,1,1,'#cfe8ff')}
+  if(p.acc==='mustache'){const mc=hr==='#9a9a9a'||hr==='#8a8a8a'?'#e0e0e0':hr;R(5,9,6,1,mc);R(4,10,1,1,mc);R(11,10,1,1,mc)}
+  if(p.acc==='beard'){R(4,8,1,3,hr);R(11,8,1,3,hD);R(4,10,8,2,hr);R(5,12,6,1,hD);R(6,9,4,1,'#9a4a4a');R(5,10,2,1,hL)}
+  if(p.acc==='cap'){const c=p.cap||'#ff8a4c';R(3,1,10,3,c);R(4,0,8,1,c);R(5,1,4,1,shade(c,1.3));R(7,2,2,1,'#f3ecdc');R(9,4,6,1,shade(c,.7));R(3,4,1,1,shade(c,.7))}
 }
 function faceParams(key){const [t,a,b]=key.split(':');
   if(t==='head')return headDef(+a).face;
@@ -2478,7 +2598,7 @@ function faceParams(key){const [t,a,b]=key.split(':');
 function drawFaces(){document.querySelectorAll('canvas.face').forEach(el=>{try{face(el.getContext('2d'),faceParams(el.dataset.face))}catch(e){}})}
 
 /* ---- логотип, карта, графики ---- */
-function drawLogo(g,key,x,y,col){const L=LOGOS[key]||LOGOS.checker;g.clearRect(x,y,8,8);g.fillStyle='#0e0b1c';g.fillRect(x,y,8,8);g.fillStyle=col;L.forEach((r,yy)=>{for(let xx=0;xx<8;xx++)if(r[xx]==='c')g.fillRect(x+xx,y+yy,1,1)})}
+function drawLogo(g,key,x,y,col){const L=LOGOS[key]||LOGOS.checker;g.clearRect(x,y,8,8);g.fillStyle='#1d1838';g.fillRect(x,y,8,8);L.forEach((r,yy)=>{for(let xx=0;xx<8;xx++)if(r[xx]==='c'){g.fillStyle=yy<3?shade(col,1.15):yy>5?shade(col,.8):col;g.fillRect(x+xx,y+yy,1,1)}})}
 function drawMap(){const el=$('mapC');if(!el)return;const g=el.getContext('2d'),R=(x,y,w,h,c)=>{g.fillStyle=c;g.fillRect(x,y,w,h)};
   R(0,0,160,90,'#2e5a3a');for(let i=0;i<60;i++)R((i*37)%160,(i*53)%90,2,2,'#3a6a44');
   R(0,52,160,6,'#3a7fa0');R(0,53,160,1,'#5aa0c8'); // река
@@ -2578,7 +2698,7 @@ function draw(){
   if(S.cnt.cat){const px=166,py=bTop-3;R(px,py,6,3,'#e8883a');R(px+5,py-2,3,3,'#e8883a');R(px+5,py-3,1,1,'#e8883a');R(px+7,py-3,1,1,'#e8883a');R(px-2,py-1+Math.round(Math.sin(t/8)),2,1,'#e8883a')}
   if(getEv(1,S.today[1]).t==='Гуси на стоянке'){for(let i=0;i<3;i++){const gx=150+i*9+Math.round(Math.sin(t/5+i)*2);R(gx,92,5,3,'#f3ecdc');R(gx+4,89,1,3,'#f3ecdc');R(gx+5,89,1,1,'#ff8a4c');R(gx+1,95,1,1,'#ff8a4c');R(gx+3,95,1,1,'#ff8a4c')}}
   const idle=Math.max(0,S.drivers-(carsN()-brokenN()));
-  for(let i=0;i<Math.min(idle,5);i++)spr(cx,PERSON,170-i*5,92,false,{b:'#f0c8a0',k:['#4fc7b0','#e66fa8','#ff8a4c'][i%3]});
+  for(let i=0;i<Math.min(idle,5);i++)spr(cx,PERSON,168-i*8,87,false,{b:'#f0c8a0',k:['#4fc7b0','#e66fa8','#ff8a4c'][i%3]});
   // стоянка
   const cols=10,rowsAll=Math.ceil(S.spots/cols),rows=Math.min(6,rowsAll),lotY=98-rows*8-2;
   R(186,lotY,132,rows*8+2,'#2b2842');R(186,lotY-1,132,1,'#0e0b1c');
