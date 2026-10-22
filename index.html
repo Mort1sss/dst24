@@ -318,6 +318,31 @@ body.cb .eff.up::before,body.cb .chip.up::before{content:'▲ '}body.cb .eff.dow
  .hud .stat.money{grid-column:1/-1}
  .news{font-size:13px}
 }
+.splash{position:fixed;inset:0;z-index:100;background:#0e0b1c;display:grid;place-items:center;overflow:hidden;cursor:pointer;transition:opacity .5s steps(5)}
+.splash.out{opacity:0;pointer-events:none}
+.studio{position:fixed;inset:0;z-index:101;background:#0b0916;display:grid;place-items:center;cursor:pointer;transition:opacity .6s steps(6)}
+.studio.out{opacity:0;pointer-events:none}
+.studio .st-in{display:grid;justify-items:center;gap:22px;padding:16px}
+.studio canvas{width:144px;height:144px;image-rendering:pixelated;animation:stPop .5s steps(5) both}
+.studio .st-name{font-family:"Press Start 2P",monospace;font-size:clamp(20px,6vw,44px);letter-spacing:.04em;display:flex;position:relative;overflow:hidden;padding:4px 2px}
+.studio .st-name span{opacity:0;animation:stIn .25s steps(3) forwards}
+.studio .st-name .a{color:#f7c331;text-shadow:3px 3px 0 #b5531a}
+.studio .st-name .b{color:#f3ecdc;text-shadow:3px 3px 0 #3a3458}
+.studio .st-name::after{content:"";position:absolute;top:0;bottom:0;width:18%;left:-30%;background:linear-gradient(90deg,transparent,rgba(255,255,255,.55),transparent);animation:stShine .7s 1.5s steps(8) forwards}
+.studio .st-sub{font-family:"PT Mono",monospace;font-size:15px;color:#8f86b8;letter-spacing:.3em;text-transform:uppercase;opacity:0;animation:stIn .4s 1.6s steps(4) forwards}
+@keyframes stPop{0%{transform:scale(0)}60%{transform:scale(1.15)}100%{transform:scale(1)}}
+@keyframes stIn{to{opacity:1}}
+@keyframes stShine{to{left:120%}}
+#splC{position:absolute;inset:0;width:100%;height:100%;image-rendering:pixelated;object-fit:cover}
+.spl-t{position:relative;text-align:center;padding:0 16px;margin-top:-12vh}
+.spl-chk{width:clamp(180px,44vw,420px);height:18px;margin:0 auto 22px;background:repeating-conic-gradient(var(--taxi) 0 25%,#0e0b1c 0 50%) 0 0/18px 18px;animation:splWipe .6s steps(10) both}
+.spl-logo{font-family:var(--f-display);font-size:clamp(38px,10vw,96px);line-height:1.1;color:var(--taxi);text-shadow:4px 4px 0 #a86a00,8px 8px 0 #0e0b1c;animation:splDrop .7s steps(7) .35s both}
+.spl-sub{margin-top:14px;font-family:var(--f-display);font-size:clamp(12px,2.8vw,24px);letter-spacing:.45em;padding-left:.45em;color:#f3ecdc;animation:splFade .5s steps(5) 1.05s both}
+.spl-tap{margin-top:34px;font-size:15px;color:#b9b2d8;animation:splFade .3s 1.7s both,splBlink 1.2s steps(2) 2s infinite}
+@keyframes splWipe{from{clip-path:inset(0 100% 0 0)}to{clip-path:inset(0)}}
+@keyframes splDrop{from{transform:translateY(-70px);opacity:0}to{transform:none;opacity:1}}
+@keyframes splFade{from{opacity:0}to{opacity:1}}
+@keyframes splBlink{50%{opacity:0}}
 .codebox{width:100%;min-height:110px;resize:vertical;font-family:"PT Mono",monospace;font-size:13px;line-height:1.35;background:var(--edge);color:var(--ink);border:3px solid var(--edge);padding:8px;word-break:break-all}
 .codebox:focus-visible{outline:3px solid var(--taxi);outline-offset:2px}
 .toast{position:fixed;left:50%;bottom:calc(16px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--taxi);color:var(--edge);font-family:var(--f-display);font-size:10px;line-height:1.6;padding:10px 14px;z-index:30;max-width:calc(100% - 32px);text-align:center}
@@ -420,6 +445,11 @@ th{font-size:13px}
 
 <div class="modal" id="modal" hidden><div class="card px" id="modalCard"></div></div>
 <div class="toast px" id="toast" hidden></div>
+<div class="studio" id="studio" role="img" aria-label="SitromGames представляет" tabindex="0"><div class="st-in"><canvas id="studioC" width="24" height="24"></canvas><div class="st-name" id="studioName"></div><div class="st-sub">представляет</div></div></div>
+<div class="splash" id="splash" role="button" tabindex="0" aria-label="Таксопарк «ДСТ-24». Нажмите, чтобы начать">
+  <canvas id="splC" width="200" height="112" aria-hidden="true"></canvas>
+  <div class="spl-t"><div class="spl-chk"></div><div class="spl-logo">ДСТ-24</div><div class="spl-sub">ТАКСОПАРК</div><div class="spl-tap">нажмите, чтобы начать</div></div>
+</div>
 
 <script>
 /* ================= ДАННЫЕ ================= */
@@ -3563,7 +3593,49 @@ function drawScene(dark){if(!scn)return;const d=SCN_DUR[scn.type]||150,e=t-scn.t
 const still=matchMedia('(prefers-reduced-motion: reduce)').matches;
 let last=0;function loop(ts){const dt=last?Math.min(100,ts-last):16;last=ts;SP=dt/70;draw();requestAnimationFrame(loop)}
 
+/* ================= ЗАСТАВКА ================= */
+function splash(){const el=$('splash');if(!el)return;const c=$('splC'),g=c.getContext('2d');g.imageSmoothingEnabled=false;
+  const W=200,H=112,R=(x,y,w,h,col)=>{g.fillStyle=col;g.fillRect(Math.round(x),Math.round(y),w,h)};
+  let seed=7;const rnd=()=>(seed=(seed*16807)%2147483647)/2147483647;
+  const stars=Array.from({length:50},()=>[rnd()*W,rnd()*60,rnd()*6]);
+  const blds=[];for(let x=0;x<W;){const w=8+Math.floor(rnd()*14),h=14+Math.floor(rnd()*30);blds.push([x,w,h,Array.from({length:40},()=>rnd()<.35)]);x+=w+1}
+  let t0=null,raf=0,done=false;
+  function frame(ts){if(done)return;if(t0===null)t0=ts;const e=(ts-t0)/16;
+    R(0,0,W,H,'#120e26');R(0,40,W,30,'#1a1436');
+    stars.forEach(([x,y,p])=>{if(Math.floor(e/20+p)%5)R(x,y,1,1,'#cfc6ff')});
+    for(let yy=-5;yy<=5;yy++)for(let xx=-5;xx<=5;xx++){if(xx*xx+yy*yy<=25&&(xx-3)*(xx-3)+(yy+1)*(yy+1)>16)R(172+xx,16+yy,1,1,'#f3ecdc')}
+    blds.forEach(([x,w,h,win])=>{R(x,86-h,w,h,'#231c45');let k=0;for(let yy=86-h+3;yy<84;yy+=4)for(let xx=x+2;xx<x+w-2;xx+=3){if(win[k++%40])R(xx,yy,1,2,'#f7c331')}});
+    R(0,86,W,26,'#2a2540');for(let x=-(e*1.5%16);x<W;x+=16)R(x,98,8,1,'#f7c331');R(0,110,W,2,'#3a3458');
+    const tx=((e*1.6)%(W+80))-40;
+    g.globalCompositeOperation='lighter';for(let k=0;k<5;k++){g.fillStyle=`rgba(255,226,122,${(.1-k*.018).toFixed(3)})`;g.fillRect(Math.round(tx+24),Math.round(93-k),10+k*7,4+k*2)}g.globalCompositeOperation='source-over';
+    try{spr(g,SEDAN,tx,90,false,carPal('solaris'))}catch(err){R(tx,92,24,8,'#f7c331')}
+    if(!still)raf=requestAnimationFrame(frame)}
+  raf=requestAnimationFrame(frame);
+  const close=()=>{if(done)return;done=true;cancelAnimationFrame(raf);el.classList.add('out');setTimeout(()=>el.remove(),600)};
+  el.addEventListener('pointerdown',()=>{ensureAudio();sfx('win');close()});
+  el.addEventListener('keydown',ev=>{if(ev.key==='Enter'||ev.key===' '){ensureAudio();close()}});
+  el.focus&&el.focus();
+  setTimeout(close,still?1500:4500)}
+
+/* ---- логотип студии SitromGames ---- */
+function studioLogo(next){const el=$('studio');if(!el)return next();
+  const g=$('studioC').getContext('2d'),P=(x,y,c)=>{g.fillStyle=c;g.fillRect(x,y,1,1)};
+  // долька цитруса: кожура, белая прослойка, сочные сегменты, листик
+  for(let y=0;y<24;y++)for(let x=0;x<24;x++){const dx=x-11.5,dy=y-13.5,d=Math.hypot(dx,dy);if(d>9.6)continue;
+    let c=d>8.4?'#e8761c':d>7.4?'#fff1c9':'#ffc53a';
+    if(d<=7.4){const a=(Math.atan2(dy,dx)+Math.PI)/(Math.PI/4);if(Math.abs(a-Math.round(a))<.11*(8/Math.max(d,1)))c='#fff1c9';else if((x+y)%5===0&&d>2)c='#ffde7a'}
+    if(d<1.3)c='#fff1c9';if(d>8.4&&dx<-3&&dy<-3)c='#ff9a3c';P(x,y,c)}
+  [[13,2],[14,2],[12,3],[13,3],[14,3],[15,3],[13,4],[14,4]].forEach(([x,y])=>P(x,y,'#4fc76a'));P(12,4,'#2f8f4a');P(11,5,'#2f8f4a');
+  const name='Sitrom'.split('').map((ch,i)=>`<span class="a" style="animation-delay:${.45+i*.08}s">${ch}</span>`).join('')+'Games'.split('').map((ch,i)=>`<span class="b" style="animation-delay:${.93+i*.08}s">${ch}</span>`).join('');
+  $('studioName').innerHTML=name;
+  let done=false;const close=()=>{if(done)return;done=true;el.classList.add('out');setTimeout(()=>el.remove(),650);next()};
+  el.addEventListener('pointerdown',ev=>{ev.stopPropagation();ensureAudio();close()});
+  el.addEventListener('keydown',ev=>{if(ev.key==='Enter'||ev.key===' '||ev.key==='Escape')close()});
+  el.focus&&el.focus();
+  setTimeout(close,still?1200:2900)}
+
 /* ================= СТАРТ ================= */
+studioLogo(splash);
 S=load();
 if(!S){S=blankState('campaign');S.preview=true;START_FLEET.forEach(([m,k])=>addCar(m,k));S.today=[0,1,2].map(nextEvent);render();pickMode()}
 else{render();if(S.over){hasLimit()&&S.day>dayLimit()?finale():gameOver()}else if(S.morning&&S.morning.length)runMorning()}
