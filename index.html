@@ -256,6 +256,21 @@ th{font-size:13px}
 .log ol{font-size:16px}
 .desk-head .boss{font-size:15px}
 .stamp{top:66px}
+/* ---- карточки: текст не вылезает за края ---- */
+.grid{grid-template-columns:repeat(auto-fill,minmax(240px,1fr))}
+.card2{overflow:hidden}
+.card2 h3{overflow-wrap:anywhere}
+.spec{flex-wrap:wrap;align-items:baseline;row-gap:2px;font-size:15px}
+.spec>span:first-child{flex:1 1 auto;min-width:0}
+.spec b{white-space:normal;text-align:right;margin-left:auto;font-size:15px}
+.spec .pips{margin-left:auto;align-self:center}
+.buy{white-space:normal;min-width:0;line-height:1.25;text-align:center;overflow-wrap:anywhere}
+.btns{min-width:0}
+.car-top{align-items:flex-start}
+.car-top>div{min-width:0}
+.kind{overflow-wrap:anywhere}
+.tag,.chip{max-width:100%}
+.choice span:first-child{min-width:0}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
 
