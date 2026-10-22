@@ -1,0 +1,16 @@
+{
+  "name": "Таксопарк «ДСТ-24»",
+  "short_name": "ДСТ-24",
+  "description": "Пиксельная игра-менеджер таксопарка",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#1d1838",
+  "theme_color": "#1d1838",
+  "lang": "ru",
+  "icons": [
+    {"src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable"},
+    {"src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable"}
+  ]
+}
