@@ -184,6 +184,19 @@ input[type=range]{width:100%;accent-color:var(--taxi)}
 .cand b{font-size:17px}
 .cand small{color:var(--muted);font-size:14px}
 .step{font-family:var(--f-display);font-size:9px;color:var(--muted)}
+.mg-q{font-size:20px;font-weight:600;color:var(--taxi)}
+.mode.mg-ok,.mg-doc.mg-ok{border-color:var(--good);background:#2f5a3a}
+.mode.mg-bad,.mg-doc.mg-bad{border-color:var(--bad);background:#5a2f3a}
+.mg-docs{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}
+.mg-doc{display:grid;gap:2px;text-align:left;background:var(--panel-2);border:3px solid var(--edge);box-shadow:3px 3px 0 var(--edge);padding:8px 10px}
+.mg-doc b{font-family:var(--f-ui);font-size:17px;letter-spacing:.05em}
+.mg-doc span{font-size:15px;color:var(--muted)}
+.mg-doc.on{border-color:var(--taxi);background:#4a4378}
+.mg-timer{font-family:var(--f-ui);font-weight:700;font-size:18px;color:var(--taxi)}
+.mg-bar{position:relative;height:34px;background:var(--edge);border:3px solid var(--edge);overflow:hidden}
+.mg-zone{position:absolute;top:0;bottom:0;background:var(--good)}
+.mg-mark{position:absolute;top:-2px;bottom:-2px;width:6px;margin-left:-3px;background:var(--taxi);box-shadow:0 0 0 2px var(--edge)}
+.rentrow{display:grid;gap:4px;background:var(--panel);border:3px solid var(--edge);padding:8px 10px}
 .codebox{width:100%;min-height:110px;resize:vertical;font-family:"PT Mono",monospace;font-size:13px;line-height:1.35;background:var(--edge);color:var(--ink);border:3px solid var(--edge);padding:8px;word-break:break-all}
 .codebox:focus-visible{outline:3px solid var(--taxi);outline-offset:2px}
 .toast{position:fixed;left:50%;bottom:calc(16px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--taxi);color:var(--edge);font-family:var(--f-display);font-size:10px;line-height:1.6;padding:10px 14px;z-index:30;max-width:calc(100% - 32px);text-align:center}
@@ -293,6 +306,12 @@ const MODELS={
   carnival:{name:'Kia Carnival',cls:'Минивэн',kind:'новый минивэн, лизинг',km0:0,price:110000,lease:2200,mult:1.9,fail:.02,repair:0,resale:150000,rep:2,body:'#f3ecdc',trim:'#ff8a4c',shape:'van',note:'Аэропорты, семьи и багаж'},
 };
 const MODEL_KEYS=Object.keys(MODELS);
+/* рыночная суточная аренда по классам */
+const MARKET={'Эконом':3200,'Комфорт':4200,'Комфорт+':5800,'Бизнес':7200,'Минивэн':6100};
+const CLASSES=Object.keys(MARKET);
+const carRevM=m=>{const M=MODELS[m];return S.rents[M.cls]*M.mult*3200/MARKET[M.cls]};
+function rentDev(){let o=0,u=0,n=0;S.fleet.forEach(c=>{const cl=MODELS[c.m].cls,m=MARKET[cl],r=S.rents[cl];o+=Math.max(0,(r-m)/m);u+=Math.max(0,(m-r)/m);n++});return n?{o:o/n,u:u/n}:{o:0,u:0}}
+function rentLabel(){let s=0,n=0;S.fleet.forEach(c=>{const cl=MODELS[c.m].cls;s+=S.rents[cl]/MARKET[cl]-1;n++});const v=n?Math.round(s/n*100):0;return v===0?'по рынку':(v>0?'+':'−')+Math.abs(v)+'% к рынку'}
 const LEASE_DAYS=60;
 const SHOP_TABS=[['all','Все'],['Эконом','Эконом'],['Комфорт','Комфорт'],['top','Комфорт+ и выше'],['used','Б/у'],['new','Новые']];
 const tabMatch=(M,tab)=>tab==='all'||tab===M.cls||(tab==='top'&&['Комфорт+','Бизнес','Минивэн'].includes(M.cls))||(tab==='used'&&!M.lease)||(tab==='new'&&!!M.lease);
@@ -380,6 +399,33 @@ const EVENTS=[
  {t:'Тёплый отзыв',who:'oleg',x:'Бабушка написала про водителя Олега: помог донести сумки до пятого этажа.',c:[
   {l:'Премировать Олега',cost:2000,fx:{rep:3},m:'Олег получил премию, остальные заметили.'},
   {l:'Опубликовать отзыв',fx:{rep:2},m:'Отзыв собрал лайки в соцсетях парка.'}]},
+ {t:'Упало приложение агрегатора',x:'Приложение агрегатора не работает уже два часа. Водители стоят и пишут в поддержку парка без остановки.',c:[
+  {l:'Переключить всех на резервный агрегатор',cost:6000,fx:{rep:1,news:'backup'},m:'Водители продолжили работать через другой сервис. Потери минимальные.'},
+  {l:'Ждать, пока починят',fx:{news:'outage'},m:'Агрегатор чинили до вечера. Сегодня заказов меньше.'}]},
+ {t:'Двойная комиссия',x:'Агрегатор из-за сбоя списал комиссию дважды у десяти водителей. Они требуют вернуть деньги.',c:[
+  {l:'Компенсировать из кассы парка',cost:10000,fx:{rep:2},m:'Водители получили деньги сразу. Парк потом вернёт их через агрегатор.',bonus:{p:.5,fx:{money:8000}}},
+  {l:'Писать в поддержку агрегатора',m:'Агрегатор вернул деньги за три дня. Водители поворчали.',r:{p:.45,fx:{drivers:-2,rep:-2},m:'Возврата ждали неделю. Двое водителей ушли.'}}]},
+ {t:'Блокировка за фотоконтроль',x:'Агрегатор по ошибке заблокировал трёх водителей: система не узнала их на селфи.',c:[
+  {l:'Срочно пройти фотоконтроль заново',cost:1500,m:'Всех разблокировали к обеду.'},
+  {l:'Пусть разбираются сами',fx:{news:'photo'},m:'Двое разобрались сами, третий ждёт.',r:{p:.4,fx:{drivers:-1},m:'Один водитель устал ждать и ушёл.'}}]},
+ {t:'Тариф «Детский»',x:'Агрегатор запускает тариф с детскими креслами. Чтобы попасть в него, нужно оборудовать машины.',c:[
+  {l:'Купить кресла и подключиться',cost:s=>Math.max(3,Math.ceil(s.fleet.length/3))*3000,fx:{rep:2,news:'kids'},m:'Парк в новом тарифе. Родители довольны.'},
+  {l:'Пропустить',m:'Тариф достался конкурентам.'}]},
+ {t:'Пятница, вечер',x:'Агрегатор включил повышенный коэффициент: заказов вдвое больше, чем водителей.',c:[
+  {l:'Бонус всем, кто выйдет на линию',cost:5000,fx:{news:'surge'},m:'Весь парк на линии. Отличный вечер.'},
+  {l:'Работать как обычно',m:'Спокойный вечер, заработали как всегда.'}]},
+ {t:'Мошеннические заказы',x:'Кто-то заказывает поездки и не приходит. Водители катаются впустую.',c:[
+  {l:'Включить предоплату в настройках',cost:2000,fx:{rep:-1},m:'Ложных заказов больше нет, но часть пассажиров недовольна предоплатой.'},
+  {l:'Пожаловаться агрегатору',m:'Агрегатор заблокировал мошенника за день.',r:{p:.4,fx:{money:-6000},m:'Ложные заказы шли всю неделю. Водители потеряли смены.'}}]},
+ {t:'Водитель-стример',f:1,x:'Водитель ведёт стрим прямо за рулём: болтает с пассажирами и зрителями. Набрал 3 000 подписчиков.',c:[
+  {l:'Запретить стримы',fx:{rep:1},m:'Стрим закрыт. Водитель грустит.',r:{p:.3,fx:{drivers:-1},m:'Водитель ушёл стримить в другой парк.'}},
+  {l:'Сделать рекламой парка',fx:{rep:3},m:'Стримы «ДСТ-24» набирают просмотры. Пассажиры просят этого водителя.',r:{p:.35,fx:{rep:-6},m:'В прямом эфире водитель проехал на красный. Позор на весь интернет.'}}]},
+ {t:'Сменщики',x:'Два водителя хотят ездить на одной машине посменно: один днём, другой ночью.',c:[
+  {l:'Разрешить',fx:{drivers:1,rep:1},m:'Машина теперь работает круглосуточно.'},
+  {l:'Одна машина — один водитель',m:'Оставили как было.'}]},
+ {t:'Пассажир-иностранец',x:'Турист не может объяснить водителю адрес. Водитель звонит в поддержку.',c:[
+  {l:'Поставить переводчики во все машины',cost:4000,fx:{rep:3},m:'Туристы в восторге: водитель говорит на их языке через планшет.'},
+  {l:'Помочь по телефону',fx:{rep:1},m:'Оператор поддержки объяснил адрес на ломаном английском. Доехали.'}]},
  {t:'Уснувший пассажир',f:1,x:'Пассажир уснул на заднем сиденье и не просыпается на конечной. Водитель звонит в поддержку.',c:[
   {l:'Довезти до дома за счёт парка',cost:600,fx:{rep:3},m:'Довезли. Утром пассажир прислал торт.'},
   {l:'Разбудить музыкой',m:'Сработало. Пассажир подпевал.',r:{p:.3,fx:{rep:-3},m:'Пассажир проснулся злым и написал отзыв капслоком.'}}]},
@@ -434,6 +480,33 @@ const EVENTS=[
  {t:'Европротокол',f:1,x:'Мелкое ДТП. Сотрудник автопарка расписался в графе «виновник» за другого водителя.',c:[
   {l:'Переоформить у юриста',cost:4000,m:'Переоформили. Сотрудник обещал больше не помогать.'},
   {l:'Оставить как есть',m:'Второй участник не стал спорить. Повезло.',r:{p:.5,fx:{money:-18000},m:'Страховая отказала. Ремонт чужой машины за ваш счёт.'}}]},
+ {t:'Принтер сломался',f:1,x:'В автопарке сломался принтер, путевые листы не печатаются. Сотрудник предлагает писать их от руки «красивым почерком».',c:[
+  {l:'Купить новый принтер',cost:8000,m:'Новый принтер печатает. Старый унесли на память.'},
+  {l:'Писать от руки',m:'Почерк правда красивый. Никто не придрался.',r:{p:.4,fx:{money:-5000,broken:1},m:'ГИБДД не приняла рукописный путевой лист. Штраф и простой.'}}]},
+ {t:'Диагностические карты',x:'У четырёх машин заканчиваются диагностические карты. Без них нельзя работать в такси.',c:[
+  {l:'Пройти техосмотр',cost:4000,m:'Все четыре машины прошли техосмотр.'},
+  {l:'Отложить',m:'Пока никто не проверял.',r:{p:.45,fx:{money:-12000,broken:2},m:'Две машины сняли с линии на проверке. Штраф.'}}]},
+ {t:'Разрешение такси',x:'На новые машины ещё не оформлено разрешение на перевозку пассажиров.',c:[
+  {l:'Оформить разрешения',cost:s=>Math.max(1,Math.ceil(s.fleet.length/5))*2500,m:'Все машины в реестре такси.'},
+  {l:'Работать так',m:'Повезло, не проверяли.',r:{p:.5,fx:{money:-25000,rep:-3},m:'Рейд: машины без разрешения. Крупный штраф.'}}]},
+ {t:'Стажёр перепутал машины',f:1,x:'Стажёр автопарка перепутал записи в базе: водители уехали на чужих машинах, а штрафы пришли не тем.',c:[
+  {l:'Остановить всех и пересадить',cost:3000,m:'Пересадили за час. Стажёр составил таблицу. Неправильно.'},
+  {l:'Разобраться вечером',m:'Вечером всё распутали.',r:{p:.4,fx:{rep:-3,drivers:-1},m:'Водителю пришёл чужой штраф на 30 000 ₽. Он ушёл, хлопнув дверью.'}}]},
+ {t:'Ключ от сейфа',f:1,who:'gena',x:'Гена ушёл в отпуск и увёз с собой ключ от сейфа с документами на машины. Гена на рыбалке, связи нет.',c:[
+  {l:'Вызвать мастера по сейфам',cost:5000,m:'Сейф вскрыли. Внутри документы и бутерброд Гены.'},
+  {l:'Ехать к Гене на рыбалку',cost:1500,fx:{broken:1},m:'Гену нашли на озере. Ключ был в кармане удочки. Машина день стояла без документов.'}]},
+ {t:'Попытка угона',x:'Ночью машину пытались угнать. Сработала сигнализация, вор убежал.',c:[
+  {l:'Поставить противоугонки на все машины',cost:s=>s.fleet.length*1000,fx:{rep:1},m:'Весь парк под защитой.'},
+  {l:'Обойдёмся',m:'Больше не пытались.',r:{p:.25,fx:{cars:-1},m:'Через неделю машину всё-таки угнали. Не нашли.'}}]},
+ {t:'ДТП попало в соцсети',x:'Видео аварии с такси «ДСТ-24» разлетелось по пабликам. Виноват другой водитель, но комментаторы ругают парк.',c:[
+  {l:'Опубликовать запись регистратора',fx:{rep:3},m:'Запись всё объяснила. Комментаторы извинились.'},
+  {l:'Промолчать',fx:{rep:-2},m:'Обсуждение утихло, но осадок остался.'}]},
+ {t:'Отчёт для бухгалтерии',f:1,x:'Бухгалтерия просит отчёт по штрафам за месяц. Автопарк сдал фотографию доски с маркерными записями.',c:[
+  {l:'Внедрить учёт штрафов',cost:9000,fx:{rep:1},m:'Штрафы теперь подгружаются сами и вовремя оплачиваются со скидкой.'},
+  {l:'Принять фото доски',m:'Бухгалтер вздохнула и перепечатала.',r:{p:.4,fx:{money:-8000},m:'Половину штрафов пропустили. Пришли с удвоенной суммой.'}}]},
+ {t:'Реагенты съели пороги',x:'Зимние реагенты разъели пороги у нескольких машин. Появилась ржавчина.',c:[
+  {l:'Антикоррозийная обработка',cost:s=>s.fleet.length*800,m:'Кузова защищены до весны.'},
+  {l:'Ничего не делать',m:'Ржавчина пока небольшая.',r:{p:.3,fx:{rep:-2,money:-6000},m:'Пассажир порвал брюки о ржавый порог. Скандал и компенсация.'}}]},
  {t:'Мойка с люком',f:1,x:'Сотрудник отправил машину на автомойку с открытым люком. В салоне пена по колено.',c:[
   {l:'Химчистка',cost:4000,fx:{broken:1},m:'Салон вычистили. Пахнет вишней.'},
   {l:'Сушить феном',fx:{broken:1},m:'Сушили весь день всем автопарком.',r:{p:.4,fx:{rep:-2},m:'Не досушили. Пассажир сел в лужу.'}}]},
@@ -470,6 +543,30 @@ const EVENTS=[
  {t:'Скрип тормозов',f:1,who:'mech',x:'Механик говорит, что скрипят колодки. Новенький механик говорит, что это поёт водитель.',c:[
   {l:'Проверить колодки',cost:3000,m:'Скрипели колодки. Водитель тоже пел, но это не лечится.'},
   {l:'Поверить новенькому',m:'Водитель действительно пел.',r:{p:.5,fx:{money:-9000,broken:1},m:'Скрипели колодки. Теперь ещё и диски менять.'}}]},
+ {t:'Не то масло',f:1,who:'mech',x:'Новенький механик залил в мотор трансмиссионное масло. Говорит, «масло же, какая разница».',c:[
+  {l:'Слить и промыть мотор',cost:5000,fx:{broken:1},m:'Мотор спасли. Механику показали, где какое масло.'},
+  {l:'Пусть поездит, посмотрим',m:'Мотор подозрительно затих, но работает.',r:{p:.55,fx:{money:-30000,broken:1},m:'Мотор заклинило. Капитальный ремонт.'}}]},
+ {t:'Не работает кондиционер',x:'В трёх машинах не работает кондиционер. Пассажиры жалуются на духоту.',c:[
+  {l:'Заправить и починить',cost:9000,fx:{rep:1},m:'Кондиционеры дуют холодом.'},
+  {l:'Открыть окна',m:'Пассажиры потерпели.',r:{p:.5,fx:{rep:-4},m:'Посыпались жалобы на духоту и низкие оценки.'}}]},
+ {t:'Запчасти застряли',x:'Поставщик задерживает запчасти на неделю. На складе пусто.',c:[
+  {l:'Купить у перекупа втридорога',cost:12000,m:'Запчасти есть, машины на ходу.'},
+  {l:'Ждать поставщика',fx:{broken:2},m:'Две машины ждут запчастей.'}]},
+ {t:'Кто главный механик?',f:1,who:'mech',x:'Два механика неделю спорят, кто из них старший. Ремонт стоит, потому что они спорят даже о ключах.',c:[
+  {l:'Назначить старшего с прибавкой',cost:5000,m:'Старший назначен. Второй обиделся, но работает.'},
+  {l:'Устроить соревнование: кто быстрее поменяет колесо',fx:{rep:1},m:'Соревнование собрало весь парк. Колёса меняли рекордно быстро.',r:{p:.3,fx:{broken:1},m:'Торопились и не дотянули гайки. Колесо уехало отдельно.'}}]},
+ {t:'Дворники живут своей жизнью',f:1,who:'mech',x:'В одной машине дворники включаются сами, а магнитола переключается на шансон. Водитель уверен, что в машине призрак.',c:[
+  {l:'Починить проводку',cost:4000,fx:{broken:1},m:'Нашли перетёртый провод. Призрак ушёл, шансон остался по желанию водителя.'},
+  {l:'Позвать батюшку',cost:2000,m:'Освятили машину. Дворники успокоились. Механики в недоумении.',r:{p:.5,fx:{broken:1,money:-4000},m:'Не помогло. Пришлось менять блок предохранителей.'}}]},
+ {t:'Сервисная кампания',x:'Производитель отзывает Solaris: бесплатная замена детали у дилера, но машины простоят день.',need:s=>s.fleet.some(c=>c.m==='solaris'||c.m==='solarisNew'),c:[
+  {l:'Отправить все сразу',fx:{broken:2,rep:1},m:'Детали заменили бесплатно. Машины день стояли.'},
+  {l:'По одной, без простоя',cost:2000,m:'Отправляли по одной вечером. Дольше, зато без простоев.'}]},
+ {t:'Пробит радиатор',x:'Камень пробил радиатор, машина закипела на трассе.',c:[
+  {l:'Новый радиатор',cost:8000,fx:{broken:1},m:'Радиатор заменён, машина день в сервисе.'},
+  {l:'Запаять старый',cost:2000,m:'Держится.',r:{p:.45,fx:{money:-15000,broken:1},m:'Пайка лопнула, мотор перегрелся. Ремонт дорогой.'}}]},
+ {t:'Сломался подъёмник',x:'Главный подъёмник в сервисе заклинило. Машины чинят «на коленке».',c:[
+  {l:'Срочный ремонт подъёмника',cost:10000,m:'Подъёмник снова работает.'},
+  {l:'Чинить на домкратах',fx:{broken:2},m:'Ремонт идёт вдвое медленнее. Очередь растёт.'}]},
  {t:'Двигатель-миллионник',f:1,who:'mech',x:'Механик клянётся, что мотор Гранты пройдёт миллион, если «правильно с ним разговаривать».',need:s=>s.fleet.some(c=>c.m==='granta'),c:[
   {l:'Разрешить разговаривать',fx:{rep:1},m:'Механик разговаривает с мотором каждое утро. Мотор пока работает.',r:{p:.3,fx:{broken:1,money:-8000},m:'Мотор обиделся. Капитальный ремонт.'}},
   {l:'Капремонт по науке',cost:15000,m:'Мотор как новый. Механик говорит, это он его уговорил.'}]},
@@ -518,6 +615,12 @@ const NEWS=[
  {id:'snow',t:'Сильный снегопад',d:'спрос +15%, поломок больше',demand:1.15,fail:1.3,days:2},
  {id:'raid',t:'Рейды ГИБДД по такси',d:'риски «Автопарка» выше',risk1:.2,days:3},
  {id:'parts',t:'Запчасти подорожали',d:'ремонт +30%',repair:1.3,days:4},
+ {id:'outage',t:'Сбой у агрегатора',d:'заказов меньше на 30%',demand:.7,days:1},
+ {id:'outage2',t:'Агрегатор обновил приложение с багами',d:'спрос −15%',demand:.85,days:2},
+ {id:'surge',t:'Повышенный спрос',d:'выручка +25%',demand:1.25,days:1,ev:1},
+ {id:'kids',t:'Тариф «Детский»',d:'выручка +5%',demand:1.05,days:6,ev:1},
+ {id:'photo',t:'Блокировки за фотоконтроль',d:'спрос −15%',demand:.85,days:2,ev:1},
+ {id:'backup',t:'Работа через резервный агрегатор',d:'выручка +5%',demand:1.05,days:3,ev:1},
 ];
 const HOLIDAYS={'12-31':[2.5,'Новогодняя ночь'],'01-01':[1.6,'1 января'],'01-07':[1.2,'Рождество'],'02-23':[1.2,'23 февраля'],'03-08':[1.4,'8 Марта'],'05-01':[1.2,'1 Мая'],'05-09':[1.3,'День Победы'],'06-12':[1.15,'День России'],'09-01':[1.25,'1 сентября'],'11-04':[1.1,'День народного единства']};
 const MONTHS=['янв','фев','мар','апр','мая','июн','июл','авг','сен','окт','ноя','дек'];
@@ -575,7 +678,7 @@ function season(d){const m=d.getMonth();
 const newsDef=n=>NEWS.find(x=>x.id===n.id)||n;
 const newsMod=k=>{const add=k==='leave'||k==='risk1';return S.news.reduce((a,n)=>{const N=newsDef(n);return add?a+(N[k]||0):a*(N[k]||1)},add?0:1)};
 function save(){try{localStorage.setItem(SKEY,JSON.stringify(S))}catch(e){}}
-function load(){try{const v=JSON.parse(localStorage.getItem(SKEY));if(v&&v.fleet&&v.heads)return v}catch(e){}return null}
+function load(){try{const v=JSON.parse(localStorage.getItem(SKEY));if(v&&v.fleet&&v.heads){if(!v.rents)v.rents=Object.assign({},MARKET);return v}}catch(e){}return null}
 function toast(t){const el=$('toast');el.textContent=t;el.hidden=false;clearTimeout(toast.h);toast.h=setTimeout(()=>el.hidden=true,2600)}
 function addLog(t){S.log.unshift({d:S.day,t});S.log=S.log.slice(0,80)}
 
@@ -593,7 +696,7 @@ const failMult=()=>(hasHead('sanya')?.65:1)*(S.upg.diag?.7:1)*season(dateOf(S.da
 const repairCap=()=>2+2*S.staff[2]+(hasHead('olga')?3:0)+(S.upg.lift?2:0);
 const carFail=c=>MODELS[c.m].fail*(1+Math.max(0,c.km-MODELS[c.m].km0)/150000);
 const carValue=c=>{const M=MODELS[c.m];if(c.lease>0)return 0;return Math.round(M.resale*Math.max(.25,1-Math.max(0,c.km-M.km0)/300000)/500)*500};
-const isBad=fx=>!!fx&&((fx.money||0)<0||(fx.rep||0)<0||(fx.drivers||0)<0||(fx.broken||0)>0||(fx.cars||0)<0);
+const isBad=fx=>!!fx&&((fx.money||0)<0||(fx.rep||0)<0||(fx.drivers||0)<0||(fx.broken||0)>0||(fx.cars||0)<0||(fx.news&&(NEWS.find(n=>n.id===fx.news)||{}).demand<1));
 
 /* ================= ЦЕЛИ (бесконечный режим) ================= */
 const GOALS=[
@@ -641,7 +744,7 @@ function checkAch(){
 const START_FLEET=[['granta',190000],['granta',205000],['granta',170000],['granta',230000],['solaris',110000],['solaris',125000],['solaris',98000],['solaris',140000]];
 function blankState(mode){
   return {mode,goal:0,day:1,money:300000,rep:60,drivers:7,fleet:[],seq:0,decks:[[],[],[]],today:[0,0,0],done:[null,null,null],log:[],over:false,hired:false,
-    rent:3200,heads:[0,1,2].map(d=>({key:HEADS[d][0].key,name:HEADS[d][0].name})),staff:[1,1,1],train:[0,0,0],upg:{},spots:12,loans:[],news:[],
+    rents:Object.assign({},MARKET),heads:[0,1,2].map(d=>({key:HEADS[d][0].key,name:HEADS[d][0].name})),staff:[1,1,1],train:[0,0,0],upg:{},spots:12,loans:[],news:[],
     rival:{name:'Жёлтый ветер',cars:10},nextRival:rand(6,9),nextInspect:rand(3,6),quest:null,nextQuest:3,queue:[],hist:[[],[],[]],cnt:{},ach:{},morning:[]};
 }
 function newGame(mode,heads){
@@ -683,6 +786,7 @@ function apply(fx={},d){
   if(fx.broken>0)breakCars(fx.broken);
   if(fx.upg){S.upg[fx.upg]=true;if(fx.upg==='office')S.rep=Math.min(100,S.rep+5)}
   if(fx.cnt)S.cnt[fx.cnt]=(S.cnt[fx.cnt]||0)+1;
+  if(fx.news){const N=NEWS.find(x=>x.id===fx.news);if(N){S.news=S.news.filter(n=>n.id!==N.id);S.news.push({id:N.id,days:N.days})}}
 }
 const evCost=(c,d)=>{let v=typeof c.cost==='function'?c.cost(S):(c.cost||0);if(d===1&&hasHead('timur'))v=Math.round(v*.8/50)*50;return v};
 function choose(d,i){
@@ -698,6 +802,7 @@ function choose(d,i){
   S.hist[d].push(bad?-1:1);S.hist[d]=S.hist[d].slice(-8);
   const a=snap(),delta={};for(const k in a)delta[k]=a[k]-before[k];
   S.done[d]={choice:i,msg,delta};
+  if(S.quest&&S.quest.type==='noneg'&&delta.rep<0)S.quest.failed=true;
   addLog(DEPTS[d].name+': '+msg);sfx(bad?'bad':delta.money>0?'coin':'click');
   save();render(before);
 }
@@ -747,10 +852,10 @@ function changeHead(d,key,free){
 function renameHead(d){const v=($('nm'+d).value||'').trim().slice(0,40);if(!v)return;S.heads[d].name=v;if(G.pins[d]&&G.pins[d].key===S.heads[d].key){G.pins[d].name=v;saveG()}toast('Имя сохранено');save();render()}
 function pinHead(d,on){G.pins[d]=on?{key:S.heads[d].key,name:S.heads[d].name}:null;saveG();toast(on?'Начальник закреплён для новых игр':'Закрепление снято');render()}
 function saveFounders(){G.founders=[0,1,2].map(i=>(($('fn'+i).value||'').trim().slice(0,40))||FOUNDERS[i].name);saveG();toast('Имена учредителей сохранены');render()}
-function rentInfo(){const r=S.rent;
-  if(r>3200)return `<span class="neg">Водители уходят чаще: примерно ${(((r-3200)/1000*.06+.003)*100).toFixed(1)}% в день каждый</span>`;
-  if(r<3200)return `<span class="pos">К вам охотнее идут: шанс нового водителя ${Math.round((3200-r)/600*60)}% в день</span>`;
-  return 'Рыночная ставка: водители не уходят и не приходят из-за цены';}
+function rentInfo(){const{o,u}=rentDev(),out=[];
+  if(o>0)out.push(`<span class="neg">Водители уходят чаще: примерно ${((.003+o*.19)*100).toFixed(1)}% в день каждый</span>`);
+  if(u>0)out.push(`<span class="pos">К вам охотнее идут: шанс нового водителя ${Math.min(95,Math.round(u/.1875*60))}% в день</span>`);
+  return out.join('<br>')||'Все ставки по рынку: водители не уходят и не приходят из-за цены';}
 function takeLoan(i){const L=LOANS[i];if(S.loans.length>=2||S.over){toast('Банк не даст больше двух кредитов');return}
   const before=snap();S.money+=L.amount;S.loans.push({amount:L.amount,pay:Math.round(L.amount*L.rate/L.days/10)*10,left:L.days});
   addLog(`Банк: кредит ${rub(L.amount)} на ${L.days} дней.`);toast(`Получено ${rub(L.amount)}`);sfx('coin');save();render(before)}
@@ -759,12 +864,12 @@ function takeLoan(i){const L=LOANS[i];if(S.loans.length>=2||S.over){toast('Ба�
 const premiumN=()=>S.fleet.filter(c=>MODELS[c.m].cls!=='Эконом').length;
 function endDay(){
   const date=dateOf(S.day),sea=season(date),hol=HOLIDAYS[mmdd(date)];
-  const working=S.fleet.filter(c=>!c.b).sort((a,b)=>MODELS[b.m].mult-MODELS[a.m].mult);
+  const working=S.fleet.filter(c=>!c.b).sort((a,b)=>carRevM(b.m)-carRevM(a.m));
   const active=Math.min(S.drivers,working.length), factor=0.5+S.rep/100;
   const moods=[[1,null],[1,null],[1,null],[1.15,'Дождь весь вечер: спрос вырос.'],[.9,'Пробки по всему городу: выручка ниже.']];
   const [mood,moodNote]=moods[Math.random()*moods.length|0];
   const demand=mood*sea.demand*newsMod('demand')*(hol?hol[0]:1);
-  const base=working.slice(0,active).reduce((a,c)=>a+S.rent*MODELS[c.m].mult,0);
+  const base=working.slice(0,active).reduce((a,c)=>a+carRevM(c.m),0);
   const revenue=Math.round(base*factor*demand/100)*100;
   const parking=carsN()*PARKING, lease=leaseSum(), pay=payroll(), loans=loanSum();
   const notes=[];
@@ -785,29 +890,31 @@ function endDay(){
   S.loans=S.loans.filter(l=>l.left>0);
   // водители
   const leaveMul=(hasHead('marina')?.6:1)*(S.upg.call?.8:1)*(1+load01(0));
-  const leaveP=(.003+Math.max(0,S.rent-3200)/1000*.06+newsMod('leave'))*leaveMul;
+  const dev=rentDev(),leaveP=(.003+dev.o*.19+newsMod('leave'))*leaveMul;
   let gone=0;for(let i=0;i<S.drivers;i++)if(Math.random()<leaveP)gone++;
   const idle=Math.max(0,S.drivers-gone-carsN());let idleGone=0;for(let i=0;i<idle;i++)if(Math.random()<.35*leaveMul)idleGone++;
-  if(gone)notes.push(`${gone} вод. ушли: ${S.rent>3200?'аренда слишком высокая':'нашли другую работу'}.`);
+  if(gone)notes.push(`${gone} вод. ушли: ${dev.o>0?'аренда слишком высокая':'нашли другую работу'}.`);
   if(idleGone)notes.push(`${idleGone} вод. ушли: простаивали без машины.`);
   S.drivers-=gone+idleGone;
   if(S.rep<30&&S.drivers>0&&Math.random()<.4*leaveMul){S.drivers--;notes.push('Водитель ушёл: у парка плохая репутация.')}
-  if(S.drivers<carsN()+1&&S.rent<3200&&Math.random()<(3200-S.rent)/600*.6){S.drivers++;notes.push('Пришёл водитель: у вас выгодная аренда.')}
+  if(S.drivers<carsN()+1&&dev.u>0&&Math.random()<dev.u/.1875*.6){S.drivers++;notes.push('Пришёл водитель: у вас выгодная аренда.')}
   if(S.drivers<carsN()&&S.rep>=75&&Math.random()<.35){S.drivers++;notes.push('Сам пришёл водитель: слышал, что у вас хорошо.')}
   if(S.upg.wash&&S.day%3===0)S.rep=Math.min(100,S.rep+1);
   // задание агрегатора
   if(S.quest){const q=S.quest;q.days--;
     if(q.type==='shifts')q.prog+=active;
-    if(q.type==='nobreak')q.prog+=breaks;
-    if(q.type==='premium')q.prog=premiumN();
+    if(q.type==='revenue')q.prog+=revenue;
+    if(q.type==='nobreak'){q.prog+=breaks;if(q.prog>q.target)q.failed=true}
     if(q.type==='rep'&&S.rep<q.target)q.failed=true;
-    if(q.type==='nobreak'&&q.prog>q.target)q.failed=true;
-    const ok=(q.type==='shifts'&&q.prog>=q.target)||(q.type==='premium'&&q.prog>=q.target)||((q.type==='rep'||q.type==='nobreak')&&q.days<=0&&!q.failed);
+    if(q.type==='lineup'&&active<q.target)q.failed=true;
+    if(q.type==='fair'&&S.rents['Эконом']>MARKET['Эконом'])q.failed=true;
+    questProg();
+    const ok=QMODE[q.type]==='reach'?q.prog>=q.target:(q.days<=0&&!q.failed);
     if(ok){S.money+=q.reward;S.news.push({id:'prio',t:'Приоритет от агрегатора',d:'выручка +10%',demand:1.1,days:5});S.cnt.quests=(S.cnt.quests||0)+1;notes.push(`Задание агрегатора выполнено! +${rub(q.reward)} и приоритет на 5 дней.`);S.quest=null;S.nextQuest=S.day+3}
     else if(q.failed||q.days<=0){notes.push('Задание агрегатора провалено. −2 к репутации.');S.rep=Math.max(0,S.rep-2);S.quest=null;S.nextQuest=S.day+4}}
   // новости
   S.news.forEach(n=>n.days--);S.news=S.news.filter(n=>n.days>0);
-  if(S.news.length<2&&Math.random()<.3){const pool=NEWS.filter(n=>!S.news.some(x=>x.id===n.id));const n=pool[Math.random()*pool.length|0];if(n){S.news.push({id:n.id,days:n.days});notes.push(`Новости города: ${n.t} (${n.d}).`)}}
+  if(S.news.length<2&&Math.random()<.3){const pool=NEWS.filter(n=>!n.ev&&!S.news.some(x=>x.id===n.id));const n=pool[Math.random()*pool.length|0];if(n){S.news.push({id:n.id,days:n.days});notes.push(`Новости города: ${n.t} (${n.d}).`)}}
   // конкурент
   if(Math.random()<.5)S.rival.cars++;if(S.rep<40&&Math.random()<.4)S.rival.cars++;
   const net=revenue-OFFICE-pay-parking-lease-loans-repair;
@@ -853,19 +960,20 @@ function inspection(){
   showModal(`<div class="who"><canvas class="face big" width="12" height="12" data-face="founder:${fi}"></canvas><div><span class="step">ПРОВЕРКА УЧРЕДИТЕЛЯ</span><h2>${esc(fName(fi))}</h2></div></div>
     <p>${esc(fName(fi))} ${F.g==='f'?'приехала':'приехал'} без предупреждения и хочет проверить отдел <b style="color:${DEPTS[d].hex}">«${DEPTS[d].name}»</b>. Этот учредитель ${F.about}.</p>
     <p class="note">Начальник отдела: ${esc(S.heads[d].name)}. Сотрудников: ${S.staff[d]}, обучение: ${S.train[d]}/3.</p>
-    <div class="modes"><button class="mode" id="iHonest"><b>ПОКАЗАТЬ ВСЁ КАК ЕСТЬ</b><span>Честная проверка по реальным делам отдела.</span></button>
+    <div class="modes"><button class="mode" id="iHonest"><b>ПРОЙТИ ПРОВЕРКУ</b><span>${MG_INFO[d]}</span></button>
     <button class="mode" id="iShow"><b>УСТРОИТЬ ПОКАЗУХУ (−8 000 ₽)</b><span>Покрасить бордюры, раздать сотрудникам галстуки. Если раскроют — будет хуже.</span></button></div>`);
   drawFaces();sfx('alert');
-  $('iHonest').onclick=()=>inspectResult(fi,d,false);
+  $('iHonest').onclick=()=>MINIGAMES[d](fi,(bonus,sum)=>inspectResult(fi,d,false,bonus,sum));
   $('iShow').onclick=()=>inspectResult(fi,d,true);
 }
-function inspectResult(fi,d,show){
+function inspectResult(fi,d,show,bonus=0,sum=''){mgStop();
   const F=FOUNDERS[fi],h=headDef(d),fem=F.g==='f';
   let sc=48+S.staff[d]*5+S.train[d]*8+h.skill*7-load01(d)*40+S.hist[d].slice(-6).reduce((a,b)=>a+(b>0?4:-7),0)+rand(-12,12);
   if(S.upg.office)sc+=8;
   if(F.focus==='money')sc+=S.money>250000?8:S.money<80000?-10:0;
   if(F.focus==='rep')sc+=Math.round((S.rep-60)/2);
   if(F.focus==='cars')sc+=-5*brokenN()+(S.upg.diag?5:0)+(S.upg.tire?4:0);
+  sc+=bonus;
   let exposed=false;
   if(show){S.money-=8000;if(Math.random()<.3){exposed=true;sc-=25}else sc+=14}
   const before=snap();let res,cls,text;
@@ -878,11 +986,80 @@ function inspectResult(fi,d,show){
   if(exposed)text='Показуху раскрыли: под свежей краской нашли старые проблемы. '+text;
   addLog(`Проверка: ${fName(fi)} → «${DEPTS[d].name}»: ${res.toLowerCase()}.`);
   showModal(`<div class="who"><canvas class="face big" width="12" height="12" data-face="founder:${fi}"></canvas><div><span class="step">ИТОГ ПРОВЕРКИ · ${DEPTS[d].name.toUpperCase()}</span><h2 class="${cls}">${res}</h2></div></div>
+    ${sum?`<p class="note">Испытание: ${sum} <b class="${bonus>0?'pos':bonus<0?'neg':''}">(${bonus>0?'+':''}${bonus} к оценке)</b></p>`:''}
     <p>${text}</p>${fire?`<p class="neg">Учредитель требует сменить начальника отдела «${DEPTS[d].name}».</p>`:''}
     <button class="btn" id="iOk">${fire?'Выбрать нового начальника':'Продолжить'}</button>`);
   drawFaces();sfx(cls==='pos'?'win':cls==='neg'?'bad':'click');save();render(before);
   $('iOk').onclick=()=>{if(fire)pickHead(d,()=>runMorning(),false);else{hideModal();runMorning()}};
 }
+
+/* ================= МИНИ-ИГРЫ ПРОВЕРОК ================= */
+const MG_INFO=['Учредитель позвонит в поддержку под видом клиента. Ответьте правильно.','Учредитель листает документы. Найдите просроченные, пока он не заметил.','Учредитель смотрит, как механик работает. Затяните гайки точно в нужный момент.'];
+let mgTimer=null,mgRaf=null,mgKey=null;
+function mgStop(){clearInterval(mgTimer);mgTimer=null;cancelAnimationFrame(mgRaf);mgRaf=null;if(mgKey){document.removeEventListener('keydown',mgKey);mgKey=null}}
+const QUIZ=[
+ {q:'«Я забыл в такси рюкзак с ноутбуком!»',a:['Найти водителя по номеру поездки и договориться о возврате','Сказать, что парк за вещи не отвечает','Посоветовать обратиться в полицию']},
+ {q:'Водитель: «Агрегатор заблокировал аккаунт, не понимаю за что»',a:['Проверить причину в кабинете агрегатора и помочь подать апелляцию','Сказать, что само разблокируется','Предложить поработать без аккаунта']},
+ {q:'«Водитель мне нагрубил, накажите его!»',a:['Извиниться, записать жалобу и запросить объяснение у водителя','Сразу уволить водителя','Сказать, что пассажир сам виноват']},
+ {q:'Кандидат: «Какие документы нужны, чтобы к вам устроиться?»',a:['Паспорт, водительское удостоверение и оформленная самозанятость','Только паспорт','Никаких, оформим потом']},
+ {q:'Водитель после ДТП звонит в панике',a:['Успокоить, убедиться, что все целы, и объяснить, как оформить ДТП','Сказать, чтобы уезжал с места','Попросить перезвонить завтра']},
+ {q:'«С меня списали деньги за поездку дважды!»',a:['Проверить поездку и оформить возврат через агрегатор','Сказать, что виноват банк','Пообещать скидку без проверки']},
+ {q:'Водитель хочет в отпуск на две недели',a:['Согласовать даты и найти подмену на его машину','Запретить отпуск','Отпустить, а машина пусть постоит']},
+ {q:'Агрегатор упал, водители спрашивают, что делать',a:['Предупредить всех в чате и переключить на резервный агрегатор','Отправить всех домой','Ничего не отвечать, само починится']},
+ {q:'«В машине грязно, сиденье липкое!»',a:['Извиниться, вернуть часть оплаты и отправить машину на мойку','Сказать, что так у всех','Попросить пассажира протереть самому']},
+];
+function mgQuiz(fi,done){
+  const qs=shuffle([...QUIZ]).slice(0,3);let i=0,ok=0;
+  const step=()=>{
+    if(i>=qs.length){const b=ok*6-(3-ok)*4;done(b,`звонки в поддержку — правильных ответов ${ok} из 3`);return}
+    const Q=qs[i],ans=shuffle(Q.a.map((t,k)=>({t,k})));
+    showModal(`<span class="step">ПРОВЕРКА · ЗВОНОК ${i+1} ИЗ 3</span><h2>${esc(fName(fi))} на линии</h2><p class="mg-q">${Q.q}</p>
+      <div class="modes">${ans.map((a,j)=>`<button class="mode" id="qa${j}" data-k="${a.k}"><span style="color:var(--ink)">${a.t}</span></button>`).join('')}</div><p class="note" id="qaMsg"></p>`);
+    let answered=false;
+    ans.forEach((a,j)=>$('qa'+j).onclick=()=>{if(answered)return;answered=true;const right=a.k===0;if(right)ok++;sfx(right?'coin':'bad');
+      $('qaMsg').innerHTML=right?'<span class="pos">Верно! Учредитель кивнул.</span>':`<span class="neg">Не то. Правильно: ${Q.a[0]}.</span>`;
+      $('qa'+j).classList.add(right?'mg-ok':'mg-bad');
+      const nb=document.createElement('button');nb.className='btn';nb.textContent=i<2?'Следующий звонок':'Итог';nb.onclick=()=>{i++;step()};$('qaMsg').after(nb);nb.focus()});
+  };step();
+}
+function mgDocs(fi,done){
+  const today=dateOf(S.day),L='АВЕКМНОРСТУХ',pick=()=>L[rand(0,L.length-1)];
+  const n=8,bad=new Set(shuffle([...Array(n).keys()]).slice(0,3));
+  const fmt=d=>String(d.getDate()).padStart(2,'0')+'.'+String(d.getMonth()+1).padStart(2,'0')+'.'+d.getFullYear();
+  const docs=[...Array(n).keys()].map(k=>{const d=new Date(today);d.setDate(d.getDate()+(bad.has(k)?-rand(1,40):rand(2,240)));
+    return{plate:`${pick()}${rand(100,999)}${pick()}${pick()} ${['77','97','177','799','50','750'][rand(0,5)]}`,doc:['ОСАГО','Диагн. карта','Разрешение'][rand(0,2)],date:fmt(d),bad:bad.has(k)}});
+  const sel=new Set();let left=15;
+  showModal(`<span class="step">ПРОВЕРКА ДОКУМЕНТОВ · СЕГОДНЯ ${fmt(today)}</span><h2>Найдите просроченные</h2>
+    <p>Отметьте машины, у которых срок документа уже истёк. Просроченных — три.</p>
+    <div class="row2"><span class="mg-timer" id="mgT">⏱ ${left} сек</span><button class="buy sm" id="mgDone">Готово</button></div>
+    <div class="mg-docs">${docs.map((x,k)=>`<button class="mg-doc" data-k="${k}"><b>${x.plate}</b><span>${x.doc} до ${x.date}</span></button>`).join('')}</div>`);
+  document.querySelectorAll('.mg-doc').forEach(b=>b.onclick=()=>{const k=+b.dataset.k;if(sel.has(k)){sel.delete(k);b.classList.remove('on')}else{sel.add(k);b.classList.add('on')}sfx('click')});
+  const finish=()=>{mgStop();let hit=0,miss=0,wrong=0;docs.forEach((x,k)=>{if(x.bad&&sel.has(k))hit++;else if(x.bad)miss++;else if(sel.has(k))wrong++});
+    document.querySelectorAll('.mg-doc').forEach(b=>{const k=+b.dataset.k;b.disabled=true;if(docs[k].bad)b.classList.add(sel.has(k)?'mg-ok':'mg-bad');else if(sel.has(k))b.classList.add('mg-bad')});
+    const bonus=hit*5-miss*4-wrong*4;sfx(bonus>0?'coin':'bad');
+    $('mgDone').textContent='Итог';$('mgDone').onclick=()=>done(bonus,`документы — найдено ${hit} из 3${wrong?`, лишних отметок ${wrong}`:''}`)};
+  $('mgDone').onclick=finish;
+  mgTimer=setInterval(()=>{left--;const t=$('mgT');if(t)t.textContent=`⏱ ${left} сек`;if(left<=0)finish()},1000);
+}
+function mgTiming(fi,done){
+  let tries=0,hits=0,pos=0,dir=1,speed=.6,zone=0,zw=.2,lastT=0,locked=false;
+  showModal(`<span class="step">ПРОВЕРКА СЕРВИСА · ПОПЫТКА <span id="mgN">1</span> ИЗ 3</span><h2>Затяните гайку</h2>
+    <p>Нажмите кнопку, когда стрелка в зелёной зоне. С каждой попыткой стрелка быстрее.</p>
+    <div class="mg-bar"><i class="mg-zone" id="mgZone"></i><i class="mg-mark" id="mgMark"></i></div>
+    <p class="note" id="mgMsg">Попаданий: 0</p>
+    <div class="btns"><button class="btn" id="mgHit">Затянуть! (пробел)</button></div>`);
+  const newZone=()=>{zw=Math.max(.1,.22-tries*.04);zone=Math.random()*(1-zw);$('mgZone').style.left=zone*100+'%';$('mgZone').style.width=zw*100+'%'};
+  newZone();
+  const frame=ts=>{const dt=lastT?(ts-lastT)/1000:0;lastT=ts;if(!locked){pos+=dir*speed*dt;if(pos>1){pos=1;dir=-1}if(pos<0){pos=0;dir=1}const m=$('mgMark');if(m)m.style.left=pos*100+'%'}mgRaf=requestAnimationFrame(frame)};
+  mgRaf=requestAnimationFrame(frame);
+  const hit=()=>{if(locked||tries>=3)return;locked=true;const ok=pos>=zone&&pos<=zone+zw;tries++;if(ok)hits++;sfx(ok?'coin':'bad');
+    $('mgMsg').innerHTML=`${ok?'<span class="pos">Точно!</span>':'<span class="neg">Сорвал резьбу!</span>'} Попаданий: ${hits}`;
+    if(tries>=3){mgStop();const b=$('mgHit');b.textContent='Итог';b.onclick=()=>done(hits*6-(3-hits)*3,`гайки — точных попаданий ${hits} из 3`);b.focus();return}
+    setTimeout(()=>{speed+=.35;newZone();$('mgN').textContent=tries+1;locked=false},700)};
+  $('mgHit').onclick=hit;$('mgHit').focus();
+  mgKey=e=>{if(e.code==='Space'){e.preventDefault();hit()}};document.addEventListener('keydown',mgKey);
+}
+const MINIGAMES=[mgQuiz,mgDocs,mgTiming];
 function rivalEvent(){
   S.nextRival=S.day+rand(6,10);const R=S.rival;save();
   const opts=['poach','sale','war'];if(carsN()>R.cars+3)opts.push('buyout','buyout');
@@ -904,16 +1081,37 @@ function rivalEvent(){
   btns.forEach((b,i)=>$('rv'+i).onclick=()=>{const before=snap();const msg=b[1]();addLog('Конкурент: '+msg);
     showModal(`<h2>Конкурент</h2><p>${msg}</p><button class="btn" id="rvOk">Продолжить</button>`);$('rvOk').onclick=()=>{hideModal();runMorning()};save();render(before)});
 }
+/* reach — выполнить до срока; keep — продержаться весь срок без нарушений */
+const QMODE={shifts:'reach',revenue:'reach',premium:'reach',drivers:'reach',buynew:'reach',train:'reach',rep:'keep',nobreak:'keep',lineup:'keep',fair:'keep',noneg:'keep'};
+const AGGS=['«Поехали»','«Мигом»','«Шашечка»'];
+const trainSum=()=>S.train.reduce((a,b)=>a+b,0);
+function questProg(){const q=S.quest;if(!q)return;
+  if(q.type==='premium')q.prog=premiumN();
+  if(q.type==='drivers')q.prog=S.drivers;
+  if(q.type==='buynew')q.prog=(S.cnt.bought||0)-q.start;
+  if(q.type==='train')q.prog=trainSum()-q.start;}
+function questText(q){const T=q.target,f=q.type==='revenue'?rub(T):T;
+  return {shifts:`Отработать ${T} смен за ${q.len} дней`,revenue:`Заработать ${f} выручки за ${q.len} дней`,premium:`Довести число машин «Комфорт» и выше до ${T}`,
+    drivers:`Довести число водителей до ${T}`,buynew:`Купить ${T} машины в автосалоне`,train:`Повысить обучение любого отдела`,
+    rep:`Держать репутацию не ниже ${T} все ${q.len} дней`,nobreak:`Не больше ${T} ночных поломок за ${q.len} дней`,lineup:`Каждый день держать на линии не меньше ${T} экипажей`,
+    fair:'Не поднимать ставку «Эконом» выше рынка',noneg:`${q.len} дней без решений, роняющих репутацию`}[q.type]}
 function newQuest(){
-  const types=['shifts','rep','nobreak','premium'],type=types[Math.random()*types.length|0];
-  const act=Math.max(3,activeN());let q;
-  if(type==='shifts')q={type,target:Math.round(act*7*1.05),t:'Отработать смен за 7 дней'};
-  if(type==='rep')q={type,target:Math.max(55,Math.min(90,S.rep)),t:'Держать репутацию не ниже'};
-  if(type==='nobreak')q={type,target:Math.max(1,Math.round(carsN()/6)),t:'Ночных поломок за 7 дней — не больше'};
-  if(type==='premium')q={type,target:premiumN()+2,t:'Машин «Комфорт» и выше'};
-  Object.assign(q,{prog:type==='premium'?premiumN():0,days:7,reward:20000+carsN()*1500});
-  S.quest=q;save();
-  showModal(`<span class="step">ЗАДАНИЕ ОТ АГРЕГАТОРА</span><h2>${q.t}: ${q.target}</h2><p>Срок — 7 дней. Награда: ${rub(q.reward)} и приоритет в выдаче заказов на 5 дней. Провал — −2 к репутации.</p><button class="btn" id="qOk">Принять</button>`);
+  const types=Object.keys(QMODE).filter(t=>t!==S.lastQuest),type=types[Math.random()*types.length|0];
+  const act=Math.max(3,activeN());let target=0,len=7,start=0;
+  if(type==='shifts')target=Math.round(act*7*1.05);
+  if(type==='revenue'){const est=S.fleet.filter(c=>!c.b).sort((a,b)=>carRevM(b.m)-carRevM(a.m)).slice(0,activeN()).reduce((a,c)=>a+carRevM(c.m),0)*(.5+S.rep/100);target=Math.max(50000,Math.round(est*7*1.05/1000)*1000)}
+  if(type==='premium')target=premiumN()+2;
+  if(type==='drivers')target=S.drivers+3;
+  if(type==='buynew'){target=2;start=S.cnt.bought||0}
+  if(type==='train'){if(trainSum()>=9)return newQuest();target=1;start=trainSum()}
+  if(type==='rep')target=Math.max(55,Math.min(90,S.rep));
+  if(type==='nobreak')target=Math.max(1,Math.round(carsN()/6));
+  if(type==='lineup'){target=Math.max(3,act-1);len=5}
+  if(type==='fair')target=MARKET['Эконом'];
+  if(type==='noneg')len=5;
+  const q={type,target,len,days:len,start,prog:0,agg:AGGS[rand(0,2)],reward:20000+carsN()*1500};
+  q.t=questText(q);S.quest=q;S.lastQuest=type;questProg();save();
+  showModal(`<span class="step">ЗАДАНИЕ ОТ АГРЕГАТОРА ${q.agg}</span><h2>${q.t}</h2><p>Срок — ${len} дней. Награда: ${rub(q.reward)} и приоритет в выдаче заказов на 5 дней. Провал — −2 к репутации.</p><button class="btn" id="qOk">Принять</button>`);
   sfx('alert');$('qOk').onclick=()=>{hideModal();runMorning()};render();
 }
 
@@ -999,7 +1197,7 @@ function renderHud(prev){
     ['drv','Водители',S.drivers+(S.drivers>cars?' (лишние)':''),null,'drivers'],
     ['car','Машины',`${cars} / ${S.spots} мест`+(broken?` · ${broken} рем.`:''),cars/S.spots*100,'cars'],
     ['act','На линии',active+' экипаж.',null],
-    ['rent','Аренда',rub(S.rent)+'/сут',null]];
+    ['rent','Ставки аренды',rentLabel(),null]];
   $('hud').innerHTML=stats.map(([k,l,v,b,key])=>{
     let fl='';if(prev&&key&&prev[key]!==now[key])fl=now[key]>prev[key]?'flash-up':'flash-down';
     return `<div class="stat px ${k}"><span class="lbl">${l}</span><span class="val ${fl}">${v}</span>${b!=null?`<div class="bar"><i style="width:${Math.min(100,b)}%"></i></div>`:''}</div>`}).join('');
@@ -1017,11 +1215,10 @@ function render(prev){
   if(endless){const g=goalAt(S.goal),v=Math.max(0,g.v()),pct=Math.min(100,v/g.n*100);
     const vs=g.n>=1000?`${rub(v)} / ${rub(g.n)}`:`${Math.min(v,g.n)} / ${g.n}`;
     tasks+=`<div class="goalbox px"><span class="lvl">ЦЕЛЬ ${S.goal+1}</span><span class="gt">${g.t} <span class="hint">· ${vs}</span></span><span class="gr">Награда: ${rwText(g.rw)}</span><div class="bar"><i style="width:${pct}%"></i></div></div>`}
-  if(S.quest){const q=S.quest;let pct,vs;
-    if(q.type==='nobreak'){vs=`${q.prog} из ${q.target}`;pct=(7-q.days)/7*100}
-    else if(q.type==='rep'){vs=`сейчас ${S.rep}`;pct=(7-q.days)/7*100}
-    else{vs=`${q.prog} / ${q.target}`;pct=q.prog/q.target*100}
-    tasks+=`<div class="goalbox quest px"><span class="lvl">АГРЕГАТОР</span><span class="gt">${q.t}: ${q.target} <span class="hint">· ${vs} · осталось ${q.days} дн.</span></span><span class="gr">Награда: ${rub(q.reward)} и приоритет</span><div class="bar green"><i style="width:${Math.min(100,pct)}%"></i></div></div>`}
+  if(S.quest){const q=S.quest;questProg();if(!q.len)q.len=7;let pct,vs;
+    if(QMODE[q.type]==='reach'){vs=q.type==='revenue'?`${rub(q.prog)} / ${rub(q.target)}`:`${Math.max(0,q.prog)} / ${q.target}`;pct=Math.max(0,q.prog)/q.target*100}
+    else{vs=q.failed?'нарушено':q.type==='nobreak'?`поломок: ${q.prog} из ${q.target}`:'пока без нарушений';pct=(q.len-q.days)/q.len*100}
+    tasks+=`<div class="goalbox quest px"><span class="lvl">АГРЕГАТОР ${q.agg||''}</span><span class="gt">${q.t||questText(q)} <span class="hint">· ${vs} · осталось ${q.days} дн.</span></span><span class="gr">Награда: ${rub(q.reward)} и приоритет</span><div class="bar green"><i style="width:${Math.min(100,pct)}%"></i></div></div>`}
   $('tasks').innerHTML=tasks;$('tasks').hidden=!tasks;
 
   $('desks').innerHTML=DEPTS.map((D,d)=>{
@@ -1062,7 +1259,7 @@ function renderMgmt(){
         <div class="specs">
           <div class="spec"><span>${M.lease?'Первый взнос':'Цена'}</span><b>${rub(M.price)}</b></div>
           ${M.lease?`<div class="spec"><span>Лизинг, ${LEASE_DAYS} дн.</span><b>${rub(M.lease)}/день</b></div>`:`<div class="spec"><span>Пробег</span><b>~${km(M.km0)}</b></div>`}
-          <div class="spec"><span>Выручка</span><b>${rub(S.rent*M.mult)}/сут</b></div>
+          <div class="spec"><span>Выручка</span><b>${rub(carRevM(k))}/сут</b></div>
           <div class="spec"><span>Надёжность</span><span class="pips">${[0,1,2,3,4].map(i=>`<i class="${i<rel?'on':''}"></i>`).join('')}</span></div>
           <div class="spec"><span>Ремонт</span><b>${M.repair?rub(M.repair):'по гарантии'}</b></div></div>
         <div class="kind">В парке: ${own}</div>
@@ -1115,10 +1312,13 @@ function renderMgmt(){
   else if(uiTab==='fin'){
     const exp=[['Офис',OFFICE],['Начальники и команды',payroll()],['Стоянка и страховка',carsN()*PARKING],['Лизинг',leaseSum()],['Кредиты',loanSum()]];
     B.innerHTML=`<div class="grid">
-      <div class="card2"><h3>Ставка аренды для водителя</h3>
-        <div class="row2"><span>Сутки на машине «Эконом»</span><b class="count" id="rentVal">${rub(S.rent)}</b></div>
-        <input type="range" id="rentSlider" min="2600" max="4200" step="100" value="${S.rent}" ${dis} aria-label="Ставка аренды">
-        <p class="kind" id="rentInfo">${rentInfo()}</p><p class="sub">Рынок: 3 200 ₽. Выше — больше денег, но водители уходят. Ниже — к вам тянутся люди.</p></div>
+      <div class="card2" style="grid-column:1/-1"><h3>Ставки аренды по классам</h3>
+        <p class="sub">Сколько водитель платит за сутки на машине этого класса. Выше рынка — больше денег, но водители уходят. Ниже — к вам тянутся люди.</p>
+        <div class="grid">${CLASSES.map((cl,i)=>{const m=MARKET[cl],r=S.rents[cl],n=S.fleet.filter(c=>MODELS[c.m].cls===cl).length,dv=Math.round((r/m-1)*100);
+          return `<div class="rentrow"><div class="row2"><span><b>${cl}</b> <span class="sub">· машин: ${n}</span></span><b class="count" id="rv_${i}">${rub(r)}</b></div>
+          <input type="range" data-cls="${i}" min="${Math.round(m*.8/100)*100}" max="${Math.round(m*1.3/100)*100}" step="100" value="${r}" ${dis} aria-label="Ставка ${cl}">
+          <div class="row2 sub"><span>Рынок ${rub(m)}</span><span id="rd_${i}" class="${dv>0?'neg':dv<0?'pos':''}">${dv?(dv>0?'+':'')+dv+'%':'по рынку'}</span></div></div>`}).join('')}</div>
+        <p class="kind" id="rentInfo">${rentInfo()}</p></div>
       <div class="card2"><h3>Банк</h3>
         ${LOANS.map((L,i)=>`<div class="row2"><span>${rub(L.amount)} на ${L.days} дн. · ${rub(Math.round(L.amount*L.rate/L.days/10)*10)}/день</span><button class="buy sm" data-loan="${i}" ${off||S.loans.length>=2?'disabled':''}>Взять</button></div>`).join('')}
         <p class="sub">Переплата ${Math.round((LOANS[0].rate-1)*100)}–${Math.round((LOANS[1].rate-1)*100)}%. Не больше двух кредитов сразу.</p>
@@ -1158,8 +1358,9 @@ $('mbody').addEventListener('click',e=>{const b=e.target.closest('button');if(!b
 });
 $('mbody').addEventListener('change',e=>{const t=e.target;if(S.preview)return;
   if(t.dataset.pin)pinHead(+t.dataset.pin,t.checked);
-  if(t.id==='rentSlider'){S.rent=+t.value;save();render()}});
-$('mbody').addEventListener('input',e=>{const t=e.target;if(t.id==='rentSlider'&&!S.preview){S.rent=+t.value;$('rentVal').textContent=rub(S.rent);$('rentInfo').innerHTML=rentInfo()}});
+  if(t.dataset.cls!==undefined){S.rents[CLASSES[+t.dataset.cls]]=+t.value;save();render()}});
+$('mbody').addEventListener('input',e=>{const t=e.target;if(t.dataset.cls!==undefined&&!S.preview){const i=+t.dataset.cls,cl=CLASSES[i],v=+t.value,dv=Math.round((v/MARKET[cl]-1)*100);
+  S.rents[cl]=v;$('rv_'+i).textContent=rub(v);const rd=$('rd_'+i);rd.textContent=dv?(dv>0?'+':'')+dv+'%':'по рынку';rd.className=dv>0?'neg':dv<0?'pos':'';$('rentInfo').innerHTML=rentInfo()}});
 $('endDay').onclick=()=>{ensureAudio();endDay()};
 $('restart').onclick=pickMode;
 $('saveBtn').onclick=()=>{ensureAudio();openSaveModal()};
