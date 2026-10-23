@@ -74,7 +74,7 @@ h1{font-size:clamp(14px,2.6vw,20px);color:var(--taxi);text-shadow:3px 3px 0 var(
 .goalbox .bar{grid-column:1/-1}
 
 .scene-box{background:var(--edge);overflow:hidden}
-#scene{margin:0 auto}
+#scene,#sceneGL{margin:0 auto}
 
 .desks{display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:16px;align-items:start}
 .desk{background:var(--panel);min-width:0;position:relative}
@@ -2587,7 +2587,7 @@ function autoResolve(){if(S.over||S.preview)return;let n=0;
     if(best>=0){choose(d,best);n++}}
   if(n)toast(`Секретарь Света решила задач: ${n}`)}
 function takePhoto(){const sc=4,c2=document.createElement('canvas');c2.width=320*sc;c2.height=150*sc+56;const g=c2.getContext('2d');g.imageSmoothingEnabled=false;
-  g.drawImage(cv,0,0,320*sc,150*sc);g.fillStyle='#0e0b1c';g.fillRect(0,150*sc,c2.width,56);g.fillStyle='#f7c331';g.font='22px "Press Start 2P", monospace';g.textBaseline='middle';
+  g.drawImage(cv,0,0,320,150,0,0,320*sc,150*sc);g.fillStyle='#0e0b1c';g.fillRect(0,150*sc,c2.width,56);g.fillStyle='#f7c331';g.font='22px "Press Start 2P", monospace';g.textBaseline='middle';
   g.fillText(`Таксопарк «${parkName()}»`,18,150*sc+28);g.fillStyle='#f3ecdc';g.font='18px "PT Mono", monospace';g.textAlign='right';g.fillText(`день ${S.day} · машин ${totalCars()} · ★ ${rankName(S.rank||0)}`,c2.width-18,150*sc+28);
   let url='';try{url=c2.toDataURL('image/png')}catch(e){}
   showModal(`<span class="step">ФОТО-РЕЖИМ</span><h2>Кадр вашего парка</h2>${url?`<img class="photo" src="${url}" alt="Двор таксопарка «${esc(parkName())}»">`:'<p>Не получилось сделать снимок в этом браузере.</p>'}
@@ -3746,11 +3746,63 @@ let lights=[];
 const light=(x,y,r,c,a=1,refl=0)=>lights.push({x,y,r,c,a,refl});
 function glow(g,x,y,r,c,a){const gr=g.createRadialGradient(x,y,0,x,y,r);gr.addColorStop(0,`rgba(${c},${a})`);gr.addColorStop(.35,`rgba(${c},${a*.5})`);gr.addColorStop(1,`rgba(${c},0)`);g.fillStyle=gr;g.fillRect(x-r,y-r,r*2,r*2)}
 let vig;
+/* ---- постобработка WebGL: свечение с размытием, цветокоррекция по времени суток и настроению, зерно ----
+   картинка рисуется как раньше в холст #scene, а на экран выводится через шейдеры; без WebGL остаётся обычный холст */
+const post=(()=>{
+  const el=document.createElement('canvas');el.id='sceneGL';el.setAttribute('role','img');el.setAttribute('aria-label',cv.getAttribute('aria-label'));
+  let gl=null;try{gl=el.getContext('webgl',{alpha:false,antialias:false,depth:false,stencil:false})}catch(e){}
+  if(!gl)return null;
+  const VS='attribute vec2 p;varying vec2 v;void main(){v=p*.5+.5;gl_Position=vec4(p,0.,1.);}';
+  const HEAD='precision mediump float;varying vec2 v;uniform sampler2D s;';
+  const FS={
+    bright:HEAD+'uniform float th;void main(){vec3 c=texture2D(s,v).rgb;float l=max(c.r,max(c.g,c.b));gl_FragColor=vec4(c*smoothstep(th,1.,l),1.);}',
+    blur:HEAD+'uniform vec2 d;void main(){vec3 c=texture2D(s,v).rgb*.227;c+=(texture2D(s,v+d*1.385).rgb+texture2D(s,v-d*1.385).rgb)*.316;c+=(texture2D(s,v+d*3.23).rgb+texture2D(s,v-d*3.23).rgb)*.07;gl_FragColor=vec4(c,1.);}',
+    final:HEAD+'uniform sampler2D b;uniform vec2 res;uniform float bl,sat,con,gr,tm;uniform vec3 tint;'+
+      'float h(vec2 q){return fract(sin(dot(q,vec2(12.9898,78.233)))*43758.5453);}'+
+      'void main(){vec3 c=texture2D(s,v).rgb+texture2D(b,v).rgb*bl;float l=dot(c,vec3(.299,.587,.114));c=mix(vec3(l),c,sat);c=(c-.5)*con+.5;c*=tint;'+
+      'c+=(h(floor(v*res)+tm)-.5)*gr;gl_FragColor=vec4(c,1.);}'};
+  const sh=(type,src)=>{const s=gl.createShader(type);gl.shaderSource(s,src);gl.compileShader(s);if(!gl.getShaderParameter(s,gl.COMPILE_STATUS))throw gl.getShaderInfoLog(s);return s};
+  const P={};
+  try{for(const k in FS){const p=gl.createProgram();gl.attachShader(p,sh(gl.VERTEX_SHADER,VS));gl.attachShader(p,sh(gl.FRAGMENT_SHADER,FS[k]));gl.bindAttribLocation(p,0,'p');gl.linkProgram(p);
+    if(!gl.getProgramParameter(p,gl.LINK_STATUS))throw gl.getProgramInfoLog(p);P[k]={p,u:{}};}}catch(e){return null}
+  const U=(k,n)=>P[k].u[n]||(P[k].u[n]=gl.getUniformLocation(P[k].p,n));
+  gl.bindBuffer(gl.ARRAY_BUFFER,gl.createBuffer());gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,1,-1,-1,1,1,1]),gl.STATIC_DRAW);
+  gl.enableVertexAttribArray(0);gl.vertexAttribPointer(0,2,gl.FLOAT,false,0,0);
+  const tex=f=>{const t=gl.createTexture();gl.bindTexture(gl.TEXTURE_2D,t);[gl.TEXTURE_MIN_FILTER,gl.TEXTURE_MAG_FILTER].forEach(p=>gl.texParameteri(gl.TEXTURE_2D,p,f));
+    gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);return t};
+  const src=tex(gl.NEAREST),bufs=[0,1].map(()=>{const t=tex(gl.LINEAR),f=gl.createFramebuffer();return{t,f}});
+  let bw=1,bh=1,on=false,lost=false,fr=0,mood='day';
+  // плавно меняющиеся параметры: к ним каждый кадр подтягиваются целевые
+  const cur={bl:.4,th:.6,sat:1.1,con:1.05,r:1,g:1,b:1};
+  el.addEventListener('webglcontextlost',e=>{e.preventDefault();lost=true;api.show(false)});
+  const api={
+    show(v){on=v&&!lost;el.style.display=on?'block':'none';cv.style.display=on?'none':'block'},
+    fit(cssW,cssH,devW,devH){if(!el.parentElement)cv.after(el);el.width=devW;el.height=devH;el.style.width=cssW;el.style.height=cssH;
+      bw=Math.max(1,W>>1);bh=Math.max(1,H>>1);bufs.forEach(B=>{gl.bindTexture(gl.TEXTURE_2D,B.t);gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,bw,bh,0,gl.RGBA,gl.UNSIGNED_BYTE,null);
+        gl.bindFramebuffer(gl.FRAMEBUFFER,B.f);gl.framebufferTexture2D(gl.FRAMEBUFFER,gl.COLOR_ATTACHMENT0,gl.TEXTURE_2D,B.t,0)});gl.bindFramebuffer(gl.FRAMEBUFFER,null)},
+    get on(){return on},
+    render(dark,wk){if(!on)return;if(fr++%30===0)mood=pickTrack();
+      // цели: ночью холоднее и ярче свечение, на рассвете и закате теплее, на проверках тревожный красноватый тон
+      const warm=Math.max(0,1-Math.abs(dark-.5)*2.5),tense=mood==='tension'?1:0,fog=wk==='fog'?1:0,rain=wk==='rain'?1:0;
+      const T={bl:.3+dark*.85,th:.66-dark*.14,sat:1.12-fog*.25-rain*.08+tense*.05,con:1.06+tense*.04,
+        r:(1.02-dark*.1)*(1+warm*.06)*(1+tense*.08),g:(1-dark*.04)*(1-warm*.02)*(1-tense*.05),b:(.97+dark*.12)*(1-warm*.08)*(1-tense*.06)*(1+rain*.04)};
+      for(const k in T)cur[k]+=(T[k]-cur[k])*.06;
+      gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL,true);gl.activeTexture(gl.TEXTURE0);gl.bindTexture(gl.TEXTURE_2D,src);gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,cv);
+      const pass=(k,from,to,set)=>{gl.useProgram(P[k].p);gl.bindFramebuffer(gl.FRAMEBUFFER,to?to.f:null);gl.viewport(0,0,to?bw:el.width,to?bh:el.height);
+        gl.activeTexture(gl.TEXTURE0);gl.bindTexture(gl.TEXTURE_2D,from);gl.uniform1i(U(k,'s'),0);set&&set();gl.drawArrays(gl.TRIANGLE_STRIP,0,4)};
+      const [A,B]=bufs;
+      const filt=f=>{gl.bindTexture(gl.TEXTURE_2D,src);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,f);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,f)};
+      filt(gl.LINEAR);pass('bright',src,A,()=>gl.uniform1f(U('bright','th'),cur.th));filt(gl.NEAREST);
+      [1,2].forEach(r=>{pass('blur',A.t,B,()=>gl.uniform2f(U('blur','d'),r/bw,0));pass('blur',B.t,A,()=>gl.uniform2f(U('blur','d'),0,r/bh))});
+      pass('final',src,null,()=>{gl.activeTexture(gl.TEXTURE1);gl.bindTexture(gl.TEXTURE_2D,A.t);gl.uniform1i(U('final','b'),1);
+        gl.uniform2f(U('final','res'),W,H);gl.uniform1f(U('final','bl'),cur.bl);gl.uniform1f(U('final','sat'),cur.sat);gl.uniform1f(U('final','con'),cur.con);
+        gl.uniform1f(U('final','gr'),.035);gl.uniform1f(U('final','tm'),still?0:(fr%61));gl.uniform3f(U('final','tint'),cur.r,cur.g,cur.b)})}};
+  return api})();
 /* ровные пиксели: масштаб только целый (в точках экрана), а лишнюю ширину занимает сама сцена, не пустые поля */
 function fitScene(){const d=devicePixelRatio||1,cw=cv.parentElement.clientWidth*d,k=Math.max(1,Math.ceil(cw/400));
   W=Math.floor(cw/k);
-  if(W<320){W=320;cv.style.width='100%';cv.style.height='auto'} // очень узкий экран: целый масштаб не помещается
-  else{cv.style.width=W*k/d+'px';cv.style.height=H*k/d+'px'}
+  if(W<320){W=320;cv.style.width='100%';cv.style.height='auto';post&&post.show(false)} // очень узкий экран: целый масштаб не помещается
+  else{cv.style.width=W*k/d+'px';cv.style.height=H*k/d+'px';if(post){post.fit(cv.style.width,cv.style.height,W*k,H*k);post.show(true)}}
   cv.width=lm.width=W;cx.imageSmoothingEnabled=false;
   vig=cx.createRadialGradient(W/2,H*.55,H*.45,W/2,H*.55,W*.62);vig.addColorStop(0,'rgba(8,6,20,0)');vig.addColorStop(1,'rgba(8,6,20,.38)');
   if(typeof draw==='function'&&S)draw()}
@@ -3877,6 +3929,7 @@ function draw(){
   if(wk==='heat'&&dark<.5){cx.fillStyle='#ffb04a14';cx.fillRect(0,0,W,H)}
   drawScene(dark);
   lightPass(dark,wk==='rain');
+  if(post&&post.on)post.render(dark,wk);
   t+=SP;
 }
 /* ---- сценки событий на картинке парка ---- */
