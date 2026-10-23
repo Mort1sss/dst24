@@ -65,6 +65,39 @@ h1{font-size:clamp(14px,2.6vw,20px);color:var(--taxi);text-shadow:3px 3px 0 var(
 .news{font-size:15px;background:var(--panel);border:3px solid var(--edge);padding:4px 8px}
 .news.up{border-color:var(--good)}.news.down{border-color:var(--bad)}
 .news small{color:var(--muted)}
+/* лента города: прогноз и новости карточками */
+.ticker .lab{display:flex;align-items:center;gap:6px}
+.wxs{display:flex;gap:6px;flex-wrap:wrap}
+.wx,.nw{display:flex;align-items:center;gap:8px;background:var(--panel);border:3px solid var(--edge);box-shadow:3px 3px 0 var(--edge);padding:4px 10px 4px 6px;cursor:help;min-width:0}
+.wx.now{background:var(--panel-2);border-color:#5a5285;padding:4px 12px 4px 6px}
+.wx small,.nw-t small{display:block;font-size:12px;color:var(--muted);line-height:1.2;white-space:nowrap}
+.wx b{display:block;font-size:15px;line-height:1.25}
+.wx:not(.now){filter:saturate(.8)}
+.fxs{display:flex;gap:4px;margin-top:3px;flex-wrap:wrap}
+.fx{font-size:12px;line-height:1.4;padding:0 5px;background:var(--edge);white-space:nowrap}.fx.up{color:var(--good)}.fx.down{color:var(--bad)}
+.ticker .tk{display:flex;flex-wrap:wrap;gap:8px;min-width:0}
+.nw{border-left:6px solid var(--muted);scroll-snap-align:start;flex:none}
+.nw.up{border-left-color:var(--good)}.nw.down{border-left-color:var(--bad)}
+.nw.crisis{animation:pulseR 1.4s ease-in-out infinite;border-color:var(--bad)}
+.nw-t b{display:block;font-weight:600;font-size:15px;line-height:1.25;white-space:nowrap}
+.pips{display:flex;gap:2px;margin-left:2px}.pips i{width:5px;height:5px;background:#ffffff22}.pips i.on{background:var(--taxi)}
+/* значок показателя слева от числа */
+.stat .sv{display:flex;align-items:center;gap:10px;min-width:0}
+.badge{flex:none;width:40px;height:40px;display:grid;place-items:center;background:var(--deep);box-shadow:inset 0 0 0 2px #ffffff12,3px 3px 0 var(--edge)}
+.badge{position:relative}.badge .i16{display:block}
+.badge .bn{position:absolute;right:-6px;top:-6px;min-width:16px;height:16px;padding:0 3px;background:var(--bad);color:var(--edge);font:9px/16px var(--f-display);font-style:normal;text-align:center;box-shadow:2px 2px 0 var(--edge)}
+.badge.b-up .i16{animation:hop .5s steps(5)}.badge.b-down .i16{animation:sag .5s steps(5)}
+.stat.money .badge.b-up .i16,.stat.money .badge.b-down .i16{animation:spin .6s steps(6)}
+.stat.day .badge.b-up .i16{animation:flipX .5s steps(5)}
+.stat.rep .badge.b-up{animation:glowB .7s steps(4)}
+@keyframes hop{40%{transform:translateY(-6px)}}
+@keyframes sag{0%{filter:brightness(.6)}30%{transform:translateX(-2px)}60%{transform:translateX(2px)}}
+@keyframes spin{25%{transform:scaleX(.2)}50%{transform:scaleX(-1)}75%{transform:scaleX(.2)}}
+@keyframes flipX{50%{transform:rotateX(90deg)}}
+@keyframes glowB{50%{box-shadow:inset 0 0 0 2px var(--taxi),0 0 14px var(--taxi),3px 3px 0 var(--edge)}}
+.toggle .i16{vertical-align:-3px}.toggle .i16+*,#menuBtn .i16{margin-right:6px}
+.goalbox .lvl{display:inline-flex;align-items:center;gap:6px}
+@media (prefers-reduced-motion:reduce){.badge .i16,.badge{animation:none!important}}
 
 .tasks{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px}
 .goalbox{background:var(--panel);padding:12px 14px;display:grid;grid-template-columns:auto 1fr;gap:8px 14px;align-items:center;min-width:0}
@@ -264,7 +297,6 @@ body{background:linear-gradient(180deg,#1f1a3c 0%,#18142f 100%) fixed}
 .mbody.swap .card2:nth-child(2){animation-delay:.04s}.mbody.swap .card2:nth-child(3){animation-delay:.08s}.mbody.swap .card2:nth-child(4){animation-delay:.12s}
 .mbody.swap .card2:nth-child(5){animation-delay:.16s}.mbody.swap .card2:nth-child(n+6){animation-delay:.2s}
 /* отклик: всплывающая сумма, монетки, тряска, переход ночь → утро */
-.ico{width:16px;height:16px;vertical-align:-3px;margin-right:6px;flex:none}
 .pop{position:absolute;right:10px;top:4px;font-family:var(--f-display);font-size:10px;pointer-events:none;white-space:nowrap;animation:popUp 1.3s ease-out forwards;text-shadow:2px 2px 0 var(--edge)}
 .pop.pos{color:var(--good)}.pop.neg{color:var(--bad)}
 @keyframes popUp{0%{opacity:0;transform:translateY(6px)}15%{opacity:1;transform:none}100%{opacity:0;transform:translateY(-22px)}}
@@ -318,8 +350,10 @@ a.btn{text-decoration:none;display:inline-block}
 body.big{font-size:19px}body.big .choice{font-size:19px}body.big .kind,body.big .sub,body.big .note,body.big .news,body.big .eff{font-size:17px}body.big .stat .val{font-size:14px}
 body.cb{--good:#4fa8ff;--bad:#ffb04a}
 body.cb .eff.up::before,body.cb .chip.up::before{content:'▲ '}body.cb .eff.down::before,body.cb .chip.down::before{content:'▼ '}
-.ticker{flex-wrap:nowrap;min-width:0}
-.ticker .tk{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;min-width:0;-webkit-mask-image:linear-gradient(90deg,#000 92%,transparent)}
+.ticker{flex-wrap:wrap;min-width:0}
+.ticker .tk{display:flex;flex-wrap:nowrap;flex:1 1 100%;gap:8px;overflow-x:auto;scroll-snap-type:x mandatory;padding-bottom:3px;scrollbar-width:none;min-width:0;-webkit-mask-image:linear-gradient(90deg,#000 92%,transparent)}
+@media (min-width:701px){.ticker .tk{flex-wrap:wrap;overflow:visible;-webkit-mask-image:none}}
+@media (max-width:700px){.hud .badge{width:36px;height:36px}.hud .stat .sv{gap:8px}}
 .ticker .tk::-webkit-scrollbar{display:none}
 .ticker .news{white-space:nowrap;flex:none}
 .eff.adv2{background:#2b3a66;color:#cfe0ff}
@@ -2956,15 +2990,37 @@ function chips(dl){
 function checkRank(){if(S.preview||S.over)return;
   while((S.rank||0)<RANKS.length-1&&RANKS[(S.rank||0)+1].need()){S.rank=(S.rank||0)+1;const R=RANKS[S.rank];
     addLog(`Новое звание: «${R.n}»! Открыто: ${R.unlock}.`);toast(`★ Звание: ${R.n}. Открыто: ${R.unlock}`);sfx('win');save()}}
-/* пиксельные иконки показателей 8×8 */
-const ICONS={
- money:[["..oooo..",".olyyyo.","olyyyyyo","oyyssyyo","oyyssyyo","oyyyyyyo",".oyyyyo.","..oooo.."],{o:'#c9951a',y:'#f7c331',l:'#fff6a8',s:'#c9951a'}],
- day:[[".k....k.","rrrrrrrr","rrrrrrrr","wwwwwwww","wkwkwkww","wwwwwwww","wkwkwwww","wwwwwwww"],{k:'#f3ecdc',r:'#ff6b6b',w:'#f3ecdc'}],
- drv:[["..yyyy..","..hhhh..","..hhhh..","...hh...",".tttttt.","tttttttt","tt.tt.tt","........"],{y:'#f7c331',h:'#f0c8a0',t:'#4fc7b0'}],
- rep:[["...yy...","...yy...","yyyyyyyy",".yyyyyy.","..yyyy..",".yyyyyy.",".yy..yy.","y......y"],{y:'#f7c331'}],
- car:[["..kkkk..",".kwwwwk.","kyyyyyyk","yhyyyyhy","yyyyyyyy","kkkkkkkk",".oo..oo.","........"],{k:'#0e0b1c',w:'#9fd3ff',y:'#f7c331',h:'#fff6a8',o:'#a8a0cc'}]};
-const icon=k=>{const I=ICONS[k];if(!I)return'';let r='';I[0].forEach((row,y)=>{for(let x=0;x<8;x++)if(row[x]!=='.')r+=`<rect x="${x}" y="${y}" width="1" height="1" fill="${I[1][row[x]]}"/>`});
-  return `<svg class="ico" viewBox="0 0 8 8" shape-rendering="crispEdges" aria-hidden="true">${r}</svg>`};
+/* ---- пиксельные иконки 16×16 «мягкий пиксель»: показатели, погода, новости, кнопки, цели ---- */
+const ICON16={
+ money:["................", ".....kkkkkk.....", "...kkddddddkk...", "..kddyyyyyyddk..", "..kdyllyyyyydk..", ".kdyllyyyyyyydk.", ".kdylyyddddyydk.", ".kdyyyydyydyydk.", ".kdyyyyddddyydk.", ".kdyyyddddyyydk.", ".kdyyyydyyyyydk.", "..kdyyyyyyyydk..", "..kddyyyyyyddk..", "...kkddddddkk...", ".....kkkkkk.....", "................"],
+ day:["................", "...kk.....kk....", ".kkGkkkkkkGkkk..", ".krrrrrrrrrrrrk.", ".kRRRRRRRRRRRRk.", ".kwwwwwwwwwwwwk.", ".kwGGwGGwGGwwwk.", ".kwwwwwwwwwwwwk.", ".kwGGwGGwrrwwwk.", ".kwwwwwwwwwwwwk.", ".kwGGwGGwGGwwwk.", ".kwwwwwwwwwwwwk.", ".kggggggggggggk.", "..kkkkkkkkkkkk..", "................", "................"],
+ drv:["................", ".....kkkkkk.....", "....kyyyyyyk....", "...kyyyyyyyykk..", "...kkkkkkkkkkkk.", "....kssssssk....", "....kscsscsk....", "....kssssssk....", ".....kssssk.....", "...kkttttttkk...", "..kttttwwttttk..", ".kttttttwtttttk.", ".kttTtttwtttTtk.", ".kttTtttttttTtk.", ".kkkkkkkkkkkkkk.", "................"],
+ rep:["................", ".......kk.......", "......kyyk......", "......kylk......", ".....kyllyk.....", "kkkkkkyllyykkkkk", "kyyyyyllyyyyyydk", ".kyyyylyyyyyydk.", "..kyyyyyyyyydk..", "...kyyyyyyydk...", "...kyyyyyyyydk..", "..kyyyyddyyyydk.", "..kyyydkkdyyydk.", ".kyydkk..kkdyydk", ".kkkk......kkkk.", "................"],
+ car:["................", "......kkkk......", "......kllk......", "....kkkkkkkk....", "...kbbbkbbbbk...", "..kWbbbkbbbbbk..", ".kkyyyyyyyyyykk.", "kyyyyyyyyyyyyyyk", "klyywcwcwcyyyyrk", "kyyycwcwcwyyyyyk", "kddddddddddddddk", ".kkckkkkkkkkckk.", "..kcgck..kcgck..", "...kkk....kkk...", "................", "................"],
+ clear:["................", ".......yy.......", "..y....yy....y..", "...y........y...", ".....kkkkkk.....", "....klllyyyk....", "...klllyyyyyk...", "yy.klyyyyyydk.yy", "yy.kyyyyyyydk.yy", "...kyyyyyyddk...", "....kyyyyddk....", ".....kkkkkk.....", "...y........y...", "..y....yy....y..", ".......yy.......", "................"],
+ rain:["................", "......kkkk......", ".....kwwwwk.....", "..kkkwwwwwwkk...", ".kwwwwwwwwwwwk..", "kwwwwwwwwwwwwwk.", "kgwwwwwwwwwwwgk.", ".kggggggggggggk.", "..kkkkkkkkkkkk..", "................", "...b...b...b....", "..b...b...b.....", "................", "....b...b...b...", "...b...b...b....", "................"],
+ snow:["................", "......kkkk......", ".....kwwwwk.....", "..kkkwwwwwwkk...", ".kwwwwwwwwwwwk..", "kwwwwwwwwwwwwwk.", "kgwwwwwwwwwwwgk.", ".kggggggggggggk.", "..kkkkkkkkkkkk..", "................", "...w.....w......", "..www...www.....", "...w..w..w......", ".....www........", "......w.........", "................"],
+ fog:["................", "................", "................", "..gggggggggg....", "...GGGGGGGG.....", "....gggggggggggg", "......GGGGGGGG..", ".gggggggggggg...", "..GGGGGGGGG.....", "...ggggggggggg..", ".....GGGGGGGG...", "..gggggggggg....", "................", "................", "................", "................"],
+ heat:["................", "......kkk.......", ".....kwwwk......", ".....kwrwk..o...", ".....kwrwk.o.o..", ".....kwrwk......", ".....kwrwk..o...", ".....kwrwk.o.o..", ".....kwrwk......", "....kwwrwwk.....", "...kwrrrrrwk....", "...krrlrrrrk....", "...krrrrrrRk....", "....krrrrRk.....", ".....kkkkk......", "................"],
+ wind:["................", "................", "................", "..gggggggggg....", "............g...", "............g...", ".gggggggggggg...", "................", "....ggggggggg...", ".............g..", "..........nn.g..", "..gggggg..nnn...", "...........n....", "................", "................", "................"],
+ up:["................", "...........kkkk.", "............knk.", "...........knnk.", "..........knk.k.", ".........knk....", "....kk..knk.....", "...knnkknk......", "..knk.knk.......", ".knk..kk........", ".kk.............", "................", ".GGGGGGGGGGGGGG.", "................", "................", "................"],
+ fuel:["................", "..kkkkkkkk......", "..krrrrrrk......", "..krwwwwrk.kk...", "..krwkkwrk..k...", "..krwwwwrk..k...", "..krrrrrrkk.k...", "..krrrrrrk.kk...", "..krrrrrrk.k....", "..krRrrrrk.k....", "..krRrrrrkkk....", "..krRrrrrk......", "..krrrrrrk......", ".kkkkkkkkkk.....", ".kggggggggk.....", ".kkkkkkkkkk....."],
+ tax:["................", "...kkkkkkkk.....", "...kwwwwwwwkk...", "...kwwwwwwwkgk..", "...kwwwwwwwkkkk.", "...kwrrwwwrwwwk.", "...kwrrwwrwwwwk.", "...kwwwwrwwwwwk.", "...kwwwrwwrrwwk.", "...kwwrwwwrrwwk.", "...kwwwwwwwwwwk.", "...kwGGGGGGGwwk.", "...kwwwwwwwwwwk.", "...kwGGGGGwwwwk.", "...kkkkkkkkkkkk.", "................"],
+ alert:["................", ".......kk.......", "......kyyk......", "......kyyk......", ".....kyyyyk.....", ".....kykkyk.....", "....kyykkyyk....", "....kyykkyyk....", "...kyyykkyyyk...", "...kyyykkyyyk...", "..kyyyyyyyyyyk..", "..kyyyykkyyyyk..", ".kyyyyykkyyyyyk.", ".kdddddddddddddk", ".kkkkkkkkkkkkkk.", "................"],
+ gai:["................", "..b..........r..", "...b..kkkk..r...", ".....kbbrrk.....", "....kbBbrRrk....", ".b..kbBbrRrk..r.", "....kbbbrrrk....", "...kkkkkkkkkk...", "...kggggggggk...", "...kkkkkkkkkk...", "................", "................", "................", "................", "................", "................"],
+ agg:["................", "................", "....kkkkkkkk....", "....kGGGGGGk....", "....kbbbbbbk....", "....kbwcwcbk....", "....kbcwcwbk....", "....kbwcwcbk....", "....kbbbbbbk....", "....kbnnnnbk....", "....kbbbbbbk....", "....kGGGGGGk....", "....kGGwwGGk....", "....kkkkkkkk....", "................", "................"],
+ pin:["................", ".....kkkkkk.....", "....kpllpppk....", "...kplpppppPk...", "...kppkkkppPk...", "...kppkwkppPk...", "...kppkkkppPk...", "...kpppppppPk...", "....kpppppPk....", "....kppppPPk....", ".....kppPPk.....", "......kpPk......", ".......kk.......", "................", "....GGGGGGGG....", "................"],
+ city:["................", "................", "................", "..........kkkk..", "..kkkk....kbbk..", "..kbbk....kybk..", "..kybk.kkkkbbk..", "..kbbk.kbbkybk..", "kkkbbkkkybkbbkkk", "kbkybkbkbbkybkbk", "kbkbbkbkybkbbkbk", "kkkkkkkkkkkkkkkk", "................", "................", "................", "................"],
+ pause:["................", "................", "................", "...kkkk..kkkk...", "...kwwk..kwwk...", "...kwwk..kwwk...", "...kwwk..kwwk...", "...kwwk..kwwk...", "...kwwk..kwwk...", "...kwwk..kwwk...", "...kwwk..kwwk...", "...kwwk..kwwk...", "...kkkk..kkkk...", "................", "................", "................"],
+ menu:["................", "................", "................", "..kkkkkkkkkkkk..", "..kwwwwwwwwwwk..", "..kkkkkkkkkkkk..", "................", "..kkkkkkkkkkkk..", "..kwwwwwwwwwwk..", "..kkkkkkkkkkkk..", "................", "..kkkkkkkkkkkk..", "..kwwwwwwwwwwk..", "..kkkkkkkkkkkk..", "................", "................"],
+ flag:["................", "..kkkkkkkkkkk...", "..kwcwcwcwcwk...", "..kcwcwcwcwck...", "..kwcwcwcwcwk...", "..kcwcwcwcwck...", "..kkkkkkkkkkk...", "..kk............", "..kk............", "..kk............", "..kk............", "..kk............", "..kk............", "..kk............", ".kkkk...........", "................"]};
+const P16={k:'#0e0b1c',y:'#f7c331',l:'#fff6a8',d:'#c9951a',w:'#f3ecdc',W:'#e8f6ff',g:'#a8a0cc',G:'#5a5285',r:'#ff6b6b',R:'#c23a3a',b:'#9fd3ff',B:'#4a88c8',
+  t:'#4fc7b0',T:'#2e8a78',o:'#ff8a4c',n:'#86e06f',N:'#4a9a3a',s:'#f0c8a0',c:'#1a1530',p:'#e66fa8',P:'#a8406a'};
+/* варианты на основе других иконок: [основа, замена цветов, отразить по вертикали] */
+const ICON_ALT={down:['up',{n:'#ff6b6b'},1],warn:['alert',{}],crisis:['alert',{y:'#ff6b6b',d:'#c23a3a'}],rival:['car',{y:'#ff8a4c',l:'#ffb07a',d:'#c25a22'}]};
+function icon16(k,sz=32){let rows=ICON16[k],pal=P16;const A=ICON_ALT[k];if(A){rows=ICON16[A[0]];pal=Object.assign({},P16,A[1]);if(A[2])rows=[...rows].reverse()}
+  if(!rows)return'';let r='';rows.forEach((row,y)=>{for(let x=0;x<16;){const ch=row[x];if(ch==='.'){x++;continue}let e=x;while(e<16&&row[e]===ch)e++;r+=`<rect x="${x}" y="${y}" width="${e-x}" height="1" fill="${pal[ch]}"/>`;x=e}});
+  return `<svg class="i16" width="${sz}" height="${sz}" viewBox="0 0 16 16" shape-rendering="crispEdges" aria-hidden="true">${r}</svg>`}
 /* всплывающая сумма у кассы, монетки летят в неё и со стоянки во дворе */
 function popMoney(d){const st=document.querySelector('.stat.money');if(!st)return;const el=document.createElement('span');el.className='pop '+(d>0?'pos':'neg');el.textContent=(d>0?'+':'')+rub(d);st.appendChild(el);setTimeout(()=>el.remove(),1400);
   if(d>=1000&&!still){for(let i=0;i<6;i++){const c=document.createElement('i');c.className='coin';c.style.setProperty('--x0',(Math.random()*80-20)+'px');c.style.setProperty('--y0',(50+Math.random()*40)+'px');c.style.animationDelay=i*.07+'s';st.appendChild(c);setTimeout(()=>c.remove(),1400)}
@@ -2980,13 +3036,16 @@ function renderHud(prev){
   $('rank').textContent='★ '+rankName(S.rank||0);
   const stats=[
     ['money','Касса',rub(S.money),null,'money'],
-    ['day','День',endless?String(S.day):Math.min(S.day,dayLimit())+' / '+dayLimit(),endless?null:Math.min(S.day,dayLimit())/dayLimit()*100],
+    ['day','День',endless?String(S.day):Math.min(S.day,dayLimit())+'/'+dayLimit(),endless?null:Math.min(S.day,dayLimit())/dayLimit()*100],
     ['drv','Водители',String(S.drivers)+(S.drivers<cars-broken?` <small class="neg">(−${cars-broken-S.drivers})</small>`:''),null],
-    ['rep','Репутация',S.rep+' / 100',S.rep,'rep'],
-    ['car','Машины на линии',`${active} из ${cars}`+(broken?` · ${broken} в рем.`:''),cars?active/cars*100:0,'cars']];
+    ['rep','Репутация',S.rep+'/100',S.rep,'rep'],
+    ['car','Машины на линии',`${active} из ${cars}`,cars?active/cars*100:0,'cars']];
+  const dayUp=renderHud.day!=null&&S.day>renderHud.day;renderHud.day=S.day;
+  const chg={money:['money'],day:[],drv:['drivers'],rep:['rep'],car:['cars','broken']};
   $('hud').innerHTML=stats.map(([k,l,v,b,key])=>{
     let fl='';if(prev&&key&&prev[key]!==now[key])fl=now[key]>prev[key]?'flash-up':'flash-down';
-    return `<div class="stat px ${k}"><span class="lbl">${icon(k)}${l}</span><span class="val ${fl}"${k==='money'?' id="moneyVal"':''}>${v}</span>${b!=null?`<div class="bar"><i style="width:${Math.min(100,b)}%"></i></div>`:''}</div>`}).join('');
+    let bump=k==='day'&&dayUp?' b-up':'';if(prev)chg[k].forEach(f=>{if(prev[f]!==now[f])bump=(f==='broken'?now[f]<prev[f]:now[f]>prev[f])?' b-up':' b-down'});
+    return `<div class="stat px ${k}"><span class="lbl">${l}</span><div class="sv"><span class="badge${bump}"${k==='car'&&broken?` title="${broken} в ремонте"`:''}>${icon16(k)}${k==='car'&&broken?`<i class="bn">${broken}</i>`:''}</span><span class="val ${fl}"${k==='money'?' id="moneyVal"':''}>${v}</span></div>${b!=null?`<div class="bar"><i style="width:${Math.min(100,b)}%"></i></div>`:''}</div>`}).join('');
   if(prev){const dm=now.money-prev.money;if(Math.abs(dm)>=1)popMoney(dm);if(now.rep<prev.rep||now.broken>prev.broken)jolt()}
 }
 let freshDesks=false;
@@ -3002,29 +3061,35 @@ function render(prev){
   const endless=!hasLimit();
   renderHud(prev);
   if(mFrom!==null&&mFrom!==S.money&&!still){const el=$('moneyVal');if(el)el.textContent=rub(mFrom);shownMoney=mFrom;countMoney()}else shownMoney=S.money;
+  // лента города: прогноз погоды карточками, затем новости с иконкой, цветом, эффектом и сроком
+  const eff=(v,lbl,inv)=>{const p=Math.round((v-1)*100);if(!p)return'';return `<span class="fx ${(inv?p<0:p>0)?'up':'down'}">${lbl} ${p>0?'+':'−'}${Math.abs(p)}%</span>`};
+  const wx=(k,i)=>{const Wd=WEATHER[k];const fx=eff(Wd.demand,'спрос')+eff(Wd.fail,'поломки',1);
+    return `<div class="wx${i?'':' now'}" title="${['Сегодня','Завтра','Послезавтра'][i]}: ${Wd.n.toLowerCase()}${fx?' · '+fx.replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim():''}">${icon16(k,i?16:32)}<div><small>${['Сегодня','Завтра','Послезавтра'][i]}</small><b>${Wd.n}</b>${i?'':`<span class="fxs">${fx}</span>`}</div></div>`};
+  const pips=(left,total)=>{total=Math.min(7,Math.max(left,total||0));left=Math.min(left,total);return `<span class="pips" title="ещё ${left} дн.">${'<i class="on"></i>'.repeat(left)}${'<i></i>'.repeat(total-left)}</span>`};
+  const card=(tone,ic,title,sub='',days=0,total=0,extra='')=>`<div class="nw ${tone}${extra}" title="${esc(String(title+(sub?' · '+sub:'')+(days?` · ещё ${days} дн.`:'')).replace(/<[^>]+>/g,''))}">${icon16(ic,16)}<div class="nw-t"><b>${title}</b>${sub?`<small>${sub}</small>`:''}</div>${days?pips(days,total):''}</div>`;
+  const NICON={fuel:'fuel',snow:'snow',raid:'gai',comm:'agg',outage:'agg',outage2:'agg',lowprio:'agg',backup:'agg',prio:'agg',photo:'agg',strike:'warn',war:'rival',vipl:'rival'};
   const tick=S.news.filter(n=>n.id!=='raidgai').map(n=>{const N=newsDef(n);const up=(N.demand||1)>1;const down=(N.demand||1)<1||N.leave||N.fail||N.risk1||N.repair;
-    return `<span class="news ${up?'up':down?'down':''}">${N.t} <small>· ${N.d} · ещё ${n.days} дн.</small></span>`});
-  if(S.raid)tick.push(`<span class="news down">Рейды ГАИ <small>· ещё ${S.raid.days} дн. · подготовка ${Math.round(S.raid.prep*100)}%</small></span>`);
-  if((S.tdebt||0)>=4)tick.unshift(`<span class="news down">Отложенные проблемы: ${S.tdebt}/8 <small>· дешёвые решения копятся</small></span>`);
-  if(S.mode!=='sandbox'&&S.mode!=='daily'&&taxDueIn()<=10)tick.unshift(`<span class="news down">Налог через ${taxDueIn()+1} дн. <small>· ≈${rub(Math.round(S.taxAcc*TAX_RATE/1000)*1000)}</small></span>`);
-  if(satK()<.97)tick.unshift(`<span class="news down">Рынок насыщен <small>· выручка с машины ×${satK().toFixed(2)}</small></span>`);
-  if(S.city&&S.city!=='home')tick.unshift(`<span class="news">${cityDef().n}</span>`);
-  if(S.crisis)tick.unshift(`<span class="news down crisis">КРИЗИС: ${CRISES[S.crisis.id].n} <small>· ${CRISES[S.crisis.id].d} · ещё ${S.crisis.days} дн.</small></span>`);
-  tick.unshift(`<span class="news">Погода: <b>${WEATHER[S.weather[0]].n}</b> <small>· завтра ${WEATHER[S.weather[1]].n.toLowerCase()} · послезавтра ${WEATHER[S.weather[2]].n.toLowerCase()}</small></span>`);
-  (S.dnews||[]).forEach(e=>tick.push(`<span class="news ${e.m>1?'up':'down'}">${DISTRICTS.find(D=>D.k===e.d).n}: ${e.t} <small>· ×${e.m}</small></span>`));
-  if(S.union)tick.push('<span class="news down">Профсоюз водителей</span>');
-  if(Math.abs(S.fuel-1)>.06)tick.push(`<span class="news ${S.fuel>1.05?'down':S.fuel<.95?'up':''}">Бензин ${(58*S.fuel).toFixed(1).replace('.',',')} ₽/л</span>`);
-  {const top=[...S.rivals].sort((a,b)=>b.cars-a.cars)[0];if(top&&top.cars>totalCars())tick.push(`<span class="news down">«${esc(top.name)}» больше вас: ${top.cars} маш.</span>`)}
-  $('ticker').innerHTML=`<span class="lab">ГОРОД</span><div class="tk">${tick.join('')}</div>`;
+    return card(up?'up':down?'down':'',NICON[n.id]||(down?'down':'up'),N.t,N.d,n.days,(NEWS.find(x=>x.id===n.id)||{}).days)});
+  if(S.raid)tick.push(card('down','gai','Рейды ГАИ',`подготовка ${Math.round(S.raid.prep*100)}%`,S.raid.days));
+  if((S.tdebt||0)>=4)tick.unshift(card('down','warn',`Отложенные проблемы: ${S.tdebt}/8`,'дешёвые решения копятся'));
+  if(S.mode!=='sandbox'&&S.mode!=='daily'&&taxDueIn()<=10)tick.unshift(card('down','tax',`Налог через ${taxDueIn()+1} дн.`,`≈${rub(Math.round(S.taxAcc*TAX_RATE/1000)*1000)}`));
+  if(satK()<.97)tick.unshift(card('down','down','Рынок насыщен',`выручка с машины ×${satK().toFixed(2)}`));
+  if(S.city&&S.city!=='home')tick.unshift(card('','city',cityDef().n));
+  if(S.crisis)tick.unshift(card('down','crisis',`Кризис: ${CRISES[S.crisis.id].n}`,CRISES[S.crisis.id].d,S.crisis.days,0,' crisis'));
+  (S.dnews||[]).forEach(e=>tick.push(card(e.m>1?'up':'down','pin',`${DISTRICTS.find(D=>D.k===e.d).n}: ${e.t}`,`спрос ×${e.m}`)));
+  if(S.union)tick.push(card('down','warn','Профсоюз водителей'));
+  if(Math.abs(S.fuel-1)>.06)tick.push(card(S.fuel>1.05?'down':S.fuel<.95?'up':'','fuel',`Бензин ${(58*S.fuel).toFixed(1).replace('.',',')} ₽/л`));
+  {const top=[...S.rivals].sort((a,b)=>b.cars-a.cars)[0];if(top&&top.cars>totalCars())tick.push(card('down','rival',`«${esc(top.name)}» больше вас`,`${top.cars} маш.`))}
+  $('ticker').innerHTML=`<span class="lab">${icon16('city',16)}Город</span><div class="wxs">${[0,1,2].map(i=>wx(S.weather[i],i)).join('')}</div>${tick.length?`<div class="tk">${tick.join('')}</div>`:''}`;
   let tasks='';
   if(endless){const g=goalAt(S.goal),v=Math.max(0,g.v()),pct=Math.min(100,v/g.n*100);
     const vs=g.n>=1000?`${rub(v)} / ${rub(g.n)}`:`${Math.min(v,g.n)} / ${g.n}`;
-    tasks+=`<div class="goalbox px"><span class="lvl">ЦЕЛЬ ${S.goal+1}</span><span class="gt">${g.t} <span class="hint">· ${vs}</span></span><span class="gr">Награда: ${rwText(g.rw)}</span><div class="bar"><i style="width:${pct}%"></i></div></div>`}
+    tasks+=`<div class="goalbox px"><span class="lvl">${icon16('flag',16)}ЦЕЛЬ ${S.goal+1}</span><span class="gt">${g.t} <span class="hint">· ${vs}</span></span><span class="gr">Награда: ${rwText(g.rw)}</span><div class="bar"><i style="width:${pct}%"></i></div></div>`}
   if(S.quest){const q=S.quest;questProg();if(!q.len)q.len=7;let pct,vs;
     if(QMODE[q.type]==='reach'){vs=q.type==='revenue'?`${rub(q.prog)} / ${rub(q.target)}`:`${Math.max(0,q.prog)} / ${q.target}`;pct=Math.max(0,q.prog)/q.target*100}
     else{vs=q.failed?'нарушено':q.type==='nobreak'?`поломок: ${q.prog} из ${q.target}`:'пока без нарушений';pct=(q.len-q.days)/q.len*100}
-    tasks+=`<div class="goalbox quest px"><span class="lvl">АГРЕГАТОР ${q.agg||''}</span><span class="gt">${q.t||questText(q)} <span class="hint">· ${vs} · осталось ${q.days} дн.</span></span><span class="gr">Награда: ${rub(q.reward)} и приоритет</span><div class="bar green"><i style="width:${Math.min(100,pct)}%"></i></div></div>`}
-  if(S.kpi){const pct=Math.min(100,S.kpi.acc/S.kpi.rev*100),left=Math.max(0,S.nextMeeting-S.day);tasks+=`<div class="goalbox kpi px"><span class="lvl">ПЛАН</span><span class="gt">Выручка ${rub(S.kpi.acc)} из ${rub(S.kpi.rev)} <span class="hint">· до собрания ${left} дн.</span></span><span class="gr">Выполните — премия и +2 реп. Провал дважды подряд — смена начальника.</span><div class="bar ${pct>=100?'green':''}"><i style="width:${pct}%"></i></div></div>`}
+    tasks+=`<div class="goalbox quest px"><span class="lvl">${icon16('agg',16)}АГРЕГАТОР ${q.agg||''}</span><span class="gt">${q.t||questText(q)} <span class="hint">· ${vs} · осталось ${q.days} дн.</span></span><span class="gr">Награда: ${rub(q.reward)} и приоритет</span><div class="bar green"><i style="width:${Math.min(100,pct)}%"></i></div></div>`}
+  if(S.kpi){const pct=Math.min(100,S.kpi.acc/S.kpi.rev*100),left=Math.max(0,S.nextMeeting-S.day);tasks+=`<div class="goalbox kpi px"><span class="lvl">${icon16('up',16)}ПЛАН</span><span class="gt">Выручка ${rub(S.kpi.acc)} из ${rub(S.kpi.rev)} <span class="hint">· до собрания ${left} дн.</span></span><span class="gr">Выполните — премия и +2 реп. Провал дважды подряд — смена начальника.</span><div class="bar ${pct>=100?'green':''}"><i style="width:${pct}%"></i></div></div>`}
   $('tasks').innerHTML=tasks;$('tasks').hidden=!tasks;
 
   $('desks').innerHTML=DEPTS.map((D,d)=>{
@@ -3345,6 +3410,8 @@ function openMenu(){const inS=S&&!S.preview;
   $('mnClose').onclick=hideModal;
 }
 $('menuBtn').onclick=()=>{ensureAudio();sfx('click');openMenu()};
+$('pauseBtn').innerHTML=icon16('pause',16);$('menuBtn').innerHTML=icon16('menu',16)+'Меню';
+$('ticker').addEventListener('click',e=>{const n=e.target.closest('.nw,.wx');if(n&&n.title)toast(n.title)});
 $('pauseBtn').onclick=()=>{ensureAudio();sfx('click');setPause(true)};
 $('pauseGo').onclick=()=>{setPause(false);sfx('click')};
 /* в паузе клавиши не доходят до мини-игр; Esc — продолжить */
