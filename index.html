@@ -114,7 +114,7 @@ h1{font-size:clamp(14px,2.6vw,20px);color:var(--taxi);text-shadow:3px 3px 0 var(
 .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px}
 .card2{background:var(--panel-2);padding:12px;display:grid;gap:8px;align-content:start;min-width:0;border:3px solid var(--edge)}
 .car-top{display:flex;align-items:center;gap:10px}
-.mini{width:108px;height:45px;background:var(--panel);border:3px solid var(--edge);flex:none}
+.mini{width:76px;height:34px;background:var(--panel);border:3px solid var(--edge);flex:none}
 .card2 h3{font-size:10px;line-height:1.5}
 .kind{font-size:14px;color:var(--muted)}
 .cls{font-family:var(--f-display);font-size:8px;background:var(--edge);color:var(--taxi);padding:2px 4px;margin-right:4px;vertical-align:1px}
@@ -2943,7 +2943,7 @@ const MGROUPS=[['garage','Гараж',['shop','fleet','base']],['people','Люд
 let lastSub={};
 const MTABS=[['shop','Автосалон'],['fleet','Мой парк'],['drivers','Водители'],['depts','Отделы'],['map','Карта'],['biz','Бизнес'],['branch','Филиалы'],['base','База'],['fin','Финансы'],['stats','Статистика'],['city','Город'],['style','Мой стиль'],['ach','Достижения']];
 function hireCard(){const off=S.over||S.preview,working=carsN()-brokenN(),free=Math.max(0,working-S.drivers);
-  return `<div class="card2 hire${free>0?' need':''}"><div class="car-top"><canvas class="mini" width="36" height="15" data-m="person"></canvas>
+  return `<div class="card2 hire${free>0?' need':''}"><div class="car-top"><canvas class="mini" width="38" height="17" data-m="person"></canvas>
     <div><h3>Нанять водителей</h3><div class="kind">вакансия на Авито</div></div></div>
     <div class="specs"><div class="spec"><span>Размещение</span><b>${rub(HIRE_COST)}</b></div>
     <div class="spec"><span>Обычно приходит</span><b>1–2 вод.</b></div>
@@ -2966,7 +2966,7 @@ function renderMgmt(){
     B.innerHTML=`<div class="row2"><div class="tabs">${SHOP_TABS.map(([k,l])=>`<button class="tab${shopTab===k?' on':''}" data-tab="${k}">${l}</button>`).join('')}</div>
       <span class="sub">Мест на стоянке: ${carsN()} / ${S.spots}${full?' — <span class="neg">заполнена</span>':''}</span></div>
       <div class="grid">${hireCard()}${MODEL_KEYS.filter(k=>tabMatch(MODELS[k],shopTab)&&S.rank>=(MODELS[k].rank||0)).map(k=>{const M=MODELS[k],own=countM(k),rel=Math.max(1,Math.min(5,Math.round((1-M.fail*10)*5)));
-      return `<div class="card2"><div class="car-top"><canvas class="mini" width="36" height="15" data-m="${k}"></canvas>
+      return `<div class="card2"><div class="car-top"><canvas class="mini" width="38" height="17" data-m="${k}"></canvas>
         <div><h3>${M.name}</h3><div class="kind"><span class="cls">${M.cls}</span>${M.kind}</div></div></div>
         ${M.note?`<div class="kind">${M.note}</div>`:''}
         <div class="specs">
@@ -3444,9 +3444,158 @@ const CARS2={
 "kyyyyyyycbcbcbyyysyyyyyyyyyyyyyymk",
 "kssssssssssssssssssssssssssssssssk",
 "kddddddddddddddddddddddddddddddddk",
-".kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk."]}};
+".kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk."]},
+ granta:{wh:[7,24],wy:8,s:[
+"...........kttk................",
+".........kkkkkkkkkkk...........",
+"........kWwwwwkWwwwwk..........",
+".......kWwwwwwkwwwwwWk.........",
+"......knwwwwwwkwwwwwwWk........",
+".kkkkklllllllllllllllllkkkkkk..",
+"kryyyyyyyyyyyyyyyyyyyyyyllllllk",
+"kryyyyybcbcbcyysyyymyyyyyyyyyhk",
+"kyyyyyycbcbcbyysyyyyyyyyyyyyyhk",
+"ksssssssssssssssssssssssssssssk",
+"kdddddddddddddddddddddddddddddk",
+".kkkkkkkkkkkkkkkkkkkkkkkkkkkkk."]},
+ vesta:{wh:[7,25],wy:8,s:[
+"............kttk................",
+"..........kkkkkkkkkk............",
+".........kWwwwwkWwwwk...........",
+"........kWwwwwwkwwwwWk..........",
+".......knwwwwwwkwwwwwWk.........",
+".kkkkkkmmmmmmmmmmmmmmmmkkkkkkk..",
+"kryyyyyyyyyyyyyyyyyyyyyylllllllk",
+"kryyyyyybcbcbcysyymyyyyysyyyyyhk",
+"kyyyyyyycbcbcbyyssyyyyysyyyyyyhk",
+"kssssssssssssssssssssssssssssssk",
+"kddddddddddddddddddddddddddddddk",
+".kkkkkkkkkkkkkkkkkkkkkkkkkkkkkk."]},
+ moskvich:{wh:[6,23],wy:9,s:[
+"...........kttk...............",
+"......mmmmmmmmmmmmmm..........",
+"......kkkkkkkkkkkkkk..........",
+".....kWwwwkWwwwwkwwWk.........",
+".....knwwwkwwwwwkwwwwWk.......",
+".....knwwwkwwwwwkwwwwwWk......",
+".kkkklllllllllllllllllllkkkkk.",
+"kryyyyyyyyyyyyyyyyyyyyyyyllllk",
+"kryyyyybcbcbcyysyyymyyyyyyyyhk",
+"kyyyyyycbcbcbyysyyyyyyyyyyyymk",
+"kssssssssssssssssssssssssssssk",
+"kddddddddddddddddddddddddddddk",
+".kkkkkkkkkkkkkkkkkkkkkkkkkkkk."]},
+ rio:{wh:[6,23],wy:8,s:[
+"...........kttk...............",
+"......kkkkkkkkkkkkkk..........",
+".....knWwwwkWwwwwwk...........",
+"....knwwwwwkwwwwwwWk..........",
+"...knwwwwwwkwwwwwwwWk.........",
+".kkklllllllllllllllllkkkkkkk..",
+"kryyyyyyyyyyyyyyyyyyyyyllllllk",
+"kryyyybcbcbcysyymyyyyyyyyyyyhk",
+"kyyyyycbcbcbysyyyyyyyyyyyyyyhk",
+"kssssssssssssssssssssssssssssk",
+"kddddddddddddddddddddddddddddk",
+".kkkkkkkkkkkkkkkkkkkkkkkkkkkk."]},
+ octavia:{wh:[7,26],wy:8,s:[
+"..............kttk...............",
+"...........kkkkkkkkkk............",
+".........knWwwwkWwwwwk...........",
+".......knwwwwwwkwwwwwwWk.........",
+".....knwwwwwwwwkwwwwwwwwWk.......",
+".kkkklllllllllllllllllllllkkkkkk.",
+"kryyyyyyyyyyyyyyyyyyyyyyyyllllllk",
+"kryyyyyyybcbcbcysyyymyyyyyyyyyyhk",
+"kyyyyyyyycbcbcbysyyyyyyyyyyyyyyhk",
+"ksssssssssssssssssssssssssssssssk",
+"kdddddddddddddddddddddddddddddddk",
+".kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk."]},
+ tiggo:{wh:[7,25],wy:9,s:[
+"............kttk................",
+".......mmmmmmmmmmmmmm...........",
+"......kkkkkkkkkkkkkkkk..........",
+".....kWwwwwkWwwwwkwwWk..........",
+"....knwwwwwkwwwwwkwwwwWk........",
+"....knwwwwwkwwwwwkwwwwwWk.......",
+".kkklllllllllllllllllllllkkkkkk.",
+"kryyyyyyyyyyyyyyyyyyyyyyyylllllk",
+"kryyyyyybcbcbcyysyyymyyyyyyyyyhk",
+"kyyyyyyycbcbcbyysyyyyyyyyyyyyymk",
+"kssssssssssssssssssssssssssssssk",
+"kddddddddddddddddddddddddddddddk",
+".kkkkkkkkkkkkkkkkkkkkkkkkkkkkkk."]},
+ jolion:{wh:[7,26],wy:9,s:[
+".............kttk................",
+"......mmmmmmmmmmmmmmmmm..........",
+"......kkkkkkkkkkkkkkkkkk.........",
+".....kWwwwwkWwwwwwkWwwwk.........",
+".....knwwwwkwwwwwwkwwwwwk........",
+".....knwwwwkwwwwwwkwwwwwWk.......",
+".kkkklllllllllllllllllllllkkkkkk.",
+"kryyyyyyyyyyyyyyyyyyyyyyyyylllllk",
+"kryyyyyyybcbcbcyysyyymyyyyyyyyyhk",
+"kyyyyyyyycbcbcbyysyyyyyyyyyyyymmk",
+"ksssssssssssssssssssssssssssssssk",
+"kdddddddddddddddddddddddddddddddk",
+".kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk."]},
+ evolute:{wh:[6,22],wy:8,s:[
+"...........kttk..............",
+".......kkkkkkkkkkk...........",
+"......knWwwwkWwwwwk..........",
+".....knwwwwwkwwwwwwk.........",
+"....knwwwwwwkwwwwwwwWk.......",
+".kkklllllllllllllllllkkkkk...",
+"kryyyyyyyyyyyyyyyyyyyyllllllk",
+"kryyyybcbcbcysyymyyyyyyyyyeek",
+"kyyyyycbcbcbysyyyyyyyyyyyyyyk",
+"ksssssssssssssssssssssssssssk",
+"kdddddddddddddddddddddddddddk",
+".kkkkkkkkkkkkkkkkkkkkkkkkkkk."]},
+ mercedes:{wh:[8,27],wy:7,s:[
+"..............kttk.................",
+"...........kkkkkkkkkk..............",
+".........knWwwwwkWwwwwk............",
+".......knwwwwwwwkwwwwwwWk..........",
+".kkkkkkmmmmmmmmmmmmmmmmmmmkkkkkkkk.",
+"kryyyyyyyyyyyyyyyyyyyyyyyyyllllllmk",
+"kryyyyyyyybcbcbcyysyyymyyyyyyyyyhhk",
+"kyyyyyyyyycbcbcbyysyyyyyyyyyyyyymmk",
+"ksssssssssssssssssssssssssssssssssk",
+"kmdddddddddddddddddddddddddddddddmk",
+".kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk."]},
+ monjaro:{wh:[8,27],wy:9,s:[
+"..............kttk.................",
+"......mmmmmmmmmmmmmmmmmm...........",
+"......kkkkkkkkkkkkkkkkkkk..........",
+".....kWwwwwkWwwwwwkWwwwwk..........",
+"....knwwwwwkwwwwwwkwwwwwwWk........",
+"....knwwwwwkwwwwwwkwwwwwwwWk.......",
+".kkkllllllllllllllllllllllllkkkkkk.",
+"kryyyyyyyyyyyyyyyyyyyyyyyyyyylllllk",
+"kryyyyyyybcbcbcyysyyyymyyyyyyyyhhhk",
+"kyyyyyyyycbcbcbyysyyyyyyyyyyyyymmmk",
+"ksssssssssssssssssssssssssssssssssk",
+"kdddddddddddddddddddddddddddddddddk",
+".kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk."]},
+ carnival:{wh:[7,28],wy:9,s:[
+"...............kttk.................",
+"...kkkkkkkkkkkkkkkkkkkkkk...........",
+"..kWwwwkWwwwwwkWwwwwwkWwk...........",
+"..knwwwkwwwwwwkwwwwwwkwwwWk.........",
+"..knwwwkwwwwwwkwwwwwwkwwwwwWk.......",
+".kklllllllllllllllllllllllllllkkkk..",
+"kryyyyyyyyyyyyyyyyyyyyyyyyyyyylllllk",
+"kryyyyyyyybcbcbcysyyyyyyyysyyyyyymhk",
+"kyyyyyyyyycbcbcbysmmmmmmmmsyyyyyyyhk",
+"kssssssssssssssssssssssssssssssssssk",
+"kddddddddddddddddddddddddddddddddddk",
+"kddddddddddddddddddddddddddddddddddk",
+".kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk."]}};
 CARS2.solarisNew=CARS2.solaris;
 const carW=m=>CARS2[m]?CARS2[m].s[0].length:24;
+/* высота фар над верхом «старой» машины 24×11 — по ней ставятся свет фар и стоп-огни */
+const carHo=m=>{const N=CARS2[m];return N?5-N.wy+N.s.findIndex(r=>/[he]/.test(r)):6};
 /* колесо 6×6: шина, диск, ступица и блик, который обегает диск — так видно вращение */
 function wheel(g,x,y,P,spin){g.fillStyle='#0e0b1c';g.fillRect(x+1,y,4,6);g.fillRect(x,y+1,6,4);g.fillStyle='#4a4570';g.fillRect(x+1,y+1,4,4);
   g.fillStyle=P.g;g.fillRect(x+2,y+2,2,2);const sp=[[1,1],[4,1],[4,4],[1,4]][spin&3];g.fillStyle='#c6bfe4';g.fillRect(x+sp[0],y+sp[1],1,1)}
@@ -3458,10 +3607,10 @@ function drawCar(g,m,x,gy,flip,P,spin=0){P=P||carPal(m);const N=CARS2[m];
 const carPal=m=>{const M=MODELS[m]||MODELS.solaris,C=S&&S.custom&&COLORS[S.custom.color],own=C&&C.body&&!['Комфорт+','Бизнес'].includes(M.cls);const by=own?C.body:M.body;const darkBody=hx(by).reduce((a,v)=>a+v,0)<270;return{y:by,l:darkBody?lerp(by,'#a8a0cc',.4):shade(by,1.16),s:shade(by,.74),n:'#3a4a78',m:'#d8d0e8',e:'#9ff0ff',d:own?C.trim:M.trim,t:M.ev?'#86e06f':'#f7c331',k:['camry','mercedes','monjaro','zeekr'].includes(m)?'#0b0914':'#1a1530',g:m==='mercedes'?'#e8e2d0':'#a8a0cc'}};
 function spr(g,s,x,y,flip,pal){x=Math.round(x);y=Math.round(y);for(let r=0;r<s.length;r++)for(let c=0;c<s[r].length;c++){const ch=s[r][c];if(ch==='.')continue;
   g.fillStyle=(pal&&pal[ch])||PAL[ch];g.fillRect(x+(flip?s[r].length-1-c:c),y+r,1,1)}}
-function drawMini(el){const g=el.getContext('2d');g.clearRect(0,0,36,15);
-  if(el.dataset.m==='person'){spr(g,PERSON,10,3,false,{b:'#f0c8a0',k:'#4fc7b0'});spr(g,PERSON,19,3,false,{b:'#e8b890',k:'#e66fa8',H:'#b05a2a'});return}
-  const m=el.dataset.m,w=carW(m),x=(36-w)>>1;g.fillStyle='#2a2450';g.fillRect(0,11,36,4);g.fillStyle='#0e0b1c66';g.fillRect(x+2,13,w-4,1);
-  drawCar(g,m,x,13,false,carPal(m))}
+function drawMini(el){const g=el.getContext('2d');g.clearRect(0,0,38,17);
+  if(el.dataset.m==='person'){spr(g,PERSON,11,5,false,{b:'#f0c8a0',k:'#4fc7b0'});spr(g,PERSON,20,5,false,{b:'#e8b890',k:'#e66fa8',H:'#b05a2a'});return}
+  const m=el.dataset.m,w=carW(m),x=(38-w)>>1;g.fillStyle='#2a2450';g.fillRect(0,13,38,4);g.fillStyle='#0e0b1c66';g.fillRect(x+2,15,w-4,1);
+  drawCar(g,m,x,15,false,carPal(m))}
 const shade=(h,k)=>'#'+hx(h).map(v=>Math.max(0,Math.min(255,Math.round(v*k))).toString(16).padStart(2,'0')).join('');
 const HEAD=[
 "................",
@@ -3708,7 +3857,7 @@ function draw(){
   if(dark>.3){cx.globalCompositeOperation='lighter';cx.fillStyle=red?'rgba(255,77,77,.18)':'rgba(134,224,111,.18)';cx.fillRect(235,78,12,12);cx.globalCompositeOperation='source-over'}
   light(241,red?82:86,14,red?'255,77,77':'134,224,111',.9,1);
   movers.forEach(m=>{const nx=m.x+m.v*SP;
-    const cw=carW(m.m),ho=CARS2[m.m]?4:6;
+    const cw=carW(m.m),ho=carHo(m.m);
     const stop=red&&((m.lane===0&&m.x+cw<=220&&nx+cw>196)||(m.lane===1&&m.x>=238&&nx<262));
     if(!stop)m.x=nx;if(m.x>W+4)m.x=-cw-4;if(m.x<-cw-4)m.x=W+4;const x=Math.round(m.x),y=m.lane?121:104;
     R(x+2,y+11,cw-4,1,'#0e0b1c88');drawCar(cx,m.m,x,y+11,m.lane===1,carPal(m.m),Math.floor(m.x/2));
@@ -3740,7 +3889,7 @@ function drawScene(dark){if(!scn)return;const d=SCN_DUR[scn.type]||150,e=t-scn.t
     if(p>.3&&p<.75){cx.globalCompositeOperation='lighter';for(let k=0;k<6;k++){cx.fillStyle=`rgba(160,255,200,${(.08-k*.01).toFixed(3)})`;cx.fillRect(x-2-k*3,y+3+k*10,10+k*6,10)}cx.globalCompositeOperation='source-over'}}
   if(scn.type==='meteor'){for(let i=0;i<6;i++){const k=(e*1.6+i*30)%120,x=40+i*45+k,y=4+k*.4;R(x,y,2,1,'#fff6a8');R(x-3,y-1,3,1,'#fff6a888');R(x-6,y-2,3,1,'#fff6a844')}}
   if(scn.type==='crash'){const meet=Math.min(1,p*2.2),xa=-30+ease(meet)*125,xb=W+10-ease(meet)*125;
-    drawCar(cx,'solaris',xa,115,false,null,Math.floor(xa/2));spr(cx,HATCH,xb,104,true,carPal('rio'));
+    drawCar(cx,'solaris',xa,115,false,null,Math.floor(xa/2));drawCar(cx,'rio',xb,115,true,null,Math.floor(xb/2));
     if(meet>=1){const k=e-d/2.2;for(let i=0;i<10;i++){const a=i/10*6.28,r=(k%40)*.5;if(k<40)R(119+Math.cos(a)*r,109+Math.sin(a)*r*.6,1,1,i%2?'#ffe27a':'#ff8a4c')}
       R(110,90,11,11,'#0e0b1c');R(111,91,9,9,'#f3ecdc');R(115,92,2,5,'#ff4d4d');R(115,98,2,1,'#ff4d4d');
       for(let i=0;i<3;i++){const sx=112+i*5,sy=96-((e+i*13)%30)*.5;R(sx,sy,2,2,'#a8a0cc88')}}}
@@ -3750,7 +3899,7 @@ function drawScene(dark){if(!scn)return;const d=SCN_DUR[scn.type]||150,e=t-scn.t
   if(scn.type==='tow'){const inP=Math.min(1,p*3),outP=Math.max(0,(p-.6)/.4),x=W+10-ease(inP)*110-ease(outP)*(W);
     R(x,104,30,8,'#ff8a4c');R(x+20,98,10,7,'#ff8a4c');R(x+22,99,6,3,'#9fd3ff');R(x+2,112,6,3,'#0e0b1c');R(x+20,112,6,3,'#0e0b1c');R(x-8,100,10,1,'#8a83b0');
     if(Math.floor(e/5)%2)R(x+24,96,3,2,'#ffe27a');
-    if(p>.33)spr(cx,SEDAN,x-26,98+(p<.45?Math.round((.45-p)*40):0),false,carPal('granta'))}
+    if(p>.33)drawCar(cx,'granta',x-32,109+(p<.45?Math.round((.45-p)*40):0),false)}
   if(scn.type==='police'){const x=-40+ease(p)*(W+80);R(x,104,26,8,'#f3ecdc');R(x+6,100,13,4,'#f3ecdc');R(x+8,101,4,2,'#9fd3ff');R(x+13,101,4,2,'#9fd3ff');R(x,107,26,2,'#3a6ab8');
     R(x+3,112,5,3,'#0e0b1c');R(x+18,112,5,3,'#0e0b1c');const on=Math.floor(e/3)%2;light(x+12,99,24,on?'255,60,60':'60,90,255',1);R(x+9,98,3,2,on?'#ff4d4d':'#4d6dff');R(x+13,98,3,2,on?'#4d6dff':'#ff4d4d');
     cx.globalCompositeOperation='lighter';for(let k=1;k<4;k++){cx.fillStyle=`rgba(255,60,60,${(.12/k).toFixed(3)})`;cx.fillRect(x+10-k*2,98-k,2+k*2,2+k*2);cx.fillStyle=`rgba(60,90,255,${(.12/k).toFixed(3)})`;cx.fillRect(x+14-k*2,98-k,2+k*2,2+k*2)}cx.globalCompositeOperation='source-over'}
