@@ -172,6 +172,7 @@ input[type=range]{width:100%;accent-color:var(--taxi)}
 [hidden]{display:none!important}
 .modal{position:fixed;inset:0;background:rgba(14,11,28,.84);display:grid;place-items:center;z-index:20;
   padding:max(16px,env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) max(16px,env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
+.modal.pause{z-index:40}
 .card{background:var(--panel);width:min(560px,100%);padding:20px;display:grid;gap:14px;max-height:100%;overflow:auto}
 .card h2{font-size:13px;color:var(--taxi);line-height:1.5}
 .rows{display:grid;gap:6px;font-variant-numeric:tabular-nums}
@@ -427,6 +428,7 @@ th{font-size:13px}
     <div class="head-right">
       <span class="rankb px" id="rank"></span>
       <span class="date px" id="date"></span>
+      <button class="toggle" id="pauseBtn" aria-label="Пауза" title="Пауза">❚❚</button>
       <button class="toggle" id="menuBtn" aria-haspopup="dialog">☰ Меню</button>
       <div hidden><button id="installBtn" hidden></button><button id="photoBtn"></button><button id="helpBtn"></button><button id="musicBtn"></button><button id="sfxBtn"></button><button id="saveBtn"></button><button id="restart"></button></div>
     </div>
@@ -459,6 +461,7 @@ th{font-size:13px}
 
 <div class="modal" id="modal" hidden><div class="card px" id="modalCard"></div></div>
 <div class="toast px" id="toast" hidden></div>
+<div class="modal pause" id="pause" hidden role="dialog" aria-modal="true" aria-labelledby="pauseH"><div class="card px"><span class="step">ПАУЗА</span><h2 id="pauseH">Игра на паузе</h2><p>Таймеры, анимация и музыка остановлены. Продолжайте, когда будете готовы.</p><div class="btns"><button class="btn" id="pauseGo">Продолжить ▶</button></div></div></div>
 <div class="coach px" id="coach" hidden role="dialog" aria-live="polite"></div>
 <div class="studio" id="studio" role="img" aria-label="SitromGames представляет" tabindex="0"><div class="st-in"><canvas id="studioC" width="24" height="24"></canvas><div class="st-name" id="studioName"></div><div class="st-sub">представляет</div></div></div>
 <div class="splash" id="splash" role="button" tabindex="0" aria-label="Таксопарк «ДСТ-24». Нажмите, чтобы начать">
@@ -2141,6 +2144,13 @@ function inspectResult(fi,d,show,bonus=0,sum=''){mgStop();
 const MG_INFO=['Учредитель позвонит в поддержку под видом клиента. Ответьте правильно.','Учредитель листает документы. Найдите просроченные, пока он не заметил.','Учредитель смотрит, как механик работает. Затяните гайки точно в нужный момент.'];
 let mgTimer=null,mgRaf=null,mgKey=null;
 function mgStop(){clearInterval(mgTimer);mgTimer=null;cancelAnimationFrame(mgRaf);mgRaf=null;if(mgKey){document.removeEventListener('keydown',mgKey);mgKey=null}}
+/* ---- пауза: таймеры мини-игр, анимация и музыка стоят; время паузы не засчитывается ---- */
+let paused=false,mgSkew=0,mgPrev=0;
+/* кадры мини-игр: в паузе не идут, а разрыв больше 0,1 с (пауза, подвисание) сжимается до одного кадра */
+function mgRAF(cb){return requestAnimationFrame(function f(ts){if(paused){mgRaf=requestAnimationFrame(f);return}
+  let t=ts-mgSkew;if(mgPrev&&t-mgPrev>100){mgSkew+=t-mgPrev-16;t=mgPrev+16}mgPrev=t;cb(t)})}
+function setPause(on){if(paused===on)return;paused=on;$('pause').hidden=!on;
+  try{AC&&(on?AC.suspend():AC.resume())}catch(e){}if(on)$('pauseGo').focus()}
 const QUIZ=[
  {q:'«Я забыл в такси рюкзак с ноутбуком!»',a:['Найти водителя по номеру поездки и договориться о возврате','Сказать, что парк за вещи не отвечает','Посоветовать обратиться в полицию']},
  {q:'Водитель: «Агрегатор заблокировал аккаунт, не понимаю за что»',a:['Проверить причину в кабинете агрегатора и помочь подать апелляцию','Сказать, что само разблокируется','Предложить поработать без аккаунта']},
@@ -2183,7 +2193,7 @@ function mgDocs(fi,done){
     const bonus=hit*5-miss*4-wrong*4;sfx(bonus>0?'coin':'bad');
     $('mgDone').textContent='Итог';$('mgDone').onclick=()=>done(bonus,`документы — найдено ${hit} из 3${wrong?`, лишних отметок ${wrong}`:''}`,hit,wrong)};
   $('mgDone').onclick=finish;
-  mgTimer=setInterval(()=>{left--;const t=$('mgT');if(t)t.textContent=`⏱ ${left} сек`;if(left<=0)finish()},1000);
+  mgTimer=setInterval(()=>{if(paused)return;left--;const t=$('mgT');if(t)t.textContent=`⏱ ${left} сек`;if(left<=0)finish()},1000);
 }
 function mgTiming(fi,done){
   let tries=0,hits=0,pos=0,dir=1,speed=.6,zone=0,zw=.2,lastT=0,locked=false;
@@ -2194,8 +2204,8 @@ function mgTiming(fi,done){
     <div class="btns"><button class="btn" id="mgHit">Затянуть! (пробел)</button></div>`);
   const newZone=()=>{zw=Math.max(.1,.22-tries*.04);zone=Math.random()*(1-zw);$('mgZone').style.left=zone*100+'%';$('mgZone').style.width=zw*100+'%'};
   newZone();
-  const frame=ts=>{const dt=lastT?(ts-lastT)/1000:0;lastT=ts;if(!locked){pos+=dir*speed*dt;if(pos>1){pos=1;dir=-1}if(pos<0){pos=0;dir=1}const m=$('mgMark');if(m)m.style.left=pos*100+'%'}mgRaf=requestAnimationFrame(frame)};
-  mgRaf=requestAnimationFrame(frame);
+  const frame=ts=>{const dt=lastT?(ts-lastT)/1000:0;lastT=ts;if(!locked){pos+=dir*speed*dt;if(pos>1){pos=1;dir=-1}if(pos<0){pos=0;dir=1}const m=$('mgMark');if(m)m.style.left=pos*100+'%'}mgRaf=mgRAF(frame)};
+  mgRaf=mgRAF(frame);
   const hit=()=>{if(locked||tries>=3)return;locked=true;const ok=pos>=zone&&pos<=zone+zw;tries++;if(ok)hits++;sfx(ok?'coin':'bad');
     $('mgMsg').innerHTML=`${ok?'<span class="pos">Точно!</span>':'<span class="neg">Сорвал резьбу!</span>'} Попаданий: ${hits}`;
     if(tries>=3){mgStop();const b=$('mgHit');b.textContent='Итог';b.onclick=()=>done(hits*6-(3-hits)*3,`гайки — точных попаданий ${hits} из 3`);b.focus();return}
@@ -2356,8 +2366,8 @@ function lgRace(cb){
     if(lives<=0||t>=20){if(fin)return;fin=true;mgStop();const ok=lives>0;sfx(ok?'win':'bad');
       $('lgInfo').innerHTML=ok?'<span class="pos">Успели!</span>':'<span class="neg">Опоздали…</span>';
       const b=$('lgR');b.textContent='Итог';b.onclick=()=>{hideModal();cb(ok)};$('lgL').hidden=true;return}
-    mgRaf=requestAnimationFrame(frame)};
-  mgRaf=requestAnimationFrame(frame);
+    mgRaf=mgRAF(frame)};
+  mgRaf=mgRAF(frame);
 }
 function lgPark(cb){
   let pos=0,speed=.42,tries=0,hits=0,go=true,last=0;const slot=.55+Math.random()*.3,sw=.09;
@@ -2365,13 +2375,13 @@ function lgPark(cb){
     <p>Машина сдаёт назад. Нажмите «Стоп», когда она в разметке. Две попытки, нужна одна точная.</p>
     <div class="mg-bar park"><i class="mg-zone" style="left:${slot*100}%;width:${sw*100}%"></i><i class="mg-mark" id="pkM"></i></div>
     <p class="note" id="pkMsg">Попытка 1 из 2</p><div class="btns"><button class="btn" id="pkStop">Стоп! (пробел)</button></div>`);
-  const frame=ts=>{const dt=last?(ts-last)/1000:0;last=ts;if(go){pos+=speed*dt;if(pos>=1){pos=1;stop()}const m=$('pkM');if(m)m.style.left=pos*100+'%'}mgRaf=requestAnimationFrame(frame)};
+  const frame=ts=>{const dt=last?(ts-last)/1000:0;last=ts;if(go){pos+=speed*dt;if(pos>=1){pos=1;stop()}const m=$('pkM');if(m)m.style.left=pos*100+'%'}mgRaf=mgRAF(frame)};
   const stop=()=>{if(!go)return;go=false;tries++;const ok=pos>=slot&&pos<=slot+sw;if(ok)hits++;sfx(ok?'coin':'bad');
     $('pkMsg').innerHTML=ok?'<span class="pos">Идеально в разметку!</span>':'<span class="neg">Мимо!</span>';
     if(hits||tries>=2){mgStop();const b=$('pkStop');b.textContent='Итог';b.onclick=()=>{hideModal();cb(hits>0)};return}
     setTimeout(()=>{pos=0;speed+=.12;last=0;go=true;$('pkMsg').textContent='Попытка 2 из 2'},700)};
   $('pkStop').onclick=stop;mgKey=e=>{if(e.code==='Space'){e.preventDefault();stop()}};document.addEventListener('keydown',mgKey);
-  mgRaf=requestAnimationFrame(frame);
+  mgRaf=mgRAF(frame);
 }
 const DASH=[
  {f:['10:02:11 — такси стоит у обочины, двигатель заглушен','10:02:30 — пассажир открывает заднюю дверь, не глядя назад','10:02:31 — мимо проезжает самокат и цепляет дверь'],a:['Пассажир: открыл дверь, не посмотрев','Водитель такси: встал не там','Самокатчик: ехал по тротуару']},
@@ -2608,7 +2618,7 @@ let coachI=-1,coachTimer=0,coachLast=null;
 function coachStart(){if(S.preview)return;coachI=0;$('coach').hidden=true;clearInterval(coachTimer);coachTimer=setInterval(coachTick,350);coachTick()}
 function coachEnd(){coachI=-1;clearInterval(coachTimer);$('coach').hidden=true;if(coachLast)coachLast.classList.remove('coach-hl');coachLast=null;G.tutDone=true;saveG()}
 function coachNext(){coachI++;sfx('coin');if(coachI>=COACH.length)return coachEnd();coachLast&&coachLast.classList.remove('coach-hl');coachLast=null;coachTick()}
-function coachTick(){if(coachI<0)return;const st=COACH[coachI],box=$('coach');
+function coachTick(){if(coachI<0||paused)return;const st=COACH[coachI],box=$('coach');
   if(!S||S.over){coachEnd();return}
   if(st.done&&st.done())return coachNext();
   if(!$('modal').hidden||($('studio')&&!$('studio').classList.contains('out'))||($('splash')&&!$('splash').classList.contains('out'))){box.hidden=true;return}
@@ -2670,8 +2680,8 @@ function dispatcher(){
     if(left<=0||fin){mgStop();const money=score*1500,rp=score>=12?2:score>=7?1:0;S.money+=money;S.rep=Math.min(100,S.rep+rp);S.cnt.disp=Math.max(S.cnt.disp||0,score);
       addLog(`Диспетчер: выполнено ${score} заказов, +${rub(money)}${rp?`, +${rp} к репутации`:''}.`);save();render();sfx(score>=7?'win':'coin');
       showModal(`<span class="step">ДИСПЕТЧЕР</span><h2>${score} заказов</h2><p>Бонус к выручке: ${rub(money)}${rp?`, репутация +${rp}`:''}. Сгорело заказов: ${lost}.</p><button class="btn" id="dpOk">Отлично</button>`);$('dpOk').onclick=hideModal;return}
-    mgRaf=requestAnimationFrame(frame)};
-  $('dpStop').onclick=()=>{fin=true};mgRaf=requestAnimationFrame(frame);
+    mgRaf=mgRAF(frame)};
+  $('dpStop').onclick=()=>{fin=true};mgRaf=mgRAF(frame);
 }
 function enrollSchool(){if(!S.upg.school)return;if(S.school.length>=3)return toast('В школе уже 3 ученика');if(S.money<4000)return toast('Не хватает денег');
   const before=snap();S.money-=4000;S.school.push({ready:S.day+5});addLog('Набран ученик в школу водителей. Выпуск через 5 дней.');toast('Ученик зачислен');sfx('click');save();render(before)}
@@ -3211,6 +3221,12 @@ function openMenu(){const inS=S&&!S.preview;
   $('mnClose').onclick=hideModal;
 }
 $('menuBtn').onclick=()=>{ensureAudio();sfx('click');openMenu()};
+$('pauseBtn').onclick=()=>{ensureAudio();sfx('click');setPause(true)};
+$('pauseGo').onclick=()=>{setPause(false);sfx('click')};
+/* в паузе клавиши не доходят до мини-игр; Esc — продолжить */
+window.addEventListener('keydown',e=>{if(!paused)return;e.stopImmediatePropagation();if(e.key==='Escape'){e.preventDefault();setPause(false)}},true);
+/* свернули вкладку или приложение — встаём на паузу (кроме заставки) */
+document.addEventListener('visibilitychange',()=>{if(document.hidden&&!['studio','splash'].some(id=>$(id)&&!$(id).classList.contains('out')))setPause(true)});
 $('photoBtn').onclick=()=>{ensureAudio();takePhoto()};
 $('autoBtn').onclick=()=>{ensureAudio();autoResolve()};
 let installEvt=null;
@@ -3276,7 +3292,7 @@ $('sfxBtn').onclick=()=>{G.sfx=!G.sfx;saveG();ensureAudio();render();sfx('click'
 
 /* ================= ЗВУК ================= */
 let AC=null,musicTimer=null,nextNote=0,step16=0;
-function ensureAudio(){try{if(!AC)AC=new(window.AudioContext||window.webkitAudioContext)();if(AC.state==='suspended')AC.resume();if(G.music&&!musicTimer)startMusic()}catch(e){}}
+function ensureAudio(){if(paused)return;try{if(!AC)AC=new(window.AudioContext||window.webkitAudioContext)();if(AC.state==='suspended')AC.resume();if(G.music&&!musicTimer)startMusic()}catch(e){}}
 function tone(f,dur,type='square',vol=.06,when=0,slide){if(!AC)return;const t0=AC.currentTime+Math.max(0,when),o=AC.createOscillator(),g=AC.createGain();
   o.type=type;o.frequency.setValueAtTime(f,t0);if(slide)o.frequency.exponentialRampToValueAtTime(slide,t0+dur);
   g.gain.setValueAtTime(vol,t0);g.gain.exponentialRampToValueAtTime(.0001,t0+dur);o.connect(g);g.connect(AC.destination);o.start(t0);o.stop(t0+dur+.02)}
@@ -3447,7 +3463,7 @@ function drawFaces(){document.querySelectorAll('canvas.face').forEach(el=>{try{f
 /* ---- логотип, карта, графики ---- */
 function drawLogo(g,key,x,y,col){const L=LOGOS[key]||LOGOS.checker;g.clearRect(x,y,8,8);g.fillStyle='#1d1838';g.fillRect(x,y,8,8);L.forEach((r,yy)=>{for(let xx=0;xx<8;xx++)if(r[xx]==='c'){g.fillStyle=yy<3?shade(col,1.15):yy>5?shade(col,.8):col;g.fillRect(x+xx,y+yy,1,1)}})}
 let mapRAF=null,mapT=0;
-function mapLoop(){if(uiTab!=='map'||!$('mapC')){mapRAF=null;return}mapT+=1;drawMap();mapRAF=requestAnimationFrame(mapLoop)}
+function mapLoop(){if(uiTab!=='map'||!$('mapC')){mapRAF=null;return}if(!paused){mapT+=1;drawMap()}mapRAF=requestAnimationFrame(mapLoop)}
 const MAP_AREAS={sleep:[8,6,92,36],center:[124,6,62,36],air:[194,6,40,74],rail:[24,92,84,36]};
 function drawMap(){const el=$('mapC');if(!el)return;const g=el.getContext('2d'),Rm=(x,y,w,h,c)=>{g.fillStyle=c;g.fillRect(Math.round(x),Math.round(y),w,h)};
   const dk=sceneDark||0,T=mapT;
@@ -3660,7 +3676,7 @@ function drawScene(dark){if(!scn)return;const d=SCN_DUR[scn.type]||150,e=t-scn.t
     if(p>.5)for(let i=0;i<6;i++){const a=e/6+i;R(x+12+Math.cos(a)*16,108+Math.sin(a)*8,1,1,'#ffe27a')}}
 }
 const still=matchMedia('(prefers-reduced-motion: reduce)').matches;
-let last=0;function loop(ts){const dt=last?Math.min(100,ts-last):16;last=ts;SP=dt/70;draw();requestAnimationFrame(loop)}
+let last=0;function loop(ts){if(paused){last=0;requestAnimationFrame(loop);return}const dt=last?Math.min(100,ts-last):16;last=ts;SP=dt/70;draw();requestAnimationFrame(loop)}
 
 /* ================= ЗАСТАВКА ================= */
 function splash(){const el=$('splash');if(!el)return;const c=$('splC'),g=c.getContext('2d');g.imageSmoothingEnabled=false;
@@ -3710,7 +3726,7 @@ S=load();
 if(!S){S=blankState('campaign');S.preview=true;START_FLEET.forEach(([m,k])=>addCar(m,k));S.today=[0,1,2].map(nextEvent);render();pickMode()}
 else{render();if(S.over){hasLimit()&&S.day>dayLimit()?finale():gameOver()}else if(S.morning&&S.morning.length)runMorning()}
 if(document.fonts&&document.fonts.ready)document.fonts.ready.then(draw);
-draw();if(!still)requestAnimationFrame(loop);else setInterval(draw,1000);
+draw();if(!still)requestAnimationFrame(loop);else setInterval(()=>paused||draw(),1000);
 document.addEventListener('pointerdown',()=>ensureAudio(),{once:true});
 if(!(S&&S.preview))setTimeout(checkLogin,400);else checkLoginQuiet();
 function checkLoginQuiet(){const k=todayKey();G.login=G.login||{};if(G.login.last===k)return;const y=new Date();y.setDate(y.getDate()-1);const yk=y.getFullYear()+'-'+(y.getMonth()+1)+'-'+y.getDate();const streak=G.login.last===yk?(G.login.streak||0)+1:1;G.login={last:k,streak};G.loginPending=5000*Math.min(streak,7)+(streak%7===0?20000:0);saveG()}
