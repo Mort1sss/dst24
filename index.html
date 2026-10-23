@@ -3837,12 +3837,46 @@ function drawPeds(dark){peds.forEach((p,i)=>{p.x+=p.v*SP;if(p.x>W+8)p.x=-8;if(p.
 function tree(x,y,month){const winter=month===11||month<=1,autumn=month>=8&&month<=10;
   R(x+3,y+8,2,6,'#5a3a20');const c1=winter?'#e8eef8':autumn?'#e8883a':'#3a9a5a',c2=winter?'#b8c8d8':autumn?'#c25a22':'#2e7a44';
   R(x+1,y+2,6,6,c2);R(x,y+3,8,4,c2);R(x+2,y+1,4,1,c1);R(x+1,y+2,4,3,c1);R(x+2,y+5,2,1,c1)}
+/* ---- частицы: пыль в свете фонарей, пар из люка, листья, выхлоп на морозе, капли и брызги ---- */
+let parts=[],sunDx=0;
+const emit=(k,x,y,vx,vy,life,c,s=1)=>{const p={k,x,y,vx,vy,life,max:life,c,s};if(parts.length<260)parts.push(p);return p};
+const chance=p=>Math.random()<p*SP;
+function stepParts(){if(still){parts=[];return}
+  parts=parts.filter(p=>{p.life-=SP;if(p.life<=0)return false;const a=p.life/p.max;
+    if(p.k==='leaf'){if(p.vy){p.x+=(p.vx+Math.sin((t+p.s*40)/9)*.25)*SP;p.y+=p.vy*SP;if(p.y>=p.g){p.y=p.g;p.vy=0}}}
+    else if(p.k==='drip'){p.vy+=.06*SP;p.y+=p.vy*SP;if(p.y>=p.g){for(let i=0;i<2;i++)emit('spl',p.x,p.g,(i?.3:-.3),-.5,8,'#9fd3ff');return false}}
+    else if(p.k==='spl'){p.vy+=.12*SP;p.x+=p.vx*SP;p.y+=p.vy*SP}
+    else{p.x+=p.vx*SP;p.y+=p.vy*SP}
+    const x=Math.round(p.x),y=Math.round(p.y);
+    if(p.k==='dust'){cx.globalCompositeOperation='lighter';cx.globalAlpha=Math.min(1,a*3)*(.35+.35*Math.sin(t/7+p.s*9));R(x,y,1,1,'#fff6c8');cx.globalCompositeOperation='source-over'}
+    else if(p.k==='steam'||p.k==='puff'){const sz=Math.round(p.s+(1-a)*(p.k==='steam'?4:2));cx.globalAlpha=a*(p.k==='steam'?.3:.45);R(x-(sz>>1),y-(sz>>1),sz,sz,p.c);if(sz>2)R(x-(sz>>1)+1,y-(sz>>1)-1,sz-2,sz+2,p.c)}
+    else if(p.k==='ripple'){const r=Math.round((1-a)*3)+1;cx.globalAlpha=a*.8;R(x-r,y,1,1,p.c);R(x+r,y,1,1,p.c);R(x-r+1,y-1,r*2-1,1,p.c);R(x-r+1,y+1,r*2-1,1,p.c)}
+    else{cx.globalAlpha=p.k==='leaf'?Math.min(1,a*4):Math.min(1,a*2);R(x,y,p.k==='drip'?1:p.s,p.k==='drip'?2:1,p.c)}
+    cx.globalAlpha=1;return true})}
+/* мягкая тень: днём сдвинута от солнца, ночью прямо под предметом */
+function shadow(x,gy,w){R(x+2+(sunDx>>1),gy,w-4,1,'#0e0b1c88');cx.globalAlpha=.45;R(x+3+sunDx,gy+1,w-6,1,'#0e0b1c');cx.globalAlpha=1}
+const PUDDLES=[[38,107,14],[128,126,18],[262,109,12],[334,127,16],[88,142,10],[200,145,12]];
+/* дорога и тротуар по погоде: лужи в дождь, снег зимой, люк с паром */
+function ground(month,wk,dark,snow){
+  const mx=150;R(mx,118,7,3,'#1a1830');R(mx+1,119,5,1,'#3a3654');
+  if((month>=9||month<=3||dark>.5)&&chance(.12))emit('steam',mx+3+Math.random()*2,117,(Math.random()-.5)*.08,-.13,140,'#d8d0e8',1+Math.random());
+  if(wk==='rain'){const sky=lerp('#4a5a90','#2a2a58',dark);PUDDLES.forEach(([x,y,w])=>{if(x>W)return;R(x+1,y,w-2,1,'#1c1a34');R(x,y+1,w,1,'#1c1a34');R(x+1,y+2,w-2,1,'#1c1a34');R(x+2,y+1,w-5,1,sky);
+      if(chance(.05))emit('ripple',x+2+Math.random()*(w-4),y+1,0,0,12,'#9fd3ff')});
+    if(chance(1.2))emit('spl',Math.random()*W,103+Math.random()*46,(Math.random()-.5)*.4,-.5,8,'#9fd3ff')}
+  if(snow){cx.fillStyle='#e8eef8';for(let x=0;x<W;x++){const h=1+((x*37)%7<2?1:0);cx.fillRect(x,102,1,h);cx.fillRect(x,136-h,1,h)}
+    R(0,98,W,2,'#f3f6fc');cx.globalAlpha=.55;R(0,138,W,12,'#e8eef8');cx.globalAlpha=1;
+    cx.globalAlpha=.35;R(0,112,W,2,'#4a4870');R(0,129,W,2,'#4a4870');cx.globalAlpha=1}}
+/* снег на крыше, вывеске и навесах */
+function snowCaps(bTop){const c='#f3f6fc';R(4,bTop-3,176,2,c);for(let x=8;x<176;x+=11)R(x,bTop-4,4,1,c);R(46,bTop-15,92,1,c);R(150,bTop-7,8,1,c);R(160,bTop-5,6,1,c);
+  DEPTS.forEach((D,d)=>R(10+d*57,57,48,1,c))}
 function draw(){
   if(!S||!S.fleet||!S.heads)return;syncMovers();
   const L=500,pos=(t%(L*(CYCLE.length-1)))/L,ph=Math.floor(pos),f=pos-ph;
   const a=SKIES[CYCLE[ph]],b=SKIES[CYCLE[ph+1]];
   const dark=DARKV[CYCLE[ph]]*(1-f)+DARKV[CYCLE[ph+1]]*f;
   const month=dateOf(S.day).getMonth(),wk=S.weather&&S.weather[0];sceneDark=dark;
+  const snow=wk==='snow'||month===11||month<=1,cold=month>=10||month<=2;
+  sunDx=dark<.7?Math.max(-5,Math.min(5,Math.round(((pos-1)/4-.5)*-10))):0;
   // небо с дизерингом между полосами
   for(let i=0;i<12;i++){const c=lerp(a[i],b[i],f);R(0,i*7,W,7,c);if(i<11){const n=lerp(a[i+1],b[i+1],f);cx.fillStyle=n;for(let x=(i%2);x<W;x+=2)cx.fillRect(x,i*7+6,1,1)}}
   if(dark<.4)birds.forEach(bd=>{bd.x+=bd.v*SP;if(bd.x>W+10)bd.x=-10;const fy=bd.y+Math.sin((t+bd.x)/10)*2,wing=Math.floor(t/4+bd.x)%2;R(bd.x,fy,1,1,'#2a2450');R(bd.x-1,fy-wing,1,1,'#2a2450');R(bd.x+1,fy-wing,1,1,'#2a2450')});
@@ -3880,11 +3914,13 @@ function draw(){
     else{R(x+27,y+9,15,31,'#211b3d');R(x+28,y+10,13,29,'#2a2450');R(x+39,y+23,2,2,D.hex)}
     if(!S.done[d]&&!S.over&&!S.preview){const bob=Math.round(Math.sin(t/6+d)*1.5);R(x+18,y-14+bob,11,12,'#0e0b1c');R(x+19,y-13+bob,9,10,'#f3ecdc');R(x+23,y-11+bob,2,5,'#ff6b6b');R(x+23,y-5+bob,2,1,'#ff6b6b')}
     else if(S.done[d]){R(x+20,y-8,2,2,'#86e06f');R(x+22,y-6,2,2,'#86e06f');R(x+24,y-10,2,4,'#86e06f');R(x+26,y-12,2,2,'#86e06f')}
+    if(wk==='rain'&&chance(.04))emit('drip',x+Math.random()*48,66,0,0,80,'#9fd3ff').g=97;
   });
+  if(snow)snowCaps(bTop);
   if(S.cnt.cat){const px=166,py=bTop-3;R(px,py,6,3,'#e8883a');R(px+5,py-2,3,3,'#e8883a');R(px+5,py-3,1,1,'#e8883a');R(px+7,py-3,1,1,'#e8883a');R(px-2,py-1+Math.round(Math.sin(t/8)),2,1,'#e8883a')}
   if(getEv(1,S.today[1]).t==='Гуси на стоянке'){for(let i=0;i<3;i++){const gx=150+i*9+Math.round(Math.sin(t/5+i)*2);R(gx,92,5,3,'#f3ecdc');R(gx+4,89,1,3,'#f3ecdc');R(gx+5,89,1,1,'#ff8a4c');R(gx+1,95,1,1,'#ff8a4c');R(gx+3,95,1,1,'#ff8a4c')}}
   const idle=Math.max(0,S.drivers-(carsN()-brokenN()));
-  for(let i=0;i<Math.min(idle,5);i++)spr(cx,PERSON,168-i*8,87,false,{b:'#f0c8a0',k:['#4fc7b0','#e66fa8','#ff8a4c'][i%3]});
+  for(let i=0;i<Math.min(idle,5);i++){R(169-i*8+(sunDx>>1),98,5,1,'#0e0b1c66');spr(cx,PERSON,168-i*8,87,false,{b:'#f0c8a0',k:['#4fc7b0','#e66fa8','#ff8a4c'][i%3]})}
   if(S.owned&&S.owned.car)spr(cx,LIMO,152,87,false,{y:'#1c1a24',l:'#3a3550',d:'#0b0914',t:'#1c1a24',k:'#0b0914',b:'#1c1a24',c:'#1c1a24',g:'#e8e2d0'});
   // стоянка
   const cols=10,rowsAll=Math.ceil(S.spots/cols),rows=Math.min(6,rowsAll),lotY=98-rows*8-2;
@@ -3902,6 +3938,7 @@ function draw(){
   cx.fillStyle='#f7c331';for(let x=-(Math.floor(t)%16);x<W;x+=16)cx.fillRect(x,119,8,1);
   for(let y=104;y<134;y+=4)R(222,y,14,2,'#d8d0e8');
   R(0,136,W,2,'#8a83b0');R(0,138,W,12,'#5a5285');for(let x=0;x<W;x+=10)R(x,138,1,12,'#4a4570');
+  ground(month,wk,dark,snow);
   // машины с тенями
   const red=(Math.floor(t)%240)>150;
   // светофор у перехода
@@ -3912,21 +3949,24 @@ function draw(){
     const cw=carW(m.m),ho=carHo(m.m);
     const stop=red&&((m.lane===0&&m.x+cw<=220&&nx+cw>196)||(m.lane===1&&m.x>=238&&nx<262));
     if(!stop)m.x=nx;if(m.x>W+4)m.x=-cw-4;if(m.x<-cw-4)m.x=W+4;const x=Math.round(m.x),y=m.lane?121:104;
-    R(x+2,y+11,cw-4,1,'#0e0b1c88');drawCar(cx,m.m,x,y+11,m.lane===1,carPal(m.m),Math.floor(m.x/2));
-    if(!stop&&!MODELS[m.m].ev&&(Math.floor(t+m.id*7)%9)<2){const ex=m.lane===0?x-2:x+cw+1;R(ex,y+7,2,1,'#a8a0cc66')}
+    shadow(x,y+11,cw);drawCar(cx,m.m,x,y+11,m.lane===1,carPal(m.m),Math.floor(m.x/2));
+    if(wk==='rain'&&!stop&&chance(.15))emit('spl',x+(m.lane===0?4:cw-4),y+11,m.lane===0?-.4:.4,-.6,10,'#9fd3ff');
+    if(!stop&&!MODELS[m.m].ev&&(Math.floor(t+m.id*7)%9)<2){const ex=m.lane===0?x-2:x+cw+1;R(ex,y+7,2,1,'#a8a0cc66');if(cold&&chance(.5))emit('puff',ex,y+7,m.lane===0?-.15:.15,-.04,50,'#e8eef8')}
     if(dark>.35){cx.globalCompositeOperation='lighter';const dir=m.lane===0?1:-1,hx0=m.lane===0?x+cw:x-1;
       for(let k=0;k<8;k++){const hh=1+Math.floor(k*.6);cx.fillStyle=`rgba(255,240,170,${(.13-k*.014).toFixed(3)})`;cx.fillRect(hx0+dir*k*2-(dir<0?1:0),y+ho-Math.floor(hh/2),2,hh)}
       cx.fillStyle='rgba(255,60,60,.35)';cx.fillRect(m.lane===0?x-1:x+cw,y+ho-1,1,2);cx.globalCompositeOperation='source-over'}
     light(m.lane===0?x+cw+11:x-12,y+ho+1,17,'255,240,190',.9,1);light(m.lane===0?x-1:x+cw+1,y+ho,6,'255,60,60',.8)});
   drawPeds(dark);
   // деревья и фонари внизу
-  for(let x=6;x<W;x+=52)tree(x,136-6,month);
-  for(let x=32;x<W;x+=52){R(x,124,1,14,'#8a83b0');R(x,123,4,1,'#8a83b0');R(x+3,124,2,1,dark>.4?'#fff6a8':'#c6bfe4');light(x+4,129,26,'255,236,170',1,1);if(dark>.4){cx.globalCompositeOperation='lighter';for(let k=0;k<3;k++){cx.fillStyle=`rgba(255,240,170,${(.06-k*.015).toFixed(3)})`;cx.fillRect(x+1-k*2,125+k,4+k*4,10-k)}cx.globalCompositeOperation='source-over'}}
+  for(let x=6;x<W;x+=52){tree(x,136-6,month);if(month>=8&&month<=10&&chance(.012))emit('leaf',x+1+Math.random()*6,132,(Math.random()-.5)*.1,.1,420,['#e8883a','#c25a22','#f7c331'][Math.random()*3|0],1).g=140+Math.random()*9}
+  for(let x=32;x<W;x+=52){R(x,124,1,14,'#8a83b0');R(x,123,4,1,'#8a83b0');R(x+3,124,2,1,dark>.4?'#fff6a8':'#c6bfe4');light(x+4,129,26,'255,236,170',1,1);if(snow)R(x,122,4,1,'#f3f6fc');if(dark>.5&&chance(.05))emit('dust',x+1+Math.random()*7,125+Math.random()*11,(Math.random()-.5)*.05,-.02,160,'',Math.random());if(dark>.4){cx.globalCompositeOperation='lighter';for(let k=0;k<3;k++){cx.fillStyle=`rgba(255,240,170,${(.06-k*.015).toFixed(3)})`;cx.fillRect(x+1-k*2,125+k,4+k*4,10-k)}cx.globalCompositeOperation='source-over'}}
   // погода
   if(wk==='rain'||wk==='snow'){drops.forEach(d=>{d.y+=(wk==='snow'?d.s*.5:d.s*3)*SP;d.x+=(wk==='snow'?Math.sin((t+d.y)/20)*.3:-.6)*SP;if(d.y>H){d.y=-2;d.x=srnd()*W}if(d.x<0)d.x=W;
     if(wk==='snow')R(Math.round(d.x),Math.round(d.y),1,1,'#f3ecdc');else R(Math.round(d.x),Math.round(d.y),1,3,'#9fd3ff88')})}
-  if(wk==='fog'){cx.fillStyle='#c6bfe433';cx.fillRect(0,60,W,90)}
+  // туман: полосы медленно плывут в разные стороны
+  if(wk==='fog'){cx.globalAlpha=.16;for(let i=0;i<4;i++){const y=60+i*22,w=W*.6,off=((t*.15*(i%2?1:-1)+i*80)%(W+w)+W+w)%(W+w)-w;R(off,y,w,10,'#c6bfe4');R(off+8,y-3,w-16,3,'#c6bfe4');R(off+8,y+10,w-16,3,'#c6bfe4')}cx.globalAlpha=1}
   if(wk==='heat'&&dark<.5){cx.fillStyle='#ffb04a14';cx.fillRect(0,0,W,H)}
+  stepParts();
   drawScene(dark);
   lightPass(dark,wk==='rain');
   if(post&&post.on)post.render(dark,wk);
