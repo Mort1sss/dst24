@@ -209,7 +209,8 @@ input[type=range]{width:100%;accent-color:var(--taxi)}
 .votes{display:flex;gap:6px;align-items:center;margin-top:4px}
 .votes .face{width:30px;height:30px}
 .dash{background:var(--edge);padding:10px 12px;display:grid;gap:6px;font-family:"PT Mono",monospace;font-size:15px;color:var(--good)}
-.lg-canvas{width:min(100%,260px);height:auto;aspect-ratio:2/3;margin:0 auto;border:3px solid var(--edge);touch-action:manipulation}
+.lg-canvas{width:min(100%,280px);height:auto;aspect-ratio:8/9;margin:0 auto;border:3px solid var(--edge);touch-action:manipulation}
+.mg-gauge{display:block;width:min(100%,384px);height:auto;margin:0 auto;border:3px solid var(--edge)}
 .mg-bar.park{background:repeating-linear-gradient(90deg,#2a2740 0 18px,#322e4c 18px 20px)}
 .mode:disabled{cursor:not-allowed}
 .logo-c{width:32px;height:32px;flex:none}
@@ -2199,16 +2200,26 @@ function mgTiming(fi,done){
   let tries=0,hits=0,pos=0,dir=1,speed=.6,zone=0,zw=.2,lastT=0,locked=false;
   showModal(`<span class="step">ПРОВЕРКА СЕРВИСА · ПОПЫТКА <span id="mgN">1</span> ИЗ 3</span><h2>Затяните гайку</h2>
     <p>Нажмите кнопку, когда стрелка в зелёной зоне. С каждой попыткой стрелка быстрее.</p>
-    <div class="mg-bar"><i class="mg-zone" id="mgZone"></i><i class="mg-mark" id="mgMark"></i></div>
+    <canvas id="mgG" class="mg-gauge" width="120" height="64"></canvas>
     <p class="note" id="mgMsg">Попаданий: 0</p>
     <div class="btns"><button class="btn" id="mgHit">Затянуть! (пробел)</button></div>`);
-  const newZone=()=>{zw=Math.max(.1,.22-tries*.04);zone=Math.random()*(1-zw);$('mgZone').style.left=zone*100+'%';$('mgZone').style.width=zw*100+'%'};
+  const newZone=()=>{zw=Math.max(.1,.22-tries*.04);zone=Math.random()*(1-zw)};
   newZone();
-  const frame=ts=>{const dt=lastT?(ts-lastT)/1000:0;lastT=ts;if(!locked){pos+=dir*speed*dt;if(pos>1){pos=1;dir=-1}if(pos<0){pos=0;dir=1}const m=$('mgMark');if(m)m.style.left=pos*100+'%'}mgRaf=mgRAF(frame)};
+  // циферблат: дуга с зелёной зоной, стрелка-ключ и гайка, которая поворачивается вместе со стрелкой
+  const gc=$('mgG'),g=gc.getContext('2d');crisp(gc);const CX=60,CY=58,RR=50;let flash=0,flashOk=true;
+  const gauge=()=>{g.fillStyle='#1c1838';g.fillRect(0,0,120,64);
+    for(let y=0;y<=CY;y++)for(let x=0;x<120;x++){const dx=x-CX,dy=y-CY,d=Math.hypot(dx,dy);if(d<RR-7||d>RR)continue;const p=(Math.atan2(dy,dx)+Math.PI)/Math.PI;
+      const inZ=p>=zone&&p<=zone+zw,tick=Math.abs(p*10-Math.round(p*10))<.04;g.fillStyle=inZ?(d>RR-2?'#b8f0a0':'#86e06f'):tick?'#2a2450':(d>RR-2?'#5a5285':'#4a4570');g.fillRect(x,y,1,1)}
+    const an=Math.PI+pos*Math.PI;for(let r=10;r<RR-3;r++){const x=Math.round(CX+Math.cos(an)*r),y=Math.round(CY+Math.sin(an)*r);g.fillStyle=r>RR-9?'#ffe27a':'#c6bfe4';g.fillRect(x,y,r>RR-9?2:1,r>RR-9?2:1)}
+    const rot=pos*Math.PI*2,P=[...Array(6)].map((_,i)=>[CX+Math.cos(rot+i*Math.PI/3)*8,CY+Math.sin(rot+i*Math.PI/3)*8]);
+    for(let y=CY-9;y<=CY+4;y++)for(let x=CX-9;x<=CX+9;x++){let inside=true;for(let i=0;i<6;i++){const [x1,y1]=P[i],[x2,y2]=P[(i+1)%6];if((x2-x1)*(y-y1)-(y2-y1)*(x-x1)<0){inside=false;break}}
+      if(inside){const d=Math.hypot(x-CX,y-CY);g.fillStyle=d<3?'#0e0b1c':d<4?'#5a5285':(y<CY-3?'#e8e2d0':'#a8a0cc');g.fillRect(x,y,1,1)}}
+    if(flash>0){g.globalAlpha=flash;g.fillStyle=flashOk?'#86e06f':'#ff4d4d';g.fillRect(0,0,120,64);g.globalAlpha=1}};
+  const frame=ts=>{const dt=lastT?(ts-lastT)/1000:0;lastT=ts;if(!locked){pos+=dir*speed*dt;if(pos>1){pos=1;dir=-1}if(pos<0){pos=0;dir=1}}flash=Math.max(0,flash-dt*1.5);gauge();mgRaf=mgRAF(frame)};
   mgRaf=mgRAF(frame);
-  const hit=()=>{if(locked||tries>=3)return;locked=true;const ok=pos>=zone&&pos<=zone+zw;tries++;if(ok)hits++;sfx(ok?'coin':'bad');
+  const hit=()=>{if(locked||tries>=3)return;locked=true;const ok=pos>=zone&&pos<=zone+zw;tries++;if(ok)hits++;sfx(ok?'coin':'bad');flash=.45;flashOk=ok;
     $('mgMsg').innerHTML=`${ok?'<span class="pos">Точно!</span>':'<span class="neg">Сорвал резьбу!</span>'} Попаданий: ${hits}`;
-    if(tries>=3){mgStop();const b=$('mgHit');b.textContent='Итог';b.onclick=()=>done(hits*6-(3-hits)*3,`гайки — точных попаданий ${hits} из 3`);b.focus();return}
+    if(tries>=3){mgStop();flash=0;gauge();const b=$('mgHit');b.textContent='Итог';b.onclick=()=>done(hits*6-(3-hits)*3,`гайки — точных попаданий ${hits} из 3`);b.focus();return}
     setTimeout(()=>{speed+=.35;newZone();$('mgN').textContent=tries+1;locked=false},700)};
   $('mgHit').onclick=hit;$('mgHit').focus();
   mgKey=e=>{if(e.code==='Space'){e.preventDefault();hit()}};document.addEventListener('keydown',mgKey);
@@ -2342,26 +2353,67 @@ function drvAct(id,a){const d=S.dlist.find(x=>x.id===id);if(!d||S.over)return;co
   save();render(before)}
 
 /* ---- мини-игры на линии ---- */
+/* ---- машина сверху для мини-игр: 14×16, перёд вверху ---- */
+const TOPCAR=[
+"..kkkkkkkkkk..",
+".khyyyyyyyyhk.",
+".kyyyyyyyyyyk.",
+"okyyyyyyyyyyko",
+"okyWwwwwwwwyko",
+"okywwwwwwwwyko",
+".kylllttlllyk.",
+".kyllllllllyk.",
+".kyllllllllyk.",
+".kynnnnnnnnyk.",
+".kyyyyyyyyyyk.",
+"okyyyyyyyyyyko",
+"okyyyyyyyyyyko",
+"okyyyyyyyyyyko",
+".krryyyyyyrrk.",
+"..kkkkkkkkkk.."];
+const topPal=(c,taxi)=>({y:c,l:shade(c,1.18),k:'#1a1530',h:'#fff6a8',r:'#ff4d4d',W:'#e8f6ff',w:'#9fd3ff',n:'#3a4a78',t:taxi?'#fff6a8':shade(c,1.18),o:'#0e0b1c'});
+/* поворот на 90°: перёд смотрит влево */
+function sprRot(g,s,x,y,pal){const n=s[0].length;for(let r=0;r<s.length;r++)for(let c=0;c<n;c++){const ch=s[r][c];if(ch==='.')continue;g.fillStyle=pal[ch]||PAL[ch];g.fillRect(x+r,y+n-1-c,1,1)}}
 function lgRace(cb){
   showModal(`<span class="step">МИНИ-ИГРА · VIP В АЭРОПОРТ</span><h2>Довезите за 20 секунд</h2>
     <p>Уворачивайтесь от машин. Три столкновения — и клиент опоздал. Стрелки ← → или кнопки.</p>
-    <canvas id="lgC" class="lg-canvas" width="60" height="90"></canvas>
+    <canvas id="lgC" class="lg-canvas" width="80" height="90"></canvas>
     <div class="row2"><span class="mg-timer" id="lgInfo"></span></div>
     <div class="btns"><button class="btn" id="lgL">◀</button><button class="btn" id="lgR">▶</button></div>`);
-  const cv2=$('lgC'),g=cv2.getContext('2d');crisp(cv2);let lane=1,obs=[],t=0,last=0,spawn=.6,lives=3,hitT=0,fin=false;
-  const LX=[3,23,43];const move=dx=>{lane=Math.max(0,Math.min(2,lane+dx))};
+  const cv2=$('lgC'),g=cv2.getContext('2d');crisp(cv2);let lane=1,obs=[],t=0,last=0,spawn=.6,lives=3,hitT=0,fin=false,dist=0,sparks=[];
+  const LX=[13,33,53],night=sceneDark>.5,me=topPal('#f7c331',1);const move=dx=>{lane=Math.max(0,Math.min(2,lane+dx))};
   $('lgL').onclick=()=>move(-1);$('lgR').onclick=()=>move(1);
   cv2.onpointerdown=e=>{const r=cv2.getBoundingClientRect();move(e.clientX-r.left<r.width/2?-1:1)};
   mgKey=e=>{if(e.code==='ArrowLeft'){e.preventDefault();move(-1)}if(e.code==='ArrowRight'){e.preventDefault();move(1)}};document.addEventListener('keydown',mgKey);
-  const car=(x,y,body,trim)=>{g.fillStyle=body;g.fillRect(x,y,14,16);g.fillStyle=trim;g.fillRect(x+2,y+3,10,4);g.fillRect(x+2,y+10,10,3);g.fillStyle='#0e0b1c';g.fillRect(x-1,y+2,1,4);g.fillRect(x+14,y+2,1,4);g.fillRect(x-1,y+10,1,4);g.fillRect(x+14,y+10,1,4)};
-  const frame=ts=>{const dt=last?Math.min(.05,(ts-last)/1000):0;last=ts;t+=dt;const sp=45+t*3.2;
-    spawn-=dt;if(spawn<=0){spawn=Math.max(.32,.85-t*.025);obs.push({l:rand(0,2),y:-18,c:['#e66fa8','#4fc7b0','#ff8a4c','#d9dde8'][rand(0,3)]})}
+  const F=(x,y,w,h,c)=>{g.fillStyle=c;g.fillRect(Math.round(x),Math.round(y),w,h)};
+  const add=(fn)=>{g.globalCompositeOperation='lighter';fn();g.globalCompositeOperation='source-over'};
+  const frame=ts=>{const dt=last?Math.min(.05,(ts-last)/1000):0;last=ts;t+=dt;const sp=45+t*3.2;dist+=sp*dt;
+    spawn-=dt;if(spawn<=0){spawn=Math.max(.32,.85-t*.025);obs.push({l:rand(0,2),y:-18,p:topPal(['#e66fa8','#4fc7b0','#ff8a4c','#d9dde8','#4a88c8'][rand(0,4)])})}
     obs.forEach(o=>o.y+=sp*dt);
-    obs=obs.filter(o=>{if(o.l===lane&&o.y>56&&o.y<86){lives--;hitT=.5;sfx('bad');return false}return o.y<95});
+    obs=obs.filter(o=>{if(o.l===lane&&o.y>56&&o.y<86){lives--;hitT=.5;sfx('bad');for(let i=0;i<10;i++)sparks.push({x:LX[lane]+7,y:70,vx:(Math.random()-.5)*60,vy:-Math.random()*50,l:.4});return false}return o.y<95});
     hitT=Math.max(0,hitT-dt);
-    g.fillStyle='#2a2740';g.fillRect(0,0,60,90);g.fillStyle='#f7c331';for(let y=-(t*sp%12);y<90;y+=12){g.fillRect(20,y,1,6);g.fillRect(40,y,1,6)}
-    obs.forEach(o=>car(LX[o.l],o.y,o.c,'#1a1530'));
-    if(!(hitT>0&&((t*20)|0)%2))car(LX[lane],70,'#f7c331','#9fd3ff');
+    const shake=hitT>0?Math.round(Math.sin(t*90)*hitT*4):0;g.save();g.translate(shake,0);
+    // обочины с деревьями и фонарями
+    F(-4,0,14,90,night?'#1a3324':'#2e5a3a');F(70,0,14,90,night?'#1a3324':'#2e5a3a');
+    for(let i=0;i<5;i++){const y=(i*24+dist*.9)%120-18;F(3,y+6,2,4,'#5a3a20');F(1,y,6,6,night?'#24603a':'#3a9a5a');F(2,y+1,3,2,night?'#2e7a44':'#5ab06a');
+      const ly=(i*24+12+dist*.9)%120-18;F(74,ly,1,9,'#8a83b0');F(72,ly,3,1,'#8a83b0');F(72,ly+1,2,1,night?'#fff6a8':'#c6bfe4');
+      if(night)add(()=>{for(let k=1;k<4;k++){g.fillStyle=`rgba(255,240,170,${.12/k})`;g.fillRect(72-k*3,ly+1,3+k*5,3+k*4)}})}
+    // дорога, бордюры, разметка
+    F(10,0,60,90,night?'#1e1c30':'#2a2740');
+    for(let i=0;i<14;i++)F(12+(i*29)%56,(i*37+dist)%96-3,1,1,night?'#28263c':'#33304a');
+    for(let y=-(dist%8)-8;y<90;y+=8){F(9,y,1,4,'#e8e2d0');F(70,y,1,4,'#e8e2d0');F(9,y+4,1,4,'#ff4d4d');F(70,y+4,1,4,'#ff4d4d')}
+    for(let y=-(dist%12);y<90;y+=12){F(30,y,1,6,'#f7c331');F(50,y,1,6,'#f7c331')}
+    // финиш: клетчатая линия подъезжает к машине ровно к 20-й секунде, над ней пролетает самолёт
+    const fy=70-(20-t)*sp;if(fy>-6&&fy<90)for(let x=10;x<70;x+=3){F(x,fy,3,2,(x/3|0)%2?'#f3ecdc':'#0e0b1c');F(x,fy+2,3,2,(x/3|0)%2?'#0e0b1c':'#f3ecdc')}
+    if(t>14){const px=-14+(t-14)/6*100;F(px,8,11,2,'#e8eef8');F(px+3,5,3,8,'#e8eef8');F(px+9,6,2,2,'#e8eef8');F(px,7,1,1,'#ff4d4d')}
+    // машины: тень, затем спрайт
+    obs.forEach(o=>{g.globalAlpha=.35;F(LX[o.l]+2,o.y+2,14,16,'#0e0b1c');g.globalAlpha=1;spr(g,TOPCAR,LX[o.l],o.y,false,o.p);
+      if(night)add(()=>{g.fillStyle='rgba(255,60,60,.25)';g.fillRect(LX[o.l]+1,o.y+15,4,3);g.fillRect(LX[o.l]+9,o.y+15,4,3)})});
+    if(night)add(()=>{for(let k=0;k<6;k++){g.fillStyle=`rgba(255,240,180,${(.12-k*.017).toFixed(3)})`;g.fillRect(LX[lane]+2-k,70-4-k*5,10+k*2,5)}});
+    if(!(hitT>0&&((t*20)|0)%2)){g.globalAlpha=.35;F(LX[lane]+2,72,14,16,'#0e0b1c');g.globalAlpha=1;spr(g,TOPCAR,LX[lane],70,false,me)}
+    sparks=sparks.filter(p=>{p.l-=dt;p.x+=p.vx*dt;p.y+=p.vy*dt;p.vy+=120*dt;F(p.x,p.y,1,1,p.l>.2?'#fff6a8':'#ff8a4c');return p.l>0});
+    if(hitT>.3){g.fillStyle=`rgba(255,77,77,${((hitT-.3)*1.5).toFixed(2)})`;g.fillRect(-4,0,88,90)}
+    g.restore();
     const left=Math.max(0,20-t);$('lgInfo').textContent=`⏱ ${left.toFixed(1)} сек · ♥ ${'■'.repeat(Math.max(0,lives))}`;
     if(lives<=0||t>=20){if(fin)return;fin=true;mgStop();const ok=lives>0;sfx(ok?'win':'bad');
       $('lgInfo').innerHTML=ok?'<span class="pos">Успели!</span>':'<span class="neg">Опоздали…</span>';
@@ -2372,13 +2424,26 @@ function lgRace(cb){
 function lgPark(cb){
   let pos=0,speed=.42,tries=0,hits=0,go=true,last=0;const slot=.55+Math.random()*.3,sw=.09;
   showModal(`<span class="step">МИНИ-ИГРА · ПАРКОВКА</span><h2>Встаньте точно в место</h2>
-    <p>Машина сдаёт назад. Нажмите «Стоп», когда она в разметке. Две попытки, нужна одна точная.</p>
-    <div class="mg-bar park"><i class="mg-zone" style="left:${slot*100}%;width:${sw*100}%"></i><i class="mg-mark" id="pkM"></i></div>
+    <p>Машина сдаёт назад. Нажмите «Стоп», когда она точно напротив свободного места. Две попытки, нужна одна точная.</p>
+    <canvas id="pkC" class="mg-gauge" width="128" height="48"></canvas>
     <p class="note" id="pkMsg">Попытка 1 из 2</p><div class="btns"><button class="btn" id="pkStop">Стоп! (пробел)</button></div>`);
-  const frame=ts=>{const dt=last?(ts-last)/1000:0;last=ts;if(go){pos+=speed*dt;if(pos>=1){pos=1;stop()}const m=$('pkM');if(m)m.style.left=pos*100+'%'}mgRaf=mgRAF(frame)};
-  const stop=()=>{if(!go)return;go=false;tries++;const ok=pos>=slot&&pos<=slot+sw;if(ok)hits++;sfx(ok?'coin':'bad');
+  // стоянка сверху: ряд мест с машинами, одно свободно; зелёные метки на бордюре — точная зона
+  const gc=$('pkC'),g=gc.getContext('2d');crisp(gc);const X=v=>8+v*112,me=topPal('#f7c331',1);
+  const tc=X(slot+sw/2),cols=['#e66fa8','#4fc7b0','#ff8a4c','#d9dde8','#4a88c8','#86c4e0'];
+  const spots=[];for(let x=tc-9-18*8;x<130;x+=18)if(x+18>0)spots.push(x);
+  const F=(x,y,w,h,c)=>{g.fillStyle=c;g.fillRect(Math.round(x),Math.round(y),w,h)};
+  const draw=()=>{F(0,0,128,48,'#2a2740');for(let i=0;i<20;i++)F((i*37)%128,(i*17)%48,1,1,'#33304a');
+    spots.forEach((x,i)=>{F(x,1,1,19,'#d8d0e8');const free=Math.abs(x+9-tc)<1;if(free){g.globalAlpha=.25;F(x+1,1,17,19,'#86e06f');g.globalAlpha=1;F(x+6,6,6,8,'#86e06f');F(x+7,7,4,6,'#2a2740');F(x+7,7,3,3,'#86e06f')}
+      else{g.globalAlpha=.35;F(x+3,4,14,16,'#0e0b1c');g.globalAlpha=1;spr(g,TOPCAR,x+2,2,false,topPal(cols[i%cols.length]))}});
+    F(0,21,128,2,'#8a83b0');F(X(slot),21,Math.max(1,Math.round(sw*112)),2,'#86e06f');
+    for(let x=-((pos*112)%8);x<128;x+=8)F(x,35,4,1,'#f7c33188');
+    const cx=X(pos)-8;g.globalAlpha=.35;F(cx+2,28,16,14,'#0e0b1c');g.globalAlpha=1;sprRot(g,TOPCAR,cx,26,me);
+    if(go&&(Date.now()>>7)%2){F(cx+15,28,2,2,'#f3ecdc');F(cx+15,36,2,2,'#f3ecdc')}
+    F(X(pos),24,1,2,'#ffe27a')};
+  const frame=ts=>{const dt=last?(ts-last)/1000:0;last=ts;if(go){pos+=speed*dt;if(pos>=1){pos=1;stop()}}draw();mgRaf=mgRAF(frame)};
+  const stop=()=>{if(!go)return;go=false;tries++;const ok=pos>=slot&&pos<=slot+sw;if(ok)hits++;sfx(ok?'coin':'bad');draw();
     $('pkMsg').innerHTML=ok?'<span class="pos">Идеально в разметку!</span>':'<span class="neg">Мимо!</span>';
-    if(hits||tries>=2){mgStop();const b=$('pkStop');b.textContent='Итог';b.onclick=()=>{hideModal();cb(hits>0)};return}
+    if(hits||tries>=2){mgStop();draw();const b=$('pkStop');b.textContent='Итог';b.onclick=()=>{hideModal();cb(hits>0)};return}
     setTimeout(()=>{pos=0;speed+=.12;last=0;go=true;$('pkMsg').textContent='Попытка 2 из 2'},700)};
   $('pkStop').onclick=stop;mgKey=e=>{if(e.code==='Space'){e.preventDefault();stop()}};document.addEventListener('keydown',mgKey);
   mgRaf=mgRAF(frame);
@@ -2657,6 +2722,17 @@ function dispatcher(){
     <p>Нажимайте на мигающие заказы — к ним поедет ближайшая свободная машина. Не дайте заказам сгореть.</p>
     <canvas id="dpC" class="dp-canvas" width="200" height="120"></canvas><div class="row2"><span class="mg-timer" id="dpInfo"></span><button class="buy sm alt" id="dpStop">Закончить</button></div>`);
   const cv2=$('dpC'),g=cv2.getContext('2d');crisp(cv2);const GX=[10,50,90,130,170,190],GY=[10,40,70,100,112];
+  // город рисуется один раз: кварталы с крышами разной высоты, парки с деревьями, дороги с тротуарами
+  const city=document.createElement('canvas');city.width=200;city.height=120;{const c=city.getContext('2d'),F=(x,y,w,h,col)=>{c.fillStyle=col;c.fillRect(x,y,w,h)};let sd=11;const rr=()=>(sd=(sd*16807)%2147483647)/2147483647;
+    F(0,0,200,120,'#2a2740');const xs=[-10,...GX,210],ys=[-10,...GY,130];
+    for(let i=0;i<xs.length-1;i++)for(let j=0;j<ys.length-1;j++){const x0=xs[i]+4,y0=ys[j]+4,x1=xs[i+1]-4,y1=ys[j+1]-4;if(x1-x0<3||y1-y0<3)continue;
+      F(x0-1,y0-1,x1-x0+2,y1-y0+2,'#5a5285');
+      if(rr()<.22){F(x0,y0,x1-x0,y1-y0,'#2e5a3a');for(let k=0;k<(x1-x0)*(y1-y0)/40;k++){const tx=x0+rr()*(x1-x0-4)|0,ty=y0+rr()*(y1-y0-4)|0;F(tx,ty,4,4,'#3a9a5a');F(tx+1,ty,2,1,'#5ab06a');F(tx+3,ty+1,1,3,'#2e7a44')}continue}
+      for(let x=x0;x<x1;){const w=Math.min(x1-x,6+(rr()*10|0)),roof=['#6a5a90','#5a4a78','#4a5a80','#7a5a60','#3a4a6a','#8a6a50'][rr()*6|0];
+        F(x,y0,w,y1-y0,roof);F(x,y0,w,1,shade(roof,1.3));F(x+w-1,y0,1,y1-y0,shade(roof,.7));F(x,y1-1,w,1,shade(roof,.6));
+        if(w>4&&y1-y0>4){F(x+1+(rr()*(w-3)|0),y0+2,2,2,shade(roof,.8));if(rr()<.5)F(x+2,y1-4,1,1,'#f7c33188')}x+=w+1}}
+    GX.forEach(x=>{F(x-3,0,1,120,'#4a4570');F(x+2,0,1,120,'#4a4570')});GY.forEach(y=>{F(0,y-3,200,1,'#4a4570');F(0,y+2,200,1,'#4a4570')});
+    GX.forEach(x=>F(x-2,0,4,120,'#2a2740'));GY.forEach(y=>F(0,y-2,200,4,'#2a2740'))}
   const node=()=>({x:GX[rand(0,4)],y:GY[rand(0,3)]});
   const cars=Array.from({length:nCars},()=>Object.assign(node(),{st:'free',path:[],ord:null}));
   let orders=[],t2=0,last=0,spawn=1,score=0,lost=0,fin=false;
@@ -2670,12 +2746,22 @@ function dispatcher(){
     cars.forEach(c=>{if(!c.path.length)return;const tg=c.path[0],dx=tg.x-c.x,dy=tg.y-c.y,dist=Math.hypot(dx,dy),sp=70*dt;
       if(dist<=sp){c.x=tg.x;c.y=tg.y;c.path.shift();if(!c.path.length){if(c.st==='pick'){c.st='drive';orders=orders.filter(o=>o!==c.ord);const n=node();c.path=pathTo(c,n.x,n.y)}else if(c.st==='drive'){c.st='free';score++;sfx('coin')}}}
       else{c.x+=dx/dist*sp;c.y+=dy/dist*sp}});
-    g.fillStyle='#2e5a3a';g.fillRect(0,0,200,120);g.fillStyle='#3a6a44';for(let i=0;i<40;i++)g.fillRect((i*37)%200,(i*53)%120,2,2);
-    g.fillStyle='#4a4570';GX.forEach(x=>g.fillRect(x-2,0,4,120));GY.forEach(y=>g.fillRect(0,y-2,200,4));
+    g.drawImage(city,0,0);
     g.fillStyle='#f7c33155';GY.forEach(y=>{for(let x=(Math.floor(t2*20))%8;x<200;x+=8)g.fillRect(x,y,3,1)});
-    orders.forEach(o=>{const blink=o.taken||Math.floor(t2*6)%2;g.fillStyle=o.taken?'#a8a0cc':o.ttl<3?'#ff4d4d':'#86e06f';if(blink)g.fillRect(Math.round(o.x)-3,Math.round(o.y)-7,7,7);g.fillStyle='#0e0b1c';g.fillRect(Math.round(o.x),Math.round(o.y),1,2);
-      if(!o.taken){g.fillStyle='#f3ecdc';g.fillRect(Math.round(o.x)-4,Math.round(o.y)+3,Math.round(9*o.ttl/9),1)}});
-    cars.forEach(c=>{g.fillStyle='#0e0b1c';g.fillRect(Math.round(c.x)-3,Math.round(c.y)-2,7,5);g.fillStyle=c.st==='free'?'#f7c331':c.st==='pick'?'#ff8a4c':'#4fc7b0';g.fillRect(Math.round(c.x)-2,Math.round(c.y)-1,5,3)});
+    // заказ: пульсирующее кольцо и пассажир, цвет — сколько осталось ждать
+    orders.forEach(o=>{const x=Math.round(o.x),y=Math.round(o.y),col=o.taken?'#a8a0cc':o.ttl<3?'#ff4d4d':o.ttl<6?'#f7c331':'#86e06f';
+      if(!o.taken){const r=2+Math.floor((t2*2.5)%1*5);g.globalAlpha=1-((t2*2.5)%1);g.fillStyle=col;g.fillRect(x-r,y-4-r,r*2+1,1);g.fillRect(x-r,y-4+r,r*2+1,1);g.fillRect(x-r,y-4-r,1,r*2+1);g.fillRect(x+r,y-4-r,1,r*2+1);g.globalAlpha=1}
+      g.fillStyle='#0e0b1c';g.fillRect(x-2,y-8,5,8);g.fillStyle='#f0c8a0';g.fillRect(x-1,y-7,3,2);g.fillStyle=col;g.fillRect(x-1,y-5,3,3);g.fillStyle='#2a2450';g.fillRect(x-1,y-2,1,1);g.fillRect(x+1,y-2,1,1);
+      if(!o.taken){g.fillStyle='#0e0b1c';g.fillRect(x-5,y+2,11,2);g.fillStyle=col;g.fillRect(x-4,y+2,Math.max(1,Math.round(9*o.ttl/9)),1)}});
+    // такси сверху: повёрнуто по ходу движения, на крыше шашка, спереди фары
+    cars.forEach(c=>{const tg=c.path[0],hz=tg?Math.abs(tg.x-c.x)>=Math.abs(tg.y-c.y):true,dir=tg?(hz?Math.sign(tg.x-c.x):Math.sign(tg.y-c.y))||1:1,x=Math.round(c.x),y=Math.round(c.y);
+      const body=c.st==='free'?'#f7c331':c.st==='pick'?'#ff8a4c':'#4fc7b0',w=hz?8:5,h=hz?5:8;
+      g.globalAlpha=.4;g.fillStyle='#0e0b1c';g.fillRect(x-(w>>1)+1,y-(h>>1)+1,w,h);g.globalAlpha=1;
+      g.fillStyle='#0e0b1c';g.fillRect(x-(w>>1)-1,y-(h>>1),w+2,h);g.fillRect(x-(w>>1),y-(h>>1)-1,w,h+2);
+      g.fillStyle=body;g.fillRect(x-(w>>1),y-(h>>1),w,h);g.fillStyle='#9fd3ff';
+      if(hz){g.fillRect(dir>0?x+1:x-2,y-1,2,3);g.fillStyle='#fff6a8';g.fillRect(dir>0?x+3:x-4,y-2,1,1);g.fillRect(dir>0?x+3:x-4,y+2,1,1)}
+      else{g.fillRect(x-1,dir>0?y+1:y-2,3,2);g.fillStyle='#fff6a8';g.fillRect(x-2,dir>0?y+3:y-4,1,1);g.fillRect(x+2,dir>0?y+3:y-4,1,1)}
+      g.fillStyle='#0e0b1c';g.fillRect(x,y,1,1)});
     const left=Math.max(0,60-t2);$('dpInfo').textContent=`⏱ ${left.toFixed(0)} сек · выполнено ${score} · сгорело ${lost}`;
     if(left<=0||fin){mgStop();const money=score*1500,rp=score>=12?2:score>=7?1:0;S.money+=money;S.rep=Math.min(100,S.rep+rp);S.cnt.disp=Math.max(S.cnt.disp||0,score);
       addLog(`Диспетчер: выполнено ${score} заказов, +${rub(money)}${rp?`, +${rp} к репутации`:''}.`);save();render();sfx(score>=7?'win':'coin');
