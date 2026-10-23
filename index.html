@@ -74,7 +74,7 @@ h1{font-size:clamp(14px,2.6vw,20px);color:var(--taxi);text-shadow:3px 3px 0 var(
 .goalbox .bar{grid-column:1/-1}
 
 .scene-box{background:var(--edge);overflow:hidden}
-#scene{width:100%;height:auto}
+#scene{margin:0 auto}
 
 .desks{display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:16px;align-items:start}
 .desk{background:var(--panel);min-width:0;position:relative}
@@ -114,7 +114,7 @@ h1{font-size:clamp(14px,2.6vw,20px);color:var(--taxi);text-shadow:3px 3px 0 var(
 .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px}
 .card2{background:var(--panel-2);padding:12px;display:grid;gap:8px;align-content:start;min-width:0;border:3px solid var(--edge)}
 .car-top{display:flex;align-items:center;gap:10px}
-.mini{width:84px;height:39px;background:var(--panel);border:3px solid var(--edge);flex:none}
+.mini{width:76px;height:34px;background:var(--panel);border:3px solid var(--edge);flex:none}
 .card2 h3{font-size:10px;line-height:1.5}
 .kind{font-size:14px;color:var(--muted)}
 .cls{font-family:var(--f-display);font-size:8px;background:var(--edge);color:var(--taxi);padding:2px 4px;margin-right:4px;vertical-align:1px}
@@ -2348,7 +2348,7 @@ function lgRace(cb){
     <canvas id="lgC" class="lg-canvas" width="60" height="90"></canvas>
     <div class="row2"><span class="mg-timer" id="lgInfo"></span></div>
     <div class="btns"><button class="btn" id="lgL">◀</button><button class="btn" id="lgR">▶</button></div>`);
-  const cv2=$('lgC'),g=cv2.getContext('2d');let lane=1,obs=[],t=0,last=0,spawn=.6,lives=3,hitT=0,fin=false;
+  const cv2=$('lgC'),g=cv2.getContext('2d');crisp(cv2);let lane=1,obs=[],t=0,last=0,spawn=.6,lives=3,hitT=0,fin=false;
   const LX=[3,23,43];const move=dx=>{lane=Math.max(0,Math.min(2,lane+dx))};
   $('lgL').onclick=()=>move(-1);$('lgR').onclick=()=>move(1);
   cv2.onpointerdown=e=>{const r=cv2.getBoundingClientRect();move(e.clientX-r.left<r.width/2?-1:1)};
@@ -2656,7 +2656,7 @@ function dispatcher(){
   showModal(`<span class="step">МИНИ-ИГРА · ДИСПЕТЧЕР</span><h2>Раздайте заказы за 60 секунд</h2>
     <p>Нажимайте на мигающие заказы — к ним поедет ближайшая свободная машина. Не дайте заказам сгореть.</p>
     <canvas id="dpC" class="dp-canvas" width="200" height="120"></canvas><div class="row2"><span class="mg-timer" id="dpInfo"></span><button class="buy sm alt" id="dpStop">Закончить</button></div>`);
-  const cv2=$('dpC'),g=cv2.getContext('2d');const GX=[10,50,90,130,170,190],GY=[10,40,70,100,112];
+  const cv2=$('dpC'),g=cv2.getContext('2d');crisp(cv2);const GX=[10,50,90,130,170,190],GY=[10,40,70,100,112];
   const node=()=>({x:GX[rand(0,4)],y:GY[rand(0,3)]});
   const cars=Array.from({length:nCars},()=>Object.assign(node(),{st:'free',path:[],ord:null}));
   let orders=[],t2=0,last=0,spawn=1,score=0,lost=0,fin=false;
@@ -2943,7 +2943,7 @@ const MGROUPS=[['garage','Гараж',['shop','fleet','base']],['people','Люд
 let lastSub={};
 const MTABS=[['shop','Автосалон'],['fleet','Мой парк'],['drivers','Водители'],['depts','Отделы'],['map','Карта'],['biz','Бизнес'],['branch','Филиалы'],['base','База'],['fin','Финансы'],['stats','Статистика'],['city','Город'],['style','Мой стиль'],['ach','Достижения']];
 function hireCard(){const off=S.over||S.preview,working=carsN()-brokenN(),free=Math.max(0,working-S.drivers);
-  return `<div class="card2 hire${free>0?' need':''}"><div class="car-top"><canvas class="mini" width="28" height="13" data-m="person"></canvas>
+  return `<div class="card2 hire${free>0?' need':''}"><div class="car-top"><canvas class="mini" width="38" height="17" data-m="person"></canvas>
     <div><h3>Нанять водителей</h3><div class="kind">вакансия на Авито</div></div></div>
     <div class="specs"><div class="spec"><span>Размещение</span><b>${rub(HIRE_COST)}</b></div>
     <div class="spec"><span>Обычно приходит</span><b>1–2 вод.</b></div>
@@ -2966,7 +2966,7 @@ function renderMgmt(){
     B.innerHTML=`<div class="row2"><div class="tabs">${SHOP_TABS.map(([k,l])=>`<button class="tab${shopTab===k?' on':''}" data-tab="${k}">${l}</button>`).join('')}</div>
       <span class="sub">Мест на стоянке: ${carsN()} / ${S.spots}${full?' — <span class="neg">заполнена</span>':''}</span></div>
       <div class="grid">${hireCard()}${MODEL_KEYS.filter(k=>tabMatch(MODELS[k],shopTab)&&S.rank>=(MODELS[k].rank||0)).map(k=>{const M=MODELS[k],own=countM(k),rel=Math.max(1,Math.min(5,Math.round((1-M.fail*10)*5)));
-      return `<div class="card2"><div class="car-top"><canvas class="mini" width="28" height="13" data-m="${k}"></canvas>
+      return `<div class="card2"><div class="car-top"><canvas class="mini" width="38" height="17" data-m="${k}"></canvas>
         <div><h3>${M.name}</h3><div class="kind"><span class="cls">${M.cls}</span>${M.kind}</div></div></div>
         ${M.note?`<div class="kind">${M.note}</div>`:''}
         <div class="specs">
@@ -3405,13 +3405,212 @@ const PERSON=[
 "..P.P..",
 ".PP.PP."];
 const shapeOf=m=>SHAPE_OF[m]||SEDAN;
-const carPal=m=>{const M=MODELS[m]||MODELS.solaris,C=S&&S.custom&&COLORS[S.custom.color],own=C&&C.body&&!['Комфорт+','Бизнес'].includes(M.cls);const by=own?C.body:M.body;return{y:by,l:shade(by,1.16),d:own?C.trim:M.trim,t:M.ev?'#86e06f':'#f7c331',k:['camry','mercedes','monjaro','zeekr'].includes(m)?'#0b0914':'#1a1530',g:m==='mercedes'?'#e8e2d0':'#a8a0cc'}};
+/* ---- новые модели: свой силуэт, объём в 3 тона, колёса отдельно и крутятся ----
+   s тень кузова, n тёмное стекло, m хром, e световая полоса электромобиля; wh — центры колёс, wy — верх колеса */
+const CARS2={
+ solaris:{wh:[7,25],wy:8,s:[
+"............kttk................",
+"..........kkkkkkkkkk............",
+".........kWwwwwkWwwwk...........",
+"........kWwwwwwkwwwwWk..........",
+".......knwwwwwwkwwwwwWk.........",
+".kkkkkkllllllllllllllllkkkkkkk..",
+"kryyyyyyyyyyyyyyyyyyyyyylllllllk",
+"kryyyyyybcbcbcysyymyyyyyyyyyyyhk",
+"kyyyyyyycbcbcbysyyyyyyyyyyyyyyhk",
+"kssssssssssssssssssssssssssssssk",
+"kddddddddddddddddddddddddddddddk",
+".kkkkkkkkkkkkkkkkkkkkkkkkkkkkkk."]},
+ camry:{wh:[8,27],wy:7,s:[
+"..............kttk................",
+"............kkkkkkkkkk............",
+"..........kWwwwwwkwwwwWk..........",
+"........knWwwwwwwkwwwwwwWk........",
+".kkkkkkkllllllllllllllllllllkkkkk.",
+"kryyyyyyyyyyyyyyyyyyyyyyyyyylllllk",
+"kryyyyyyybcbcbcyysyyymyyyyyyyyyhhk",
+"kyyyyyyyycbcbcbysyyyyyyyyyyyyyyymk",
+"kssssssssssssssssssssssssssssssssk",
+"kddddddddddddddddddddddddddddddddk",
+".kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk."]},
+ zeekr:{wh:[8,26],wy:7,s:[
+"...............kttk...............",
+"........kkkkkkkkkkkkkkk...........",
+".......knwwwwkwwwwwkwwwWk.........",
+"......knwwwwwkwwwwwkwwwwwWk.......",
+".kkkkkllllllllllllllllllllllkkkkk.",
+"krryyyyyyyyyyyyyyyyyyyyyyyyylllllk",
+"kryyyyyybcbcbcyyysyyymyyyyyyyeeeek",
+"kyyyyyyycbcbcbyyysyyyyyyyyyyyyyymk",
+"kssssssssssssssssssssssssssssssssk",
+"kddddddddddddddddddddddddddddddddk",
+".kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk."]},
+ granta:{wh:[7,24],wy:8,s:[
+"...........kttk................",
+".........kkkkkkkkkkk...........",
+"........kWwwwwkWwwwwk..........",
+".......kWwwwwwkwwwwwWk.........",
+"......knwwwwwwkwwwwwwWk........",
+".kkkkklllllllllllllllllkkkkkk..",
+"kryyyyyyyyyyyyyyyyyyyyyyllllllk",
+"kryyyyybcbcbcyysyyymyyyyyyyyyhk",
+"kyyyyyycbcbcbyysyyyyyyyyyyyyyhk",
+"ksssssssssssssssssssssssssssssk",
+"kdddddddddddddddddddddddddddddk",
+".kkkkkkkkkkkkkkkkkkkkkkkkkkkkk."]},
+ vesta:{wh:[7,25],wy:8,s:[
+"............kttk................",
+"..........kkkkkkkkkk............",
+".........kWwwwwkWwwwk...........",
+"........kWwwwwwkwwwwWk..........",
+".......knwwwwwwkwwwwwWk.........",
+".kkkkkkmmmmmmmmmmmmmmmmkkkkkkk..",
+"kryyyyyyyyyyyyyyyyyyyyyylllllllk",
+"kryyyyyybcbcbcysyymyyyyysyyyyyhk",
+"kyyyyyyycbcbcbyyssyyyyysyyyyyyhk",
+"kssssssssssssssssssssssssssssssk",
+"kddddddddddddddddddddddddddddddk",
+".kkkkkkkkkkkkkkkkkkkkkkkkkkkkkk."]},
+ moskvich:{wh:[6,23],wy:9,s:[
+"...........kttk...............",
+"......mmmmmmmmmmmmmm..........",
+"......kkkkkkkkkkkkkk..........",
+".....kWwwwkWwwwwkwwWk.........",
+".....knwwwkwwwwwkwwwwWk.......",
+".....knwwwkwwwwwkwwwwwWk......",
+".kkkklllllllllllllllllllkkkkk.",
+"kryyyyyyyyyyyyyyyyyyyyyyyllllk",
+"kryyyyybcbcbcyysyyymyyyyyyyyhk",
+"kyyyyyycbcbcbyysyyyyyyyyyyyymk",
+"kssssssssssssssssssssssssssssk",
+"kddddddddddddddddddddddddddddk",
+".kkkkkkkkkkkkkkkkkkkkkkkkkkkk."]},
+ rio:{wh:[6,23],wy:8,s:[
+"...........kttk...............",
+"......kkkkkkkkkkkkkk..........",
+".....knWwwwkWwwwwwk...........",
+"....knwwwwwkwwwwwwWk..........",
+"...knwwwwwwkwwwwwwwWk.........",
+".kkklllllllllllllllllkkkkkkk..",
+"kryyyyyyyyyyyyyyyyyyyyyllllllk",
+"kryyyybcbcbcysyymyyyyyyyyyyyhk",
+"kyyyyycbcbcbysyyyyyyyyyyyyyyhk",
+"kssssssssssssssssssssssssssssk",
+"kddddddddddddddddddddddddddddk",
+".kkkkkkkkkkkkkkkkkkkkkkkkkkkk."]},
+ octavia:{wh:[7,26],wy:8,s:[
+"..............kttk...............",
+"...........kkkkkkkkkk............",
+".........knWwwwkWwwwwk...........",
+".......knwwwwwwkwwwwwwWk.........",
+".....knwwwwwwwwkwwwwwwwwWk.......",
+".kkkklllllllllllllllllllllkkkkkk.",
+"kryyyyyyyyyyyyyyyyyyyyyyyyllllllk",
+"kryyyyyyybcbcbcysyyymyyyyyyyyyyhk",
+"kyyyyyyyycbcbcbysyyyyyyyyyyyyyyhk",
+"ksssssssssssssssssssssssssssssssk",
+"kdddddddddddddddddddddddddddddddk",
+".kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk."]},
+ tiggo:{wh:[7,25],wy:9,s:[
+"............kttk................",
+".......mmmmmmmmmmmmmm...........",
+"......kkkkkkkkkkkkkkkk..........",
+".....kWwwwwkWwwwwkwwWk..........",
+"....knwwwwwkwwwwwkwwwwWk........",
+"....knwwwwwkwwwwwkwwwwwWk.......",
+".kkklllllllllllllllllllllkkkkkk.",
+"kryyyyyyyyyyyyyyyyyyyyyyyylllllk",
+"kryyyyyybcbcbcyysyyymyyyyyyyyyhk",
+"kyyyyyyycbcbcbyysyyyyyyyyyyyyymk",
+"kssssssssssssssssssssssssssssssk",
+"kddddddddddddddddddddddddddddddk",
+".kkkkkkkkkkkkkkkkkkkkkkkkkkkkkk."]},
+ jolion:{wh:[7,26],wy:9,s:[
+".............kttk................",
+"......mmmmmmmmmmmmmmmmm..........",
+"......kkkkkkkkkkkkkkkkkk.........",
+".....kWwwwwkWwwwwwkWwwwk.........",
+".....knwwwwkwwwwwwkwwwwwk........",
+".....knwwwwkwwwwwwkwwwwwWk.......",
+".kkkklllllllllllllllllllllkkkkkk.",
+"kryyyyyyyyyyyyyyyyyyyyyyyyylllllk",
+"kryyyyyyybcbcbcyysyyymyyyyyyyyyhk",
+"kyyyyyyyycbcbcbyysyyyyyyyyyyyymmk",
+"ksssssssssssssssssssssssssssssssk",
+"kdddddddddddddddddddddddddddddddk",
+".kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk."]},
+ evolute:{wh:[6,22],wy:8,s:[
+"...........kttk..............",
+".......kkkkkkkkkkk...........",
+"......knWwwwkWwwwwk..........",
+".....knwwwwwkwwwwwwk.........",
+"....knwwwwwwkwwwwwwwWk.......",
+".kkklllllllllllllllllkkkkk...",
+"kryyyyyyyyyyyyyyyyyyyyllllllk",
+"kryyyybcbcbcysyymyyyyyyyyyeek",
+"kyyyyycbcbcbysyyyyyyyyyyyyyyk",
+"ksssssssssssssssssssssssssssk",
+"kdddddddddddddddddddddddddddk",
+".kkkkkkkkkkkkkkkkkkkkkkkkkkk."]},
+ mercedes:{wh:[8,27],wy:7,s:[
+"..............kttk.................",
+"...........kkkkkkkkkk..............",
+".........knWwwwwkWwwwwk............",
+".......knwwwwwwwkwwwwwwWk..........",
+".kkkkkkmmmmmmmmmmmmmmmmmmmkkkkkkkk.",
+"kryyyyyyyyyyyyyyyyyyyyyyyyyllllllmk",
+"kryyyyyyyybcbcbcyysyyymyyyyyyyyyhhk",
+"kyyyyyyyyycbcbcbyysyyyyyyyyyyyyymmk",
+"ksssssssssssssssssssssssssssssssssk",
+"kmdddddddddddddddddddddddddddddddmk",
+".kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk."]},
+ monjaro:{wh:[8,27],wy:9,s:[
+"..............kttk.................",
+"......mmmmmmmmmmmmmmmmmm...........",
+"......kkkkkkkkkkkkkkkkkkk..........",
+".....kWwwwwkWwwwwwkWwwwwk..........",
+"....knwwwwwkwwwwwwkwwwwwwWk........",
+"....knwwwwwkwwwwwwkwwwwwwwWk.......",
+".kkkllllllllllllllllllllllllkkkkkk.",
+"kryyyyyyyyyyyyyyyyyyyyyyyyyyylllllk",
+"kryyyyyyybcbcbcyysyyyymyyyyyyyyhhhk",
+"kyyyyyyyycbcbcbyysyyyyyyyyyyyyymmmk",
+"ksssssssssssssssssssssssssssssssssk",
+"kdddddddddddddddddddddddddddddddddk",
+".kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk."]},
+ carnival:{wh:[7,28],wy:9,s:[
+"...............kttk.................",
+"...kkkkkkkkkkkkkkkkkkkkkk...........",
+"..kWwwwkWwwwwwkWwwwwwkWwk...........",
+"..knwwwkwwwwwwkwwwwwwkwwwWk.........",
+"..knwwwkwwwwwwkwwwwwwkwwwwwWk.......",
+".kklllllllllllllllllllllllllllkkkk..",
+"kryyyyyyyyyyyyyyyyyyyyyyyyyyyylllllk",
+"kryyyyyyyybcbcbcysyyyyyyyysyyyyyymhk",
+"kyyyyyyyyycbcbcbysmmmmmmmmsyyyyyyyhk",
+"kssssssssssssssssssssssssssssssssssk",
+"kddddddddddddddddddddddddddddddddddk",
+"kddddddddddddddddddddddddddddddddddk",
+".kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk."]}};
+CARS2.solarisNew=CARS2.solaris;
+const carW=m=>CARS2[m]?CARS2[m].s[0].length:24;
+/* высота фар над верхом «старой» машины 24×11 — по ней ставятся свет фар и стоп-огни */
+const carHo=m=>{const N=CARS2[m];return N?5-N.wy+N.s.findIndex(r=>/[he]/.test(r)):6};
+/* колесо 6×6: шина, диск, ступица и блик, который обегает диск — так видно вращение */
+function wheel(g,x,y,P,spin){g.fillStyle='#0e0b1c';g.fillRect(x+1,y,4,6);g.fillRect(x,y+1,6,4);g.fillStyle='#4a4570';g.fillRect(x+1,y+1,4,4);
+  g.fillStyle=P.g;g.fillRect(x+2,y+2,2,2);const sp=[[1,1],[4,1],[4,4],[1,4]][spin&3];g.fillStyle='#c6bfe4';g.fillRect(x+sp[0],y+sp[1],1,1)}
+/* машина на земле: x — левый край, gy — линия земли */
+function drawCar(g,m,x,gy,flip,P,spin=0){P=P||carPal(m);const N=CARS2[m];
+  if(!N){spr(g,shapeOf(m),x,gy-11,flip,P);return}
+  const w=N.s[0].length,y=Math.round(gy-N.wy-6);x=Math.round(x);spr(g,N.s,x,y,flip,P);
+  N.wh.forEach(c=>{const wx=x+(flip?w-1-c:c)-3+(flip?1:0);g.fillStyle='#0e0b1c';g.fillRect(wx,y+N.wy-1,6,1);g.fillRect(wx-1,y+N.wy,8,2);wheel(g,wx,y+N.wy,P,flip?3-(spin&3):spin)})}
+const carPal=m=>{const M=MODELS[m]||MODELS.solaris,C=S&&S.custom&&COLORS[S.custom.color],own=C&&C.body&&!['Комфорт+','Бизнес'].includes(M.cls);const by=own?C.body:M.body;const darkBody=hx(by).reduce((a,v)=>a+v,0)<270;return{y:by,l:darkBody?lerp(by,'#a8a0cc',.4):shade(by,1.16),s:shade(by,.74),n:'#3a4a78',m:'#d8d0e8',e:'#9ff0ff',d:own?C.trim:M.trim,t:M.ev?'#86e06f':'#f7c331',k:['camry','mercedes','monjaro','zeekr'].includes(m)?'#0b0914':'#1a1530',g:m==='mercedes'?'#e8e2d0':'#a8a0cc'}};
 function spr(g,s,x,y,flip,pal){x=Math.round(x);y=Math.round(y);for(let r=0;r<s.length;r++)for(let c=0;c<s[r].length;c++){const ch=s[r][c];if(ch==='.')continue;
   g.fillStyle=(pal&&pal[ch])||PAL[ch];g.fillRect(x+(flip?s[r].length-1-c:c),y+r,1,1)}}
-function drawMini(el){const g=el.getContext('2d');g.clearRect(0,0,28,13);
-  if(el.dataset.m==='person'){spr(g,PERSON,6,1,false,{b:'#f0c8a0',k:'#4fc7b0'});spr(g,PERSON,15,1,false,{b:'#e8b890',k:'#e66fa8',H:'#b05a2a'});return}
-  g.fillStyle='#2a2450';g.fillRect(0,9,28,4);g.fillStyle='#0e0b1c66';g.fillRect(4,11,20,1);
-  spr(g,shapeOf(el.dataset.m),2,1,false,carPal(el.dataset.m))}
+function drawMini(el){const g=el.getContext('2d');g.clearRect(0,0,38,17);
+  if(el.dataset.m==='person'){spr(g,PERSON,11,5,false,{b:'#f0c8a0',k:'#4fc7b0'});spr(g,PERSON,20,5,false,{b:'#e8b890',k:'#e66fa8',H:'#b05a2a'});return}
+  const m=el.dataset.m,w=carW(m),x=(38-w)>>1;g.fillStyle='#2a2450';g.fillRect(0,13,38,4);g.fillStyle='#0e0b1c66';g.fillRect(x+2,15,w-4,1);
+  drawCar(g,m,x,15,false,carPal(m))}
 const shade=(h,k)=>'#'+hx(h).map(v=>Math.max(0,Math.min(255,Math.round(v*k))).toString(16).padStart(2,'0')).join('');
 const HEAD=[
 "................",
@@ -3514,7 +3713,8 @@ function svgBars(st,key){const W2=600,H2=130,P=6,vals=st.map(x=>x[key]),mx=Math.
     <text x="${P}" y="12" style="fill:var(--muted);font:12px 'PT Mono',monospace">+${rub(mx)}</text></svg>`}
 
 /* ---- сцена ---- */
-const cv=$('scene'),cx=cv.getContext('2d'),W=320,H=150;
+const cv=$('scene'),cx=cv.getContext('2d'),H=150;
+let W=640; // декорации создаются с запасом по ширине, реальную ширину задаёт fitScene()
 let seed=7;const srnd=()=>(seed=(seed*16807)%2147483647)/2147483647;
 const stars=Array.from({length:60},()=>[srnd()*W|0,srnd()*40|0,srnd()]);
 const mkSky=(n,base,hmin,hmax)=>{const arr=[];let x=0;while(x<W){const w=8+(srnd()*16|0),h=hmin+(srnd()*(hmax-hmin)|0),win=[];for(let i=0;i<w*h/30;i++)win.push([srnd()*(w-2)+1|0,srnd()*(h-3)+2|0]);arr.push({x,w,h,win,base});x+=w+(srnd()*3|0)}return arr};
@@ -3545,7 +3745,18 @@ const lm=document.createElement('canvas');lm.width=W;lm.height=H;const lg=lm.get
 let lights=[];
 const light=(x,y,r,c,a=1,refl=0)=>lights.push({x,y,r,c,a,refl});
 function glow(g,x,y,r,c,a){const gr=g.createRadialGradient(x,y,0,x,y,r);gr.addColorStop(0,`rgba(${c},${a})`);gr.addColorStop(.35,`rgba(${c},${a*.5})`);gr.addColorStop(1,`rgba(${c},0)`);g.fillStyle=gr;g.fillRect(x-r,y-r,r*2,r*2)}
-const vig=cx.createRadialGradient(W/2,H*.55,H*.45,W/2,H*.55,W*.62);vig.addColorStop(0,'rgba(8,6,20,0)');vig.addColorStop(1,'rgba(8,6,20,.38)');
+let vig;
+/* ровные пиксели: масштаб только целый (в точках экрана), а лишнюю ширину занимает сама сцена, не пустые поля */
+function fitScene(){const d=devicePixelRatio||1,cw=cv.parentElement.clientWidth*d,k=Math.max(1,Math.ceil(cw/400));
+  W=Math.floor(cw/k);
+  if(W<320){W=320;cv.style.width='100%';cv.style.height='auto'} // очень узкий экран: целый масштаб не помещается
+  else{cv.style.width=W*k/d+'px';cv.style.height=H*k/d+'px'}
+  cv.width=lm.width=W;cx.imageSmoothingEnabled=false;
+  vig=cx.createRadialGradient(W/2,H*.55,H*.45,W/2,H*.55,W*.62);vig.addColorStop(0,'rgba(8,6,20,0)');vig.addColorStop(1,'rgba(8,6,20,.38)');
+  if(typeof draw==='function'&&S)draw()}
+fitScene();window.addEventListener('resize',fitScene);if(window.ResizeObserver)new ResizeObserver(()=>fitScene()).observe(cv.parentElement);
+/* то же для холстов мини-игр, без расширения */
+function crisp(el){if(!el)return;const d=devicePixelRatio||1,k=Math.max(1,Math.floor(el.clientWidth*d/el.width));el.style.width=el.width*k/d+'px';el.style.height=el.height*k/d+'px'}
 function lightPass(dark,wet){
   if(dark>.05){
     const amb=lg.createLinearGradient(0,0,0,H);amb.addColorStop(0,lerp('#ffffff','#d0c8f0',dark));amb.addColorStop(.5,lerp('#ffffff','#7a72b4',dark));amb.addColorStop(.75,lerp('#ffffff','#463e86',dark));amb.addColorStop(1,lerp('#ffffff','#383070',dark));
@@ -3646,14 +3857,15 @@ function draw(){
   if(dark>.3){cx.globalCompositeOperation='lighter';cx.fillStyle=red?'rgba(255,77,77,.18)':'rgba(134,224,111,.18)';cx.fillRect(235,78,12,12);cx.globalCompositeOperation='source-over'}
   light(241,red?82:86,14,red?'255,77,77':'134,224,111',.9,1);
   movers.forEach(m=>{const nx=m.x+m.v*SP;
-    const stop=red&&((m.lane===0&&m.x+24<=220&&nx+24>196)||(m.lane===1&&m.x>=238&&nx<262));
-    if(!stop)m.x=nx;if(m.x>W+4)m.x=-28;if(m.x<-28)m.x=W+4;const x=Math.round(m.x),y=m.lane?121:104;
-    R(x+2,y+11,20,1,'#0e0b1c88');spr(cx,shapeOf(m.m),x,y,m.lane===1,carPal(m.m));
-    if(!stop&&(Math.floor(t+m.id*7)%9)<2){const ex=m.lane===0?x-2:x+25;R(ex,y+7,2,1,'#a8a0cc66')}
-    if(dark>.35){cx.globalCompositeOperation='lighter';const dir=m.lane===0?1:-1,hx0=m.lane===0?x+24:x-1;
-      for(let k=0;k<8;k++){const hh=1+Math.floor(k*.6);cx.fillStyle=`rgba(255,240,170,${(.13-k*.014).toFixed(3)})`;cx.fillRect(hx0+dir*k*2-(dir<0?1:0),y+6-Math.floor(hh/2),2,hh)}
-      cx.fillStyle='rgba(255,60,60,.35)';cx.fillRect(m.lane===0?x-1:x+24,y+5,1,2);cx.globalCompositeOperation='source-over'}
-    light(m.lane===0?x+35:x-12,y+7,17,'255,240,190',.9,1);light(m.lane===0?x-1:x+25,y+6,6,'255,60,60',.8)});
+    const cw=carW(m.m),ho=carHo(m.m);
+    const stop=red&&((m.lane===0&&m.x+cw<=220&&nx+cw>196)||(m.lane===1&&m.x>=238&&nx<262));
+    if(!stop)m.x=nx;if(m.x>W+4)m.x=-cw-4;if(m.x<-cw-4)m.x=W+4;const x=Math.round(m.x),y=m.lane?121:104;
+    R(x+2,y+11,cw-4,1,'#0e0b1c88');drawCar(cx,m.m,x,y+11,m.lane===1,carPal(m.m),Math.floor(m.x/2));
+    if(!stop&&!MODELS[m.m].ev&&(Math.floor(t+m.id*7)%9)<2){const ex=m.lane===0?x-2:x+cw+1;R(ex,y+7,2,1,'#a8a0cc66')}
+    if(dark>.35){cx.globalCompositeOperation='lighter';const dir=m.lane===0?1:-1,hx0=m.lane===0?x+cw:x-1;
+      for(let k=0;k<8;k++){const hh=1+Math.floor(k*.6);cx.fillStyle=`rgba(255,240,170,${(.13-k*.014).toFixed(3)})`;cx.fillRect(hx0+dir*k*2-(dir<0?1:0),y+ho-Math.floor(hh/2),2,hh)}
+      cx.fillStyle='rgba(255,60,60,.35)';cx.fillRect(m.lane===0?x-1:x+cw,y+ho-1,1,2);cx.globalCompositeOperation='source-over'}
+    light(m.lane===0?x+cw+11:x-12,y+ho+1,17,'255,240,190',.9,1);light(m.lane===0?x-1:x+cw+1,y+ho,6,'255,60,60',.8)});
   drawPeds(dark);
   // деревья и фонари внизу
   for(let x=6;x<W;x+=52)tree(x,136-6,month);
@@ -3677,7 +3889,7 @@ function drawScene(dark){if(!scn)return;const d=SCN_DUR[scn.type]||150,e=t-scn.t
     if(p>.3&&p<.75){cx.globalCompositeOperation='lighter';for(let k=0;k<6;k++){cx.fillStyle=`rgba(160,255,200,${(.08-k*.01).toFixed(3)})`;cx.fillRect(x-2-k*3,y+3+k*10,10+k*6,10)}cx.globalCompositeOperation='source-over'}}
   if(scn.type==='meteor'){for(let i=0;i<6;i++){const k=(e*1.6+i*30)%120,x=40+i*45+k,y=4+k*.4;R(x,y,2,1,'#fff6a8');R(x-3,y-1,3,1,'#fff6a888');R(x-6,y-2,3,1,'#fff6a844')}}
   if(scn.type==='crash'){const meet=Math.min(1,p*2.2),xa=-30+ease(meet)*125,xb=W+10-ease(meet)*125;
-    spr(cx,SEDAN,xa,104,false,carPal('solaris'));spr(cx,HATCH,xb,104,true,carPal('rio'));
+    drawCar(cx,'solaris',xa,115,false,null,Math.floor(xa/2));drawCar(cx,'rio',xb,115,true,null,Math.floor(xb/2));
     if(meet>=1){const k=e-d/2.2;for(let i=0;i<10;i++){const a=i/10*6.28,r=(k%40)*.5;if(k<40)R(119+Math.cos(a)*r,109+Math.sin(a)*r*.6,1,1,i%2?'#ffe27a':'#ff8a4c')}
       R(110,90,11,11,'#0e0b1c');R(111,91,9,9,'#f3ecdc');R(115,92,2,5,'#ff4d4d');R(115,98,2,1,'#ff4d4d');
       for(let i=0;i<3;i++){const sx=112+i*5,sy=96-((e+i*13)%30)*.5;R(sx,sy,2,2,'#a8a0cc88')}}}
@@ -3687,7 +3899,7 @@ function drawScene(dark){if(!scn)return;const d=SCN_DUR[scn.type]||150,e=t-scn.t
   if(scn.type==='tow'){const inP=Math.min(1,p*3),outP=Math.max(0,(p-.6)/.4),x=W+10-ease(inP)*110-ease(outP)*(W);
     R(x,104,30,8,'#ff8a4c');R(x+20,98,10,7,'#ff8a4c');R(x+22,99,6,3,'#9fd3ff');R(x+2,112,6,3,'#0e0b1c');R(x+20,112,6,3,'#0e0b1c');R(x-8,100,10,1,'#8a83b0');
     if(Math.floor(e/5)%2)R(x+24,96,3,2,'#ffe27a');
-    if(p>.33)spr(cx,SEDAN,x-26,98+(p<.45?Math.round((.45-p)*40):0),false,carPal('granta'))}
+    if(p>.33)drawCar(cx,'granta',x-32,109+(p<.45?Math.round((.45-p)*40):0),false)}
   if(scn.type==='police'){const x=-40+ease(p)*(W+80);R(x,104,26,8,'#f3ecdc');R(x+6,100,13,4,'#f3ecdc');R(x+8,101,4,2,'#9fd3ff');R(x+13,101,4,2,'#9fd3ff');R(x,107,26,2,'#3a6ab8');
     R(x+3,112,5,3,'#0e0b1c');R(x+18,112,5,3,'#0e0b1c');const on=Math.floor(e/3)%2;light(x+12,99,24,on?'255,60,60':'60,90,255',1);R(x+9,98,3,2,on?'#ff4d4d':'#4d6dff');R(x+13,98,3,2,on?'#4d6dff':'#ff4d4d');
     cx.globalCompositeOperation='lighter';for(let k=1;k<4;k++){cx.fillStyle=`rgba(255,60,60,${(.12/k).toFixed(3)})`;cx.fillRect(x+10-k*2,98-k,2+k*2,2+k*2);cx.fillStyle=`rgba(60,90,255,${(.12/k).toFixed(3)})`;cx.fillRect(x+14-k*2,98-k,2+k*2,2+k*2)}cx.globalCompositeOperation='source-over'}
@@ -3695,7 +3907,7 @@ function drawScene(dark){if(!scn)return;const d=SCN_DUR[scn.type]||150,e=t-scn.t
     if(Math.floor(e/8)%2){R(70,30,2,5,'#f3ecdc');R(72,30,3,1,'#f3ecdc');R(110,26,2,5,'#f3ecdc');R(112,26,3,1,'#f3ecdc')}}
   if(scn.type==='founder'){const arrive=Math.min(1,p*2.5),x=W+10-ease(arrive)*(W-60);spr(cx,LIMO,x,104,true,{y:'#1c1a24',l:'#3a3550',d:'#0b0914',t:'#1c1a24',k:'#0b0914',b:'#1c1a24',c:'#1c1a24',g:'#e8e2d0'});
     if(arrive>=1){const wp=Math.min(1,(p-.4)/.4);if(wp>0)spr(cx,PERSON,x+6-wp*20,92+0,true,{b:'#e8b890',k:'#2e2a40',H:'#8a8a8a'})}}
-  if(scn.type==='newcar'){const x=-30+ease(Math.min(1,p*1.6))*190;spr(cx,SEDAN,x,104,false,carPal('solarisNew'));
+  if(scn.type==='newcar'){const x=-30+ease(Math.min(1,p*1.6))*190;drawCar(cx,'solarisNew',x,115,false,null,Math.floor(x/2));
     if(p>.5)for(let i=0;i<6;i++){const a=e/6+i;R(x+12+Math.cos(a)*16,108+Math.sin(a)*8,1,1,'#ffe27a')}}
 }
 const still=matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -3749,7 +3961,7 @@ S=load();
 if(!S){S=blankState('campaign');S.preview=true;START_FLEET.forEach(([m,k])=>addCar(m,k));S.today=[0,1,2].map(nextEvent);render();pickMode()}
 else{render();if(S.over){hasLimit()&&S.day>dayLimit()?finale():gameOver()}else if(S.morning&&S.morning.length)runMorning()}
 if(document.fonts&&document.fonts.ready)document.fonts.ready.then(draw);
-draw();if(!still)requestAnimationFrame(loop);else setInterval(()=>paused||draw(),1000);
+fitScene();draw();if(!still)requestAnimationFrame(loop);else setInterval(()=>paused||draw(),1000);
 document.addEventListener('pointerdown',()=>ensureAudio(),{once:true});
 if(!(S&&S.preview))setTimeout(checkLogin,400);else checkLoginQuiet();
 function checkLoginQuiet(){const k=todayKey();G.login=G.login||{};if(G.login.last===k)return;const y=new Date();y.setDate(y.getDate()-1);const yk=y.getFullYear()+'-'+(y.getMonth()+1)+'-'+y.getDate();const streak=G.login.last===yk?(G.login.streak||0)+1:1;G.login={last:k,streak};G.loginPending=5000*Math.min(streak,7)+(streak%7===0?20000:0);saveG()}
