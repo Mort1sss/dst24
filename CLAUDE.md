@@ -24,6 +24,27 @@
 - `ПИКСЕЛЬ-АРТ`, `сцена` — рисование на `<canvas>`
 - `ЗВУК`, `ЗАСТАВКА`, `СТАРТ`
 
+### Карта кода (`index.html`)
+
+Номера строк сдвигаются — ищи по имени: `grep -n "function endDay" index.html`, потом читай 20–60 строк через `sed -n` или `Read` с `offset`. Файл целиком не читать.
+
+| Что | Где искать |
+|---|---|
+| Справочники | `const MODELS`, `EVENTS` (события отделов), `CHAINS` (продолжения), `NEWS`, `CHAPTERS` (сюжет), `DIFF` |
+| Версии баланса | раздел `версия баланса`: `BAL`, `bal(k)`, `B(n)`, `camp()`, `endl()`, `profit()`, `goalMet()`, `starsOf()` |
+| Удары и налоги | `isTaxDay`, `taxDueIn`, `heavyDays`, `heavyGate`, `ultBlocked`; кризис — в `endDay`, рейд/профсоюз/проверка — в `startDay` |
+| Состояние | `blankState`, `fixState`, `save`, `load`, `newGame`, `recordResult` |
+| День | `nextEvent`, `apply`, `choose`, `autoResolve`, `endDay`, `startDay`, `runMorning` |
+| Покупки | `priceOf`, `buy`, `sellCar`, `hire`, `buyLot`, `takeLoan`, `carRevM`, `carFail`, `mgmtCost`, `satK`, `inf` |
+| Утро и события | `inspection`, `meeting`, `taxAudit`, `raidEvent`, `unionEvent`, `newspaper`, `tomorrowTease` |
+| Забастовка | `strikeOn`, `strikeBegins`, `strikeEnds` |
+| Награды | `offlineIncome`, `loginPay`, `checkLogin`, `checkLoginQuiet` |
+| Мини-игры | `mgTiming`, `lgRace`, `lgPark`, `dispatcher`, `TOPCAR`, `mgRAF`, `mgStop` |
+| Финал | `finale`, `gameOver` |
+| Интерфейс | `render`, `renderHud`, `renderMgmt`, `icon16`, `ICON16` |
+| Двор и графика | `draw`, `drawScene`, `drawCar`, `CARS2`, `syncMovers`, `stepParts`, `lightPass`, `post` (WebGL), `fitScene` |
+| Бот-измеритель | раздел `замер баланса` (только с `?sim`): `__balanceSim`, `.all`, `.story`, `.free` |
+
 ## Данные и сохранения
 
 - Партия хранится в `localStorage` под ключом `dst24-save-v1`, общие настройки — под `dst24-global-v1`.
@@ -52,6 +73,13 @@
 - Агенту передавать номера строк и названия разделов `index.html` (см. «Структура»), чтобы он не перечитывал весь файл.
 - Мелочи (вопрос, правка в одну строку, одна команда) делать самому.
 - В отчёте писать, какие агенты что делали.
+
+## Экономия контекста
+
+- Искать по имени функции из «Карты кода» (`grep -n`), читать только нужный кусок. Не читать `index.html` целиком и не делать широкий поиск без нужды.
+- Из браузера возвращать короткие итоговые цифры, а не полные объекты; скриншот — только когда важно увидеть картинку.
+- Агентам давать имена функций и строки из карты, модели — дешёвые (см. общий `~/.claude/CLAUDE.md`).
+- Каждый крупный этап — в отдельной сессии. Перед переходом писать передаточную записку в `.omc/handoffs/`, новая сессия начинает с неё.
 
 ## Выпуск обновления
 
