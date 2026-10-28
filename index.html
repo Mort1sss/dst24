@@ -1357,12 +1357,15 @@ const totalCars=()=>S.fleet.length+(S.branches||[]).reduce((a,b)=>a+b.cars,0);
 
 /* ---- версия баланса ---- */
 // числа по версиям: партия читает свою версию, нет ключа — берётся ближайшая меньшая; новая настройка = новая запись, старые не менять
-const BAL_NEW=3,BAL={
+const BAL_NEW=4,BAL={
  1:{meet:30,plan:150000,offK:.5,offCap:1e12,loginDay:5000,loginBonus:20000,loginParts:0,loginLoy:0,leaseRet:0},
  2:{start:{normal:1,hard:.9},rev:{normal:1.08,hard:1.1},goal:{normal:175000,hard:175000},star2:1.3,star3:1.7, // подобрано ботом bot-2: «Обычный» ≈55%, «Хардкор» ≈27% побед
   taxDays:[14,28],endTax:60,crisisFirst:[16,21],crisisMin:16,crisisMax:6,endCrisisFirst:[20,30],endCrisisNext:[40,60],inflDay:15,inflPct:[2,3],endInfl:30,
   meet:15,plan:75000,offK:.125,offCap:15000,loginDay:2500,loginBonus:0,loginParts:3,loginLoy:3,leaseRet:5,leaseWearFrom:20,leaseWearK:.04,leaseWearMax:2},
- 3:{rev:{normal:1.06,hard:1.08},shiftMax:60,shiftRev:.6,fatUp:18,fatDown:8,fatFrom:50,fatFail:2,fatFine:.6,fatLoy:6,fatLeaveAt:70,fatLeaveP:.2,toKm:8000,toCost:1500}}; // bot-3: «Обычный» ≈63%, без смены и ТО ≈50%, смена всегда на максимуме ≈12%
+ 3:{rev:{normal:1.06,hard:1.08},shiftMax:60,shiftRev:.6,fatUp:18,fatDown:8,fatFrom:50,fatFail:2,fatFine:.6,fatLoy:6,fatLeaveAt:70,fatLeaveP:.2,toKm:8000,toCost:1500},
+ 4:{agg:{mig:{fee:.2,ord:1,poach:1},bee:{fee:.15,ord:.98,poach:.5},shash:{fee:.22,ord:1.12,poach:1}},grossK:.8,beeSkip:['comm','lowprio','backup'],shashR:4.75,shashOrd:.95,shashDrop:.005,aggGap:7,aggIdle:.5,
+  warLow:.1,warDays:3,warP:.4,warAt:2,warLen:5,warK:.9,poachFrom:15,lostP:.25}}; // этап 4а: агрегаторы и ответ конкурентов (подобрано ботом bot-4: «Обычный» ≈60%, агрегаторы 55/54/60%)
+// BAL[3] подобран ботом bot-3: «Обычный» ≈63%, без смены и ТО ≈50%, смена всегда на максимуме ≈12%
 const bal=(k,v)=>{for(v=v||(S&&S.bal)||1;v>0;v--)if(BAL[v]&&k in BAL[v])return BAL[v][k]};
 const B=n=>!!S&&(S.bal||1)>=n,camp=()=>S.mode==='campaign',endl=()=>S.mode==='endless';
 const goalBase=()=>S.diff==='easy'?GOAL_MONEY:bal('goal')[S.diff];
@@ -1563,6 +1566,19 @@ const skinLock=(kind,k)=>{const id=UNLOCK[kind][k];return id&&!G.ach[id]&&!(S&&S
 /* ---- баланс: инфляция, масштаб событий, налоги ---- */
 const inf=()=>(S&&S.infl)||1;
 const mk=cl=>Math.round(MARKET[cl]*((S&&S.mInfl)||1)/100)*100;
+/* ---- агрегатор и ценовая война (bal 4) ---- */
+const aggOn=()=>B(4);
+const AGG={mig:{n:'Мигом',d:'Привычный вариант: заказов столько, сколько есть.'},bee:{n:'Пчёлка',d:'Меньше заказов и комиссия ниже. Новости о большом агрегаторе её не касаются, а конкуренты вдвое реже переманивают водителей.'},shash:{n:'Шашечка',d:'Много заказов, но требует качества: при среднем рейтинге водителей ниже 4,75 заказов меньше, а рейтинг падает.'}};
+const aggDef=()=>bal('agg')[(S&&S.agg)||'mig']||bal('agg').mig;
+const avgRate=()=>S.dlist&&S.dlist.length?S.dlist.reduce((a,d)=>a+d.r,0)/S.dlist.length:5;
+const shashBad=()=>B(4)&&S.agg==='shash'&&avgRate()<bal('shashR');
+const rentAvg=()=>{let s=0,n=0;S.fleet.forEach(c=>{const cl=MODELS[c.m].cls;s+=S.rents[cl]/mk(cl)-1;n++});return n?s/n:0};
+const warOn=()=>B(4)&&!!S.war&&S.day>=S.war.at&&S.day<S.war.at+S.war.len;
+const warSoon=()=>B(4)&&!!S.war&&S.day===S.war.at-1;
+function setAgg(k){if(!B(4)||S.over||S.preview||!AGG[k]||k===(S.agg||'mig'))return;const w=bal('aggGap')-(S.day-S.aggAt);
+  if(w>0){toast(`Сменить агрегатора можно через ${w} дн.`);return}
+  if(hasLimit()&&S.day>=dayLimit()){toast('В последний день агрегатора уже не сменить');return}
+  S.agg=k;S.aggAt=S.day;S.aggNext=S.day+1;addLog(`Переход на агрегатор «${AGG[k].n}»: завтра половина парка простаивает.`);toast(`Агрегатор «${AGG[k].n}»`);save();render()}
 const costScale=()=>Math.max(1,Math.pow(totalCars()/8,.6))*inf();
 const negScale=()=>costScale()*(S.day<=7?.6:1);
 const TAX_RATE=.15;
@@ -1725,7 +1741,9 @@ function season(d){const m=d.getMonth();
   if(m>=5&&m<=7)return{n:'Лето',fail:1,demand:1.1};
   return{n:m<=4?'Весна':'Осень',fail:1,demand:1}}
 const newsDef=n=>NEWS.find(x=>x.id===n.id)||n;
-const newsMod=k=>{const add=k==='leave'||k==='risk1';return S.news.reduce((a,n)=>{const N=newsDef(n);return add?a+(N[k]||0):a*(N[k]||1)},add?0:1)};
+// «Пчёлку» не касаются новости о большом агрегаторе
+const aggNews=n=>B(4)&&S.agg==='bee'&&bal('beeSkip').includes(n.id);
+const newsMod=k=>{const add=k==='leave'||k==='risk1';return S.news.reduce((a,n)=>{const N=aggNews(n)?{}:newsDef(n);return add?a+(N[k]||0):a*(N[k]||1)},add?0:1)};
 function save(){try{localStorage.setItem(SKEY,JSON.stringify(S))}catch(e){}if(!save.t||Date.now()-save.t>60000){save.t=Date.now();G.lastSeen=Date.now();saveG()}}
 function load(){try{const v=JSON.parse(localStorage.getItem(SKEY));if(v&&v.fleet&&v.heads)return fixState(v)}catch(e){}return null}
 function toast(t){const el=$('toast');el.textContent=t;el.hidden=false;clearTimeout(toast.h);toast.h=setTimeout(()=>el.hidden=true,2600)}
@@ -1809,16 +1827,16 @@ const START_FLEET=[['granta',190000],['granta',205000],['granta',170000],['grant
 function blankState(mode){
   return {mode,bal:BAL_NEW,startMoney:0,stars:0,goal:0,day:1,money:300000,rep:60,drivers:7,fleet:[],seq:0,decks:[[],[],[]],today:[0,0,0],done:[null,null,null],log:[],over:false,hired:false,
     rents:Object.assign({},MARKET),heads:[0,1,2].map(d=>({key:HEADS[d][0].key,name:HEADS[d][0].name})),staff:[1,1,1],train:[0,0,0],upg:{},spots:12,loans:[],news:[],
-    rivals:[{name:'Жёлтый ветер',style:'war',cars:10,rep:55},{name:'Пчёлка',style:'poach',cars:7,rep:60},{name:'Премиум Драйв',style:'prem',cars:5,rep:70}],
+    rivals:[{name:'Жёлтый ветер',style:'war',cars:10,rep:55},{name:'Шмель',style:'poach',cars:7,rep:60},{name:'Премиум Драйв',style:'prem',cars:5,rep:70}],
     nextRival:rand(6,9),nextInspect:rand(3,6),quest:null,nextQuest:3,queue:[],hist:[[],[],[]],cnt:{},ach:{},morning:[],
     diff:'normal',dlist:[],dseq:0,fuel:1,raid:null,nextRaid:rand(10,16),nextTax:rand(35,50),branches:[],strategy:null,nextMeeting:bal('meet',BAL_NEW),rank:0,lastMonth:-99,chapter:0,
     alloc:{center:30,sleep:40,air:15,rail:15},dmods:{center:1,sleep:1,air:1,rail:1},dnews:[],night:0,shift2:0,fat:0,weather:[],investors:[],union:false,unionDays:0,nextUnion:0,
     nextAuction:7,nextContract:rand(9,13),nextAgency:rand(10,15),contracts:[],lines:{},ads:null,school:[],agency:[],stat:[],wk:{rev:0,net:0,breaks:0,fines:0,fails:[]},
     custom:Object.assign({name:'ДСТ-24',color:'yellow',logo:'checker',avatar:0},G.custom||{}),
     parts:10,crisis:null,nextCrisis:rand(25,40),extraHeads:[[],[],[]],moodMod:[0,0,0],nextCareer:rand(18,24),nextConflict:rand(14,20),lastParty:-99,strike:null,owned:{},dispDay:0,
-    infl:1,mInfl:1,taxAcc:0,kpi:null,kpiStreak:0,kpiFails:0,tdebt:0,rel:{},relCd:{},city:'home'};
+    agg:'mig',aggAt:-99,aggNext:0,aggLast:0,lowDays:0,war:null,ctLost:null,infl:1,mInfl:1,taxAcc:0,kpi:null,kpiStreak:0,kpiFails:0,tdebt:0,rel:{},relCd:{},city:'home'};
 }
-function fixState(v){const b=blankState(v.mode||'campaign');const o=Object.assign(b,v);o.bal=v.bal||1;
+function fixState(v){const b=blankState(v.mode||'campaign');const o=Object.assign(b,v);o.bal=v.bal||1;if(!AGG[o.agg])o.agg='mig';
   if(!v.rivals){o.rivals=b.rivals;if(v.rival){o.rivals[0].name=v.rival.name;o.rivals[0].cars=v.rival.cars}}
   if(!v.rents)o.rents=Object.assign({},MARKET);delete o.rival;if(!o.weather||o.weather.length<3)o.weather=[0,1,2].map(i=>genWeather(o.day+i));return o}
 function newDriver(){const t=Math.random()<.3?'rookie':TRAIT_KEYS[rand(0,TRAIT_KEYS.length-1)];
@@ -2035,10 +2053,13 @@ function endDay(){
   const rivalAvg=S.rivals.reduce((a,r)=>a+r.rep,0)/S.rivals.length;
   const share=1+Math.max(-.08,Math.min(.08,(S.rep-rivalAvg)/100*.2));
   const nightK=B(3)?1+(S.shift2||0)/100*bal('shiftRev'):1+(S.night||0)/100*.25,distK=distFactor();
-  const demand=cityDemand()*(crisisOn('giant')?.85:1)*(crisisOn('cyber')?.75:1)*mood*sea.demand*newsMod('demand')*(hol?hol[0]:1)*share*RANK_BONUS[S.rank||0];
+  const shB=shashBad();
+  const demand=cityDemand()*(crisisOn('giant')?.85:1)*(crisisOn('cyber')?.75:1)*mood*sea.demand*newsMod('demand')*(hol?hol[0]:1)*share*RANK_BONUS[S.rank||0]*(warOn()?bal('warK'):1);
   const base=working.slice(0,regular).reduce((a,c,i)=>a+carRev(c)*drvQ(crewD[i]),0);
   const sat=satK(),mgmt=mgmtCost();
-  const revK=B(2)&&camp()&&bal('rev')[S.diff]||1,revenue=Math.round(base*factor*demand*nightK*distK*sat*revK/100)*100;
+  const revK=B(2)&&camp()&&bal('rev')[S.diff]||1,AG=B(4)?aggDef():null,aggM=AG?AG.ord*(shB?bal('shashOrd'):1)*(S.aggNext===S.day?bal('aggIdle'):1):1;
+  let revenue=Math.round(base*factor*demand*nightK*distK*sat*revK*aggM/100)*100,aggFee=0;
+  if(AG){const gr=Math.round(revenue/bal('grossK')/100)*100,nt=Math.round(revenue*(1-AG.fee)/bal('grossK')/100)*100;aggFee=gr-nt;revenue=nt;S.aggLast=aggFee}
   {const sN=strikeOn();if(sN){if(!S.strike)S.strike={day:S.day,lost:0};const k=newsDef(sN).demand||1;if(k<1)S.strike.lost+=Math.round(revenue*(1-k)/k)}}
   const adsRev=(S.ads?carsN()*300:0)+(S.upg.gas?carsN()*150:0);
   const parking=Math.round(carsN()*PARKING*inf()*(S.lotOwned?.4:1)), lease=leaseSum(), pay=payroll(), loans=loanSum(), office=Math.round(OFFICE*inf());
@@ -2052,6 +2073,7 @@ function endDay(){
     if(dr.t==='neat'&&working[i])careIds.add(working[i].id);
     if(dr.t==='racer'&&Math.random()<.06){const fn=B(3)?Math.round(2500*(1+fatK(fat0)*bal('fatFine'))/100)*100:2500;drvFines+=fn;notes.push(`${dr.n} снова превысил скорость: штраф ${rub(fn)}.`)}
     if(dr.t==='rookie'&&Math.random()<.04){dr.t=['neat','vet','night','star'][rand(0,3)];notes.push(`${dr.n} освоился и больше не новичок: теперь «${TRAITS[dr.t].n}».`)}});
+  if(shB)S.dlist.forEach(d=>d.r=Math.max(4.3,+(d.r-bal('shashDrop')).toFixed(3)));
   S.dlist.forEach(dr=>{dr.loy=Math.max(0,Math.min(100,dr.loy+(devR.o>0?-devR.o*25:.4)+(stratOn('people')?.5:0)-(B(3)?fatK(fat0)*bal('fatLoy'):(S.night||0)/100*1.5)+(dr.t==='night'?shN()/100:0)))});
   if(B(3)){const nf=S.dlist.filter(d=>d.t!=='night').length/Math.max(1,S.dlist.length);
     S.fat=Math.max(0,Math.min(100,Math.round(((S.shift2||0)>0?fat0+(S.shift2||0)/100*bal('fatUp')*nf:fat0-bal('fatDown'))*10)/10));
@@ -2111,8 +2133,15 @@ function endDay(){
   // конкурент
   const myCars=totalCars();let poached=0;
   S.rivals.forEach(r=>{const g={war:.5,poach:.4,prem:.3,calm:.35}[r.style]||.4;if(Math.random()<g)r.cars++;
-    if(myCars>r.cars&&S.mode!=='sandbox'){const gap=Math.min(1,(myCars-r.cars)/20);if(Math.random()<.45*gap)r.cars+=rand(1,2);if(myCars>=25&&S.drivers>3&&Math.random()<.06*gap*(r.style==='poach'?2:1)){S.drivers--;poached++;notes.push(`«${r.name}» переманил вашего водителя: у лидера рынка все хотят забрать людей.`)}}if(r.aggr&&Math.random()<.6)r.cars++;if(S.rep<40&&Math.random()<.3)r.cars++;
+    if(myCars>r.cars&&S.mode!=='sandbox'){const gap=Math.min(1,(myCars-r.cars)/20);if(Math.random()<.45*gap)r.cars+=rand(1,2);if(myCars>=(B(4)?bal('poachFrom'):25)&&S.drivers>3&&Math.random()<.06*gap*(r.style==='poach'?2:1)*(B(4)?aggDef().poach:1)){S.drivers--;poached++;S.cnt.poach=(S.cnt.poach||0)+1;notes.push(`«${r.name}» переманил вашего водителя: у лидера рынка все хотят забрать людей.`)}}if(r.aggr&&Math.random()<.6)r.cars++;if(S.rep<40&&Math.random()<.3)r.cars++;
     r.rep=Math.max(30,Math.min(95,r.rep+rand(-2,2)))});
+  if(B(4)&&S.mode!=='sandbox'&&featOpen('rival')){
+    S.lowDays=!S.war&&rentAvg()<=-bal('warLow')?(S.lowDays||0)+1:0; // во время войны демпинг не копится
+    if(S.war&&S.day>=S.war.at+S.war.len-1){S.war=null}
+    else if(S.war&&S.day===S.war.at)notes.push(`«${esc(S.war.by)}» начал ценовую войну: спрос ×${bal('warK')} на ${S.war.len} дн. Подтяните ставки к рынку.`);
+    if(!S.war&&S.lowDays>=bal('warDays')&&Math.random()<bal('warP')){const rv=S.rivals.find(r=>r.style==='war')||S.rivals[rand(0,S.rivals.length-1)];S.war={at:S.day+bal('warAt'),len:bal('warLen'),by:rv.name};S.lowDays=0;S.cnt.wars=(S.cnt.wars||0)+1}
+    if(S.ctLost&&S.day>S.ctLost.day){const L=S.ctLost;S.ctLost=null;
+      if(Math.random()<bal('lostP')){const rv=S.rivals[rand(0,S.rivals.length-1)];rv.cars+=rand(1,2);rv.rep=Math.min(95,rv.rep+2);addLog(`Контракт с ${esc(L.co)} достался «${esc(rv.name)}».`);notes.push(`Контракт с ${esc(L.co)}, от которого вы отказались, забрал «${esc(rv.name)}».`)}}}
   // бензин
   S.fuel=Math.max(.85,Math.min(1.35,S.fuel*(1+rand(-25,30)/1000)));
   // филиалы
@@ -2158,7 +2187,8 @@ function endDay(){
   if(B(2)&&camp()?S.day===bal('inflDay'):S.day%(B(2)&&endl()?bal('endInfl'):30)===0){const r=rand(...(B(2)&&camp()?bal('inflPct'):[2,4]))/100;S.infl=(S.infl||1)*(1+r);S.mInfl=(S.mInfl||1)*(1+r*.6);notes.push(`Инфляция: цены выросли на ${Math.round(r*100)}%. Рыночные ставки аренды подросли — проверьте ставки во «Финансах».`)}
   S.stat.push({d:S.day,rev:revenue+cRev+adsRev,net,money:Math.round(S.money),cars:totalCars(),rep:S.rep});S.stat=S.stat.slice(-90);
   S.wk.rev+=revenue+cRev+adsRev;S.wk.net+=net;S.wk.breaks+=breaks;S.cnt.brk=(S.cnt.brk||0)+breaks;S.wk.fines+=raidFine+drvFines;
-  const lines=[['Экипажей на линии',crews+(stops?` (−${stops} на рейде)`:'')+(crews-regular?`, ${crews-regular} на контрактах`:'')],[`Аренда (реп. ×${factor.toFixed(2)}, спрос ×${demand.toFixed(2)}, районы ×${distK.toFixed(2)}${revK!==1?`, сложность ×${revK}`:''}${B(3)?(S.shift2?`, вторая смена ×${nightK.toFixed(2)}`:''):S.night?`, ночь ×${nightK.toFixed(2)}`:''}${sat<1?`, рынок ×${sat.toFixed(2)}`:''})`,rub(revenue)],['Офис',rub(-office)],...(mgmt?[['Управление большим парком',rub(-mgmt)]]:[]),['Зарплаты начальников и команд',rub(-pay)],['Стоянка и страховка',rub(-parking)]];
+  const lines=[['Экипажей на линии',crews+(stops?` (−${stops} на рейде)`:'')+(crews-regular?`, ${crews-regular} на контрактах`:'')],[`Аренда (реп. ×${factor.toFixed(2)}, спрос ×${demand.toFixed(2)}, районы ×${distK.toFixed(2)}${revK!==1?`, сложность ×${revK}`:''}${B(3)?(S.shift2?`, вторая смена ×${nightK.toFixed(2)}`:''):S.night?`, ночь ×${nightK.toFixed(2)}`:''}${sat<1?`, рынок ×${sat.toFixed(2)}`:''})`,rub(revenue+aggFee)],['Офис',rub(-office)],...(mgmt?[['Управление большим парком',rub(-mgmt)]]:[]),['Зарплаты начальников и команд',rub(-pay)],['Стоянка и страховка',rub(-parking)]];
+  if(aggFee)lines.splice(2,0,[`Комиссия «${AGG[S.agg||'mig'].n}» (${Math.round(AG.fee*100)}%)`,rub(-aggFee)]);
   if(lease)lines.push(['Лизинг',rub(-lease)]);
   if(loans)lines.push(['Кредиты',rub(-loans)]);
   if(repair)lines.push(['Ремонт ночных поломок',rub(-repair)]);
@@ -2656,7 +2686,7 @@ function contractOffer(){
     <div class="modes"><button class="mode" id="ctYes"><b>ПОДПИСАТЬ</b></button><button class="mode" id="ctNo"><b>ОТКАЗАТЬСЯ</b></button></div>`);
   sfx('alert');
   $('ctYes').onclick=()=>{S.contracts.push({co,cars,days,pay,pen,fails:0});addLog(`Подписан контракт с ${co}: ${cars} маш. на ${days} дн.`);save();render();hideModal();runMorning()};
-  $('ctNo').onclick=()=>{hideModal();runMorning()};
+  $('ctNo').onclick=()=>{if(B(4))S.ctLost={co,day:S.day};hideModal();runMorning()};
 }
 /* ---- кадровое агентство ---- */
 function agencyEvent(){
@@ -3153,8 +3183,11 @@ function render(prev){
   const pips=(left,total)=>{total=Math.min(7,Math.max(left,total||0));left=Math.min(left,total);return `<span class="pips" title="ещё ${left} дн.">${'<i class="on"></i>'.repeat(left)}${'<i></i>'.repeat(total-left)}</span>`};
   const card=(tone,ic,title,sub='',days=0,total=0,extra='')=>`<div class="nw ${tone}${extra}" title="${esc(String(title+(sub?' · '+sub:'')+(days?` · ещё ${days} дн.`:'')).replace(/<[^>]+>/g,''))}">${icon16(ic,16)}<div class="nw-t"><b>${title}</b>${sub?`<small>${sub}</small>`:''}</div>${days?pips(days,total):''}</div>`;
   const NICON={fuel:'fuel',snow:'snow',raid:'gai',comm:'agg',outage:'agg',outage2:'agg',lowprio:'agg',backup:'agg',prio:'agg',photo:'agg',strike:'warn',war:'rival',vipl:'rival'};
-  const tick=S.news.filter(n=>n.id!=='raidgai').map(n=>{const N=newsDef(n);const up=(N.demand||1)>1;const down=(N.demand||1)<1||N.leave||N.fail||N.risk1||N.repair;
+  const tick=S.news.filter(n=>n.id!=='raidgai'&&!aggNews(n)).map(n=>{const N=newsDef(n);const up=(N.demand||1)>1;const down=(N.demand||1)<1||N.leave||N.fail||N.risk1||N.repair;
     return card(up?'up':down?'down':'',NICON[n.id]||(down?'down':'up'),N.t,N.d,n.days,(NEWS.find(x=>x.id===n.id)||{}).days)});
+  if(B(4)&&S.aggNext===S.day)tick.push(card('down','agg',`Переход на «${AGG[S.agg].n}»`,'половина парка простаивает'));
+  if(warOn())tick.push(card('down','rival','Ценовая война',`«${esc(S.war.by)}» · спрос ×${bal('warK')}`,S.war.at+S.war.len-S.day));
+  else if(warSoon()&&featOpen('rival'))tick.push(card('down','rival','Завтра ценовая война',`«${esc(S.war.by)}» · спрос ×${bal('warK')} на ${S.war.len} дн.`));
   if(S.raid)tick.push(card('down','gai','Рейды ГАИ',`подготовка ${Math.round(S.raid.prep*100)}%`,S.raid.days));
   if((S.tdebt||0)>=4)tick.unshift(card('down','warn',`Отложенные проблемы: ${S.tdebt}/8`,'дешёвые решения копятся'));
   if(taxOn()&&taxDueIn()<=10)tick.unshift(card('down','tax',`Налог через ${taxDueIn()+1} дн.`,`≈${rub(Math.round(S.taxAcc*TAX_RATE/1000)*1000)}`));
@@ -3309,7 +3342,13 @@ function renderMgmt(){
   }
   else if(uiTab==='fin'){
     const exp=[['Офис',OFFICE],...(mgmtCost()?[['Управление большим парком',mgmtCost()]]:[]),['Начальники и команды',payroll()],['Стоянка и страховка',carsN()*PARKING],['Лизинг',leaseSum()],['Кредиты',loanSum()]];
-    B.innerHTML=`<div class="grid">
+    const aggCard=!aggOn()?'':`<div class="card2" style="grid-column:1/-1"><h3>Агрегатор</h3>
+        <p class="sub">Через него приходят заказы, за это он берёт комиссию с выручки. Менять можно раз в ${bal('aggGap')} дн., на следующий день половина парка простаивает.${S.aggLast?` Комиссия за прошлый день: ${rub(S.aggLast)}.`:''}</p>
+        <div class="grid">${Object.keys(AGG).map(k=>{const A=bal('agg')[k],cur=(S.agg||'mig')===k,w=bal('aggGap')-(S.day-S.aggAt),o=Math.round((A.ord-1)*100);
+          return `<div class="rentrow"><div class="row2"><span><b>${AGG[k].n}</b></span><b class="count">${Math.round(A.fee*100)}%</b></div>
+          <p class="sub">${AGG[k].d}</p><div class="row2 sub"><span>Заказы ${o?(o>0?'+':'−')+Math.abs(o)+'%':'как обычно'}${A.poach<1?' · переманивание реже':''}</span></div>
+          <button class="buy" style="min-height:44px" data-agg="${k}" ${off||cur||w>0?'disabled':''}>${cur?'Выбран':w>0?`Через ${w} дн.`:'Выбрать'}</button></div>`}).join('')}</div></div>`;
+    B.innerHTML=`<div class="grid">${aggCard}
       <div class="card2" style="grid-column:1/-1"><h3>Ставки аренды по классам</h3>
         <p class="sub">Сколько водитель платит за сутки на машине этого класса. Выше рынка — больше денег, но водители уходят. Ниже — к вам тянутся люди.</p>
         <div class="grid">${CLASSES.map((cl,i)=>{const m=mk(cl),r=S.rents[cl],n=S.fleet.filter(c=>MODELS[c.m].cls===cl).length,dv=Math.round((r/m-1)*100);
@@ -3448,6 +3487,7 @@ $('mbody').addEventListener('click',e=>{const b=e.target.closest('button');if(!b
   if(ds.head){const[d,k]=ds.head.split(':');return changeHead(+d,k,false)}
   if(ds.rename)return renameHead(+ds.rename);
   if(ds.loan)return takeLoan(+ds.loan);
+  if(ds.agg)return setAgg(ds.agg);
   if(b.id==='saveFounders')return saveFounders();
   if(ds.dprem)return drvAct(+ds.dprem,'prem');
   if(ds.dtalk)return drvAct(+ds.dtalk,'talk');
@@ -4352,7 +4392,7 @@ function studioLogo(next){const el=$('studio');if(!el)return next();
 /* ---- замер баланса ---- */
 /* Только с ?sim в адресе: бот проходит партии без интерфейса и печатает таблицу. Ничего не пишет в localStorage. */
 if(/[?&]sim\b/.test(location.search))(()=>{
-const SIM_V='bot-3';
+const SIM_V='bot-4';
 const mulberry=a=>()=>{a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296};
 const pct=(a,p)=>a.length?[...a].sort((x,y)=>x-y)[Math.min(a.length-1,Math.floor(p*a.length))]:null;
 const SIM_STUBS=['save','saveG','toast','sfx','voice','triggerScene','coachStart','tutorial','drawFaces','pddExam'];
@@ -4403,6 +4443,7 @@ function simRun(cfg,seed,stopDay){
   S=null;G.tutDone=1;G.a2hs=1;G.loginPending=0;G.simple=cfg.simple;simOpen=false;
   newGame(cfg.mode,[0,1,2].map(d=>({key:HEADS[d][0].key,name:HEADS[d][0].name})),{diff:cfg.diff,chapter:cfg.chapter||0});
   if(simOpen)simPump();
+  if(B(4))S.agg=cfg.agg||'mig';
   const C=S.mode==='story'?CHAPTERS[S.chapter]:null,cap=S.mode==='endless'?(cfg.days||120):dayLimit()+10;
   for(let i=0;i<cap;i++){
     simTax=false;simMorning(r);
@@ -4412,7 +4453,7 @@ function simRun(cfg,seed,stopDay){
     const day=S.day;endDay();r.fails=S.cnt.brk||0;r.fat=S.fat||0;clock+=864e5;
     if(r.goalDay===null&&(C?C.goal(S):goalMet()))r.goalDay=day;
     const lose=S.mode!=='sandbox'&&((S.money<0&&S.debt>=5)||S.rep<=0||S.drivers===0),fin=hasLimit()&&day>=dayLimit();
-    if(lose||fin||day===stopDay||(S.mode==='endless'&&i===cap-1)){r.money=Math.round(S.money);r.cars=carsN();r.rep=S.rep;
+    if(lose||fin||day===stopDay||(S.mode==='endless'&&i===cap-1)){r.money=Math.round(S.money);r.cars=carsN();r.rep=S.rep;r.profit=Math.round(profit());r.poach=S.cnt.poach||0;r.wars=S.cnt.wars||0;
       if(lose)r.why=S.money<0?'банкротство':S.rep<=0?'репутация':'водители';
       else if(fin){r.win=C?!!C.goal(S):goalMet()&&carsN()>=GOAL_CARS&&S.rep>=50;if(!r.win)r.why='не взята цель'}
       else r.why='стоп';r.cars=carsN();r.rep=S.rep;
@@ -4428,7 +4469,7 @@ function simBatch(cfg){
     winPct:+(100*rs.filter(r=>r.win).length/cfg.seeds).toFixed(1),
     lose:{банкротство:why['банкротство']||0,репутация:why['репутация']||0,водители:why['водители']||0,'не взята цель':why['не взята цель']||0,завис:(why['завис']||0)},
     cashP10:pct(cash,.1),cashP50:pct(cash,.5),cashP90:pct(cash,.9),carsP50:pct(rs.map(r=>r.cars||0),.5),repP50:pct(rs.map(r=>r.rep||0),.5),taxP50:pct(rs.map(r=>r.tax),.5),crisesP50:pct(rs.map(r=>r.crises),.5),goalMedian:pct(gd,.5),goalP30:pct(gd,.3),
-    fatP50:pct(rs.map(r=>r.fat),.5),failsP50:pct(rs.map(r=>r.fails),.5),goalBy25Pct:+(100*gd.filter(d=>d<25).length/cfg.seeds).toFixed(1),heavyMax:rs.reduce((a,r)=>Math.max(a,r.heavy),0),stuck,errors}}
+    profitP50:pct(rs.map(r=>r.profit||0),.5),poachP50:pct(rs.map(r=>r.poach||0),.5),warsP50:pct(rs.map(r=>r.wars||0),.5),fatP50:pct(rs.map(r=>r.fat),.5),failsP50:pct(rs.map(r=>r.fails),.5),goalBy25Pct:+(100*gd.filter(d=>d<25).length/cfg.seeds).toFixed(1),heavyMax:rs.reduce((a,r)=>Math.max(a,r.heavy),0),profits:rs.map(r=>[r.seed,r.profit||0]),stuck,errors}}
 const simFlat=r=>Object.assign({},r,{lose:Object.entries(r.lose).map(([k,v])=>k+':'+v).join(' '),errors:r.errors.length});
 /* подмена всего на время прогона и возврат в finally */
 function simGuard(fn){
@@ -4455,7 +4496,7 @@ function simGuard(fn){
   }}
 window.__balanceSim=(o={})=>simGuard(()=>{const {diff='normal',mode='campaign',seeds=100,simple=false}=o;
   if(!['campaign','story','endless'].includes(mode))throw new Error('замер: только campaign, story или endless');
-  const r=simBatch({diff,mode,seeds,simple,strat:o.strat,chapter:o.chapter||0,days:o.days});console.table([simFlat(r)]);return r});
+  const r=simBatch({diff,mode,seeds,simple,strat:o.strat,agg:o.agg,chapter:o.chapter||0,days:o.days});console.table([simFlat(r)]);return r});
 window.__balanceSim.all=(n=100)=>simGuard(()=>{const rs=['easy','normal','hard'].map(diff=>simBatch({diff,mode:'campaign',seeds:n,simple:false,chapter:0}));console.table(rs.map(simFlat));return rs});
 window.__balanceSim.story=(n=100)=>simGuard(()=>{const rs=CHAPTERS.map((C,i)=>simBatch({diff:'normal',mode:'story',seeds:n,simple:false,chapter:i}));console.table(rs.map(simFlat));return rs});
 window.__balanceSim.free=(hours=24,streak=1)=>simGuard(()=>{
