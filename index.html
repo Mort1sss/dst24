@@ -1592,7 +1592,7 @@ function voice(p){if(!G.sfx||!AC||!p)return;
   const n=rand(5,8);for(let i=0;i<n;i++)tone(p*(.85+Math.random()*.35),.045,'square',.022,i*.065)}
 /* ---- голоса и тизеры ---- */
 function tomorrowTease(){
-  const chain=S.queue.find(q=>q.at<=S.day);if(chain)return`Завтра продолжится история «${CHAINS[chain.id].ev.t}».`;
+  const chain=S.queue.find(q=>q.at<=S.day);if(chain)return`Завтра продолжится история «${getEv(chain.d,chain.id).t}».`; // в очереди бывают и продолжения (строка), и события по номеру (повтор «Ультиматума»)
   if(S.day>=S.nextMeeting)return'Завтра собрание учредителей: подведут итоги плана и поставят новый.';
   if(S.tdebt>=6)return'Отложенные проблемы копятся. Это добром не кончится…';
   if(featOpen('inspect')&&S.day>=S.nextInspect)return'Ходят слухи, что завтра нагрянет проверка от учредителей…';
