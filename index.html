@@ -1771,7 +1771,7 @@ function blankState(mode){
     alloc:{center:30,sleep:40,air:15,rail:15},dmods:{center:1,sleep:1,air:1,rail:1},dnews:[],night:0,weather:[],investors:[],union:false,unionDays:0,nextUnion:0,
     nextAuction:7,nextContract:rand(9,13),nextAgency:rand(10,15),contracts:[],lines:{},ads:null,school:[],agency:[],stat:[],wk:{rev:0,net:0,breaks:0,fines:0,fails:[]},
     custom:Object.assign({name:'ДСТ-24',color:'yellow',logo:'checker',avatar:0},G.custom||{}),
-    parts:10,crisis:null,nextCrisis:rand(25,40),extraHeads:[[],[],[]],moodMod:[0,0,0],nextCareer:rand(18,24),nextConflict:rand(14,20),lastParty:-99,owned:{},dispDay:0,
+    parts:10,crisis:null,nextCrisis:rand(25,40),extraHeads:[[],[],[]],moodMod:[0,0,0],nextCareer:rand(18,24),nextConflict:rand(14,20),lastParty:-99,strike:null,owned:{},dispDay:0,
     infl:1,mInfl:1,taxAcc:0,kpi:null,kpiStreak:0,kpiFails:0,tdebt:0,rel:{},relCd:{},city:'home'};
 }
 function fixState(v){const b=blankState(v.mode||'campaign');const o=Object.assign(b,v);
@@ -1826,6 +1826,16 @@ function nextEvent(d){
   return 0;
 }
 function snap(){return{money:S.money,rep:S.rep,drivers:S.drivers,cars:carsN(),broken:brokenN()}}
+/* ---- забастовка: пикет во дворе, сценки начала и конца, последствия ---- */
+const strikeOn=()=>S.news.find(n=>n.id==='strike');
+function strikeBegins(){if(S.strike)return;S.strike={day:S.day,lost:0};addLog('Водители бастуют: половина парка стоит у здания с плакатами.');if(!scn)triggerScene('strikeStart')}
+/* последствия, когда срок забастовки истёк: журнал, рейтинг, отношения, газета, риск повтора */
+function strikeEnds(notes){const days=Math.max(1,S.day-S.strike.day+1),lost=Math.round(S.strike.lost/1000)*1000;
+  S.dlist.forEach(x=>x.r=Math.max(4,+(x.r-.03).toFixed(3)));relAdd(0,-1);S.wk.strike={days,lost};
+  const msg=`Забастовка закончилась: ${days} дн., упущено ≈${rub(lost)}. Водители работают нервно — рейтинг немного просел, начальник «Подключения» недоволен.`;notes.push(msg);addLog(msg);
+  const al=S.dlist.length?S.dlist.reduce((a,x)=>a+x.loy,0)/S.dlist.length:60,ui=EVENTS[0].findIndex(e=>e.t==='Ультиматум водителей');
+  if(al<50&&ui>-1&&Math.random()<.35){S.queue.push({d:0,id:ui,at:S.day+rand(5,9)});const m2='Водители всё ещё недовольны — забастовка может повториться.';notes.push(m2);addLog(m2)}
+  if(!scn)triggerScene('strikeEnd');S.strike=null}
 function apply(fx={},d){
   fx=Object.assign({},fx);
   if(d===0&&hasHead('lena')&&fx.rep<0)fx.rep=Math.ceil(fx.rep/2);
@@ -1851,7 +1861,7 @@ function apply(fx={},d){
   if(fx.parts)S.parts=Math.max(0,(S.parts||0)+fx.parts);
   if(fx.fix)S.fleet.filter(c=>c.b&&!c.h).slice(0,fx.fix).forEach(c=>c.b=0);
   if(fx.hold){const c=S.fleet.find(c=>!c.b);if(c){c.b=1;c.h=fx.hold}}
-  if(fx.news){const N=NEWS.find(x=>x.id===fx.news);if(N){S.news=S.news.filter(n=>n.id!==N.id);S.news.push({id:N.id,days:N.days})}}
+  if(fx.news){const N=NEWS.find(x=>x.id===fx.news);if(N){S.news=S.news.filter(n=>n.id!==N.id);S.news.push({id:N.id,days:N.days});if(N.id==='strike')strikeBegins()}}
 }
 const evCost=(c,d)=>{let v=typeof c.cost==='function'?c.cost(S)*inf():(c.cost||0)*costScale();if(d===1&&hasHead('timur'))v*=.8;return Math.round(v/100)*100};
 const scx=fx=>fx&&fx.money?Object.assign({},fx,{money:Math.round(fx.money*(fx.money<0?negScale():costScale())/100)*100}):fx;
@@ -1972,6 +1982,7 @@ function endDay(){
   const base=working.slice(0,regular).reduce((a,c,i)=>a+carRev(c)*drvQ(crewD[i]),0);
   const sat=satK(),mgmt=mgmtCost();
   const revenue=Math.round(base*factor*demand*nightK*distK*sat/100)*100;
+  {const sN=strikeOn();if(sN){if(!S.strike)S.strike={day:S.day,lost:0};const k=newsDef(sN).demand||1;if(k<1)S.strike.lost+=Math.round(revenue*(1-k)/k)}}
   const adsRev=(S.ads?carsN()*300:0)+(S.upg.gas?carsN()*150:0);
   const parking=Math.round(carsN()*PARKING*inf()*(S.lotOwned?.4:1)), lease=leaseSum(), pay=payroll(), loans=loanSum(), office=Math.round(OFFICE*inf());
   if(hol){notes.push(`Праздник: ${hol[1]}! Спрос ×${hol[0]}.`);if(hol[1]==='Новогодняя ночь'&&active>0)S.cnt.nye=1}
@@ -2034,6 +2045,7 @@ function endDay(){
     else if(q.failed||q.days<=0){notes.push('Задание агрегатора провалено. −2 к репутации.');S.rep=Math.max(0,S.rep-2);S.quest=null;S.nextQuest=S.day+4}}
   // новости
   S.news.forEach(n=>n.days--);S.news=S.news.filter(n=>n.days>0);
+  if(S.strike&&!strikeOn())strikeEnds(notes);
   if(S.news.length<2&&Math.random()<.3){const pool=NEWS.filter(n=>!n.ev&&!S.news.some(x=>x.id===n.id));const n=pool[Math.random()*pool.length|0];if(n){S.news.push({id:n.id,days:n.days});notes.push(`Новости города: ${n.t} (${n.d}).`)}}
   // конкурент
   const myCars=totalCars();let poached=0;
@@ -2523,6 +2535,7 @@ function newspaper(){
     <h3>${w.net>=0?'Парк в плюсе':'Тяжёлая неделя'}: ${w.net>=0?'+':''}${rub(w.net)} за неделю</h3>
     <p>Выручка — ${rub(w.rev)}, ночных поломок — ${w.breaks}, штрафов на ${rub(w.fines)}. Машин в сети: ${totalCars()}.</p>
     ${best?`<h3>Водитель недели</h3><p>${esc(best.n)} с рейтингом ★${best.r.toFixed(2)}. Характер — «${TRAITS[best.t].n.toLowerCase()}».</p>`:''}
+    ${w.strike?`<h3>Забастовка в парке</h3><p>Водители бастовали ${w.strike.days} дн. Парк упустил около ${rub(w.strike.lost)} выручки.</p>`:''}
     <h3>Провал недели</h3><p>${fail}</p>
     ${Object.keys(S.owned).length?`<h3>Светская хроника</h3><p>Владелец парка замечен ${['с новыми золотыми часами','у своей новой машины','на даче у озера','на палубе яхты'][rand(0,3)]}. Водители обсуждают.</p>`:''}
     ${S.crisis?`<h3>Кризис</h3><p>${CRISES[S.crisis.id].n}: ещё ${S.crisis.days} дн. Держимся!</p>`:''}
@@ -2543,7 +2556,7 @@ function unionEvent(){
   const fin=msg=>{addLog('Профсоюз: '+msg);save();render();showModal(`<h2>Профсоюз</h2><p>${msg}</p><button class="btn" id="unOk">Продолжить</button>`);$('unOk').onclick=()=>{hideModal();runMorning()}};
   $('unRent').onclick=()=>{CLASSES.forEach(c=>S.rents[c]=Math.round(S.rents[c]*.95/100)*100);apply({loy:15});fin('Ставки снижены на 5%. Водители довольны.')};
   $('unPay').onclick=()=>{S.money-=pay;apply({loy:12});fin('Премия выплачена. Профсоюз доволен.')};
-  $('unNo').onclick=()=>{S.news.push({id:'strike',t:'Забастовка водителей',d:'спрос −45%',demand:.55,days:2});apply({loy:-5});fin('Водители бастуют. Два дня парк почти не работает.')};
+  $('unNo').onclick=()=>{S.news=S.news.filter(n=>n.id!=='strike');S.news.push({id:'strike',t:'Забастовка водителей',d:'спрос −45%',demand:.55,days:2});strikeBegins();apply({loy:-5});fin('Водители бастуют. Два дня парк почти не работает.')};
 }
 /* ---- аукцион конфиската ---- */
 function auction(){
@@ -3928,7 +3941,8 @@ const lerp=(a,b,f)=>{const A=hx(a),B=hx(b);return'#'+A.map((v,i)=>Math.round(v+(
 let movers=[],t=0;
 function syncMovers(){
   const working=S.fleet.filter(c=>!c.b).sort((a,b)=>MODELS[b.m].mult-MODELS[a.m].mult);
-  const onRoad=working.slice(0,Math.min(S.drivers,working.length,10)).map(c=>c.id);
+  let n=Math.min(S.drivers,working.length,10);if(strikeOn())n=Math.max(n?1:0,Math.floor(n/2));
+  const onRoad=working.slice(0,n).map(c=>c.id);
   movers=movers.filter(m=>onRoad.includes(m.id));
   onRoad.forEach((id,i)=>{if(!movers.find(m=>m.id===id)){const lane=i%2;movers.push({id,m:S.fleet.find(c=>c.id===id).m,x:srnd()*W,lane,v:(lane?-1:1)*(.3+srnd()*.3)})}});
 }
@@ -4117,6 +4131,7 @@ function draw(){
   if(getEv(1,S.today[1]).t==='Гуси на стоянке'){for(let i=0;i<3;i++){const gx=150+i*9+Math.round(Math.sin(t/5+i)*2);R(gx,92,5,3,'#f3ecdc');R(gx+4,89,1,3,'#f3ecdc');R(gx+5,89,1,1,'#ff8a4c');R(gx+1,95,1,1,'#ff8a4c');R(gx+3,95,1,1,'#ff8a4c')}}
   const idle=Math.max(0,S.drivers-(carsN()-brokenN()));
   for(let i=0;i<Math.min(idle,5);i++){R(169-i*8+(sunDx>>1),98,5,1,'#0e0b1c66');spr(cx,PERSON,168-i*8,87,false,{b:'#f0c8a0',k:['#4fc7b0','#e66fa8','#ff8a4c'][i%3]})}
+  if(strikeOn()&&!(scn&&/^strike/.test(scn.type)))for(let i=0;i<pickets();i++)striker(PICKET_X[i],i,1);
   if(S.owned&&S.owned.car)spr(cx,LIMO,152,87,false,{y:'#1c1a24',l:'#3a3550',d:'#0b0914',t:'#1c1a24',k:'#0b0914',b:'#1c1a24',c:'#1c1a24',g:'#e8e2d0'});
   // стоянка
   const cols=10,rowsAll=Math.ceil(S.spots/cols),rows=Math.min(6,rowsAll),lotY=98-rows*8-2;
@@ -4170,7 +4185,11 @@ function draw(){
 }
 /* ---- сценки событий на картинке парка ---- */
 function triggerScene(type){scn={type,t0:t};}
-const SCN_DUR={ufo:220,meteor:160,crash:150,geese:160,tow:190,police:200,party:170,founder:170,newcar:150};
+const SCN_DUR={ufo:220,meteor:160,crash:150,geese:160,tow:190,police:200,party:170,founder:170,newcar:150,strikeStart:170,strikeEnd:150};
+/* бастующий водитель; up — насколько поднят плакат (0…1) */
+const PICKET_X=[16,28,60,72,84,116],pickets=()=>Math.min(6,Math.max(1,Math.ceil(S.drivers/2)));
+function striker(x,i,up){const y=87;R(x+1+(sunDx>>1),98,5,1,'#0e0b1c66');spr(cx,PERSON,x,y,i%2,{b:'#f0c8a0',k:['#4fc7b0','#e66fa8','#ff8a4c','#86c4e0','#f7c331','#a8a0cc'][i%6]});
+  if(up>0){const sy=y-5-Math.round(up*4)-((Math.floor(t/8)+i)%2);R(x+3,sy+5,1,y+3-sy-5,'#8a83b0');R(x,sy,7,5,'#0e0b1c');R(x+1,sy+1,5,3,'#f3ecdc');R(x+2,sy+2,3,1,'#ff4d4d')}}
 function drawScene(dark){if(!scn)return;const d=SCN_DUR[scn.type]||150,e=t-scn.t0,p=e/d;if(p>=1){scn=null;return}
   const ease=x=>x<.5?2*x*x:1-Math.pow(-2*x+2,2)/2;
   if(scn.type==='ufo'){const x=330-ease(Math.min(1,p*2))*110-Math.max(0,p-.75)*4*300,y=26+Math.sin(e/8)*3;
@@ -4196,6 +4215,9 @@ function drawScene(dark){if(!scn)return;const d=SCN_DUR[scn.type]||150,e=t-scn.t
     if(Math.floor(e/8)%2){R(70,30,2,5,'#f3ecdc');R(72,30,3,1,'#f3ecdc');R(110,26,2,5,'#f3ecdc');R(112,26,3,1,'#f3ecdc')}}
   if(scn.type==='founder'){const arrive=Math.min(1,p*2.5),x=W+10-ease(arrive)*(W-60);spr(cx,LIMO,x,104,true,{y:'#1c1a24',l:'#3a3550',d:'#0b0914',t:'#1c1a24',k:'#0b0914',b:'#1c1a24',c:'#1c1a24',g:'#e8e2d0'});
     if(arrive>=1){const wp=Math.min(1,(p-.4)/.4);if(wp>0)spr(cx,PERSON,x+6-wp*20,92+0,true,{b:'#e8b890',k:'#2e2a40',H:'#8a8a8a'})}}
+  if(scn.type==='strikeStart'||scn.type==='strikeEnd'){const st=scn.type==='strikeStart';for(let i=0;i<pickets();i++){const sx=PICKET_X[i],door=i%2?94:37;
+    if(st)striker(Math.round(door+(sx-door)*ease(Math.min(1,p/.6))),i,Math.max(0,(p-.6)/.4));
+    else striker(Math.round(sx+(200+i*12-sx)*ease(Math.max(0,(p-.3)/.7))),i,Math.max(0,1-p/.3))}}
   if(scn.type==='newcar'){const x=-30+ease(Math.min(1,p*1.6))*190;drawCar(cx,'solarisNew',x,115,false,null,Math.floor(x/2));
     if(p>.5)for(let i=0;i<6;i++){const a=e/6+i;R(x+12+Math.cos(a)*16,108+Math.sin(a)*8,1,1,'#ffe27a')}}
 }
