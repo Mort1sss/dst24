@@ -1356,7 +1356,7 @@ const totalCars=()=>S.fleet.length+(S.branches||[]).reduce((a,b)=>a+b.cars,0);
 // числа по версиям: партия читает свою версию, нет ключа — берётся ближайшая меньшая; новая настройка = новая запись, старые не менять
 const BAL_NEW=2,BAL={
  1:{meet:30,plan:150000,offK:.5,offCap:1e12,loginDay:5000,loginBonus:20000,loginParts:0,loginLoy:0,leaseRet:0},
- 2:{start:{normal:1,hard:.9},rev:{normal:1.08,hard:1.1},goal:{normal:175000,hard:175000}, // подобрано ботом bot-2: «Обычный» ≈55%, «Хардкор» ≈27% победstar2:1.3,star3:1.7,
+ 2:{start:{normal:1,hard:.9},rev:{normal:1.08,hard:1.1},goal:{normal:175000,hard:175000},star2:1.3,star3:1.7, // подобрано ботом bot-2: «Обычный» ≈55%, «Хардкор» ≈27% побед
   taxDays:[14,28],endTax:60,crisisFirst:[16,21],crisisMin:16,crisisMax:6,endCrisisFirst:[20,30],endCrisisNext:[40,60],inflDay:15,inflPct:[2,3],endInfl:30,
   meet:15,plan:75000,offK:.125,offCap:15000,loginDay:2500,loginBonus:0,loginParts:3,loginLoy:3,leaseRet:5,leaseWearFrom:20,leaseWearK:.04,leaseWearMax:2}};
 const bal=(k,v)=>{for(v=v||(S&&S.bal)||1;v>0;v--)if(BAL[v]&&k in BAL[v])return BAL[v][k]};
@@ -1366,7 +1366,8 @@ const debtLeft=()=>S.loans.reduce((a,l)=>a+l.pay*l.left,0);
 const profit=()=>S.money-S.startMoney-debtLeft();
 // цель кампании: «Лёгкий» и bal 1 — касса, иначе прибыль
 const goalMet=()=>B(2)&&camp()&&S.diff!=='easy'?profit()>=goalBase():S.money>=GOAL_MONEY;
-const starsOf=()=>{const m=S.diff==='easy'?S.money-S.startMoney:profit(),g=goalBase();return m>=g*bal('star3')?3:m>=g*bal('star2')?2:1};
+// «Лёгкий»: запас сверх цели считается от заработка с начала (★★ — +105 000 ₽, ★★★ — +245 000 ₽)
+const starsOf=()=>{const e=S.diff==='easy',m=e?S.money-S.startMoney:profit(),g=goalBase(),k=e?1:0;return m>=Math.round(g*(bal('star3')-k))?3:m>=Math.round(g*(bal('star2')-k))?2:1};
 const goalTxt=d=>d==='easy'?`касса ${rub(GOAL_MONEY)}`:`прибыль ${rub(bal('goal',BAL_NEW)[d])}`;
 /* ---- сложность ---- */
 const DIFF={easy:{n:'Лёгкий',d:'больше денег на старте, меньше поломок и провалов, машины дешевле',money:1.5,risk:.8,fail:.75,price:.9},
@@ -1812,7 +1813,7 @@ function syncDrivers(){if(!S.dlist)S.dlist=[];while(S.dlist.length<S.drivers)S.d
   if(S.dlist.length>S.drivers){S.dlist.sort((a,b)=>a.loy-b.loy);S.dlist.splice(0,S.dlist.length-S.drivers)}}
 function newGame(mode,heads,opts={}){
   if(S&&!S.over&&!S.preview&&S.day>1)recordResult('прервана');
-  S=blankState(mode);S.heads=heads;S.diff=opts.diff||'normal';S.chapter=opts.chapter||0;
+  S=blankState(mode);hvToday=false;S.heads=heads;S.diff=opts.diff||'normal';S.chapter=opts.chapter||0;
   START_FLEET.forEach(([m,k])=>addCar(m,k));
   S.city=opts.city||'home';
   S.money=Math.round(S.money*(B(2)&&mode==='campaign'&&S.diff!=='easy'?bal('start')[S.diff]:dif().money)*(mode==='endless'?1+Math.min(1,prestige()*.05):1)*(cityDef().price||1)/1000)*1000;
@@ -1850,12 +1851,12 @@ const getEv=(d,ref)=>typeof ref==='string'?CHAINS[ref].ev:EVENTS[d][ref];
 const ultBlocked=(d,i)=>B(2)&&getEv(d,i).c.some(c=>c.fx&&c.fx.news==='strike')&&(!heavyDays(S.day,2)||hvToday)&&(S.queue.push({d,id:i,at:S.day+2}),true);
 function nextEvent(d){
   const qi=S.queue.findIndex(q=>q.d===d&&q.at<=S.day);
-  if(qi>-1){const q=S.queue.splice(qi,1)[0];if(!ultBlocked(d,q.id))return q.id}
+  if(qi>-1){const q=S.queue.splice(qi,1)[0],e=getEv(d,q.id);if((!e.need||typeof q.id==='string'||e.need(S))&&!ultBlocked(d,q.id))return q.id}
   const funnyP=d===1?(hasHead('gena')?.7:.45):0;
   for(let tries=0;tries<40;tries++){
     if(!S.decks[d].length)S.decks[d]=shuffle(EVENTS[d].map((_,i)=>i));
     const i=S.decks[d].pop(),ev=EVENTS[d][i];
-    if(ev.need&&!ev.need(S))continue;
+    if(ev.need&&!ev.need(S)||S.queue.some(q=>q.d===d&&q.id===i))continue;
     if(ultBlocked(d,i))continue;
     if(!ev.dl&&S.day>=3&&Math.random()<(S.day>=6?.45:.3)&&S.decks[d].some(j=>EVENTS[d][j].dl&&(!EVENTS[d][j].need||EVENTS[d][j].need(S)))){S.decks[d].unshift(i);continue}
     if(funnyP&&!ev.f&&Math.random()<funnyP*.5&&S.decks[d].some(j=>EVENTS[d][j].f)){S.decks[d].unshift(i);continue}
@@ -2136,7 +2137,7 @@ function endDay(){
   if(B(2)&&camp()?S.day===bal('inflDay'):S.day%(B(2)&&endl()?bal('endInfl'):30)===0){const r=rand(...(B(2)&&camp()?bal('inflPct'):[2,4]))/100;S.infl=(S.infl||1)*(1+r);S.mInfl=(S.mInfl||1)*(1+r*.6);notes.push(`Инфляция: цены выросли на ${Math.round(r*100)}%. Рыночные ставки аренды подросли — проверьте ставки во «Финансах».`)}
   S.stat.push({d:S.day,rev:revenue+cRev+adsRev,net,money:Math.round(S.money),cars:totalCars(),rep:S.rep});S.stat=S.stat.slice(-90);
   S.wk.rev+=revenue+cRev+adsRev;S.wk.net+=net;S.wk.breaks+=breaks;S.wk.fines+=raidFine+drvFines;
-  const lines=[['Экипажей на линии',crews+(stops?` (−${stops} на рейде)`:'')+(crews-regular?`, ${crews-regular} на контрактах`:'')],[`Аренда (реп. ×${factor.toFixed(2)}, спрос ×${demand.toFixed(2)}, районы ×${distK.toFixed(2)}${revK<1?`, сложность ×${revK}`:''}${S.night?`, ночь ×${nightK.toFixed(2)}`:''}${sat<1?`, рынок ×${sat.toFixed(2)}`:''})`,rub(revenue)],['Офис',rub(-office)],...(mgmt?[['Управление большим парком',rub(-mgmt)]]:[]),['Зарплаты начальников и команд',rub(-pay)],['Стоянка и страховка',rub(-parking)]];
+  const lines=[['Экипажей на линии',crews+(stops?` (−${stops} на рейде)`:'')+(crews-regular?`, ${crews-regular} на контрактах`:'')],[`Аренда (реп. ×${factor.toFixed(2)}, спрос ×${demand.toFixed(2)}, районы ×${distK.toFixed(2)}${revK!==1?`, сложность ×${revK}`:''}${S.night?`, ночь ×${nightK.toFixed(2)}`:''}${sat<1?`, рынок ×${sat.toFixed(2)}`:''})`,rub(revenue)],['Офис',rub(-office)],...(mgmt?[['Управление большим парком',rub(-mgmt)]]:[]),['Зарплаты начальников и команд',rub(-pay)],['Стоянка и страховка',rub(-parking)]];
   if(lease)lines.push(['Лизинг',rub(-lease)]);
   if(loans)lines.push(['Кредиты',rub(-loans)]);
   if(repair)lines.push(['Ремонт ночных поломок',rub(-repair)]);
@@ -2824,11 +2825,11 @@ function offlineIncome(){if(!S||S.preview||S.over||S.mode==='sandbox'||!G.lastSe
 function checkLogin(){const k=todayKey();G.login=G.login||{};const off=offlineIncome();
   if(G.login.last===k){G.lastSeen=Date.now();saveG();if(off){render();showModal(`<span class="step">С ВОЗВРАЩЕНИЕМ</span><h2>Пока вас не было</h2><p>Парк работал без вас и заработал <b class="pos">${rub(off)}</b>.</p><button class="btn" id="lgOk">Отлично</button>`);$('lgOk').onclick=hideModal}return}
   const y=new Date();y.setDate(y.getDate()-1);const yk=y.getFullYear()+'-'+(y.getMonth()+1)+'-'+y.getDate();
-  const streak=G.login.last===yk?(G.login.streak||0)+1:1;G.login={last:k,streak};const live=S&&!S.preview&&!S.over&&S.mode!=='sandbox',w7=streak%7===0&&bal('loginParts')>0;let reward=0;
+  const streak=G.login.last===yk?(G.login.streak||0)+1:1;G.login={last:k,streak};const live=S&&!S.preview&&!S.over&&S.mode!=='sandbox',bv=live?0:BAL_NEW,w7=streak%7===0&&bal('loginParts',bv)>0;let reward=0;
   if(live){reward=loginPay(streak).m;addLog(`Награда за вход: ${rub(reward)} (день ${streak} подряд).${w7?` Бонус 7-го дня: +${bal('loginParts')} запчасти, лояльность +${bal('loginLoy')}.`:''}`);save();render()}else G.loginPending={streak};
   saveG();
   showModal(`<span class="step">НАГРАДА ЗА ВХОД</span><h2>День ${streak} подряд</h2><div class="streak">${[1,2,3,4,5,6,7].map(i=>`<i class="${i<=((streak-1)%7)+1?'on':''}">${i}</i>`).join('')}</div>
-    ${off?`<p>Пока вас не было, парк заработал <b class="pos">${rub(off)}</b>.</p>`:''}<p>${live?`В кассу парка зачислено ${rub(reward)}.`:`Награда придёт в кассу, когда начнёте игру.`}${w7?` Бонус 7-го дня: ${live?'':'тоже '}+${bal('loginParts')} запчасти и +${bal('loginLoy')} к лояльности всех водителей.`:''} Заходите каждый день: награда растёт до 7-го дня, а на 7-й — бонус.</p><button class="btn" id="lgOk">Забрать</button>`);
+    ${off?`<p>Пока вас не было, парк заработал <b class="pos">${rub(off)}</b>.</p>`:''}<p>${live?`В кассу парка зачислено ${rub(reward)}.`:`Награда придёт в кассу, когда начнёте игру.`}${w7?` Бонус 7-го дня: ${live?'':'тоже '}+${bal('loginParts',bv)} запчасти и +${bal('loginLoy',bv)} к лояльности всех водителей.`:''} Заходите каждый день: награда растёт до 7-го дня, а на 7-й — бонус.</p><button class="btn" id="lgOk">Забрать</button>`);
   sfx('win');$('lgOk').onclick=()=>{hideModal();if(S&&S.preview)pickMode()}}
 /* ---- диспетчер ---- */
 function dispatcher(){
