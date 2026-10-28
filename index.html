@@ -1843,7 +1843,8 @@ function breakCars(n){shuffle(S.fleet.filter(c=>!c.b)).slice(0,n).forEach(c=>c.b
 /* ================= СОБЫТИЯ ДНЯ ================= */
 const getEv=(d,ref)=>typeof ref==='string'?CHAINS[ref].ev:EVENTS[d][ref];
 // забастовка из «Ультиматума» не должна совпасть с другим ударом: тогда дилемма уходит в очередь
-const ultBlocked=(d,i)=>d===0&&B(2)&&i===EVENTS[0].findIndex(e=>e.t==='Ультиматум водителей')&&!heavyDays(S.day,2)&&(S.queue.push({d:0,id:i,at:S.day+2}),true);
+// событие, где один из ответов — забастовка («Ультиматум», его продолжение, переход агрегатора), ждёт, пока 2 дня свободны от ударов
+const ultBlocked=(d,i)=>B(2)&&getEv(d,i).c.some(c=>c.fx&&c.fx.news==='strike')&&!heavyDays(S.day,2)&&(S.queue.push({d,id:i,at:S.day+2}),true);
 function nextEvent(d){
   const qi=S.queue.findIndex(q=>q.d===d&&q.at<=S.day);
   if(qi>-1){const q=S.queue.splice(qi,1)[0];if(!ultBlocked(d,q.id))return q.id}
