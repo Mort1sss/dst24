@@ -1566,7 +1566,10 @@ const taxOn=()=>S.mode!=='sandbox'&&S.mode!=='daily'&&(!B(2)||!simpleOn()||tabOp
 const taxDueIn=()=>{if(B(2)&&camp()){const t=bal('taxDays').find(d=>d>=S.day);return t?t-S.day:99}const p=B(2)&&endl()?bal('endTax'):90;return p-((S.day-1)%p)-1};
 /* ---- не больше одного тяжёлого удара: налог, кризис, рейд ГАИ, забастовка ---- */
 // свободны ли дни from…from+len−1; идущий удар занимает дни с «сейчас» ещё на остаток срока
-const heavyDays=(from,len)=>{for(let d=from;d<from+len;d++)if(isTaxDay(d))return false;
+// утренняя налоговая проверка (taxAt в сюжете, nextTax в бесконечном режиме) — тоже удар
+const auditDay=d=>!!(S.taxAt&&S.taxAt.includes(d))||(S.mode==='endless'&&(S.nextTax<=S.day?d===S.day:d===S.nextTax));
+let hvToday=false; // сегодня утром уже запущен удар (проверка, рейд, профсоюз): забастовку из событий дня не начинать
+const heavyDays=(from,len)=>{for(let d=from;d<from+len;d++)if(isTaxDay(d)||auditDay(d))return false;
   const n0=from>S.day?S.day+1:S.day,sn=S.news.find(n=>n.id==='strike');
   return ![S.crisis&&S.crisis.days>0&&S.crisis.days,S.raid&&S.raid.days>0&&S.raid.days,sn?sn.days:S.strike?1:0].some(r=>r&&from<n0+r)};
 const heavyGate=(key,len)=>heavyDays(S.day,len)||(S[key]=S.day+rand(2,4),false);
@@ -1844,7 +1847,7 @@ function breakCars(n){shuffle(S.fleet.filter(c=>!c.b)).slice(0,n).forEach(c=>c.b
 const getEv=(d,ref)=>typeof ref==='string'?CHAINS[ref].ev:EVENTS[d][ref];
 // забастовка из «Ультиматума» не должна совпасть с другим ударом: тогда дилемма уходит в очередь
 // событие, где один из ответов — забастовка («Ультиматум», его продолжение, переход агрегатора), ждёт, пока 2 дня свободны от ударов
-const ultBlocked=(d,i)=>B(2)&&getEv(d,i).c.some(c=>c.fx&&c.fx.news==='strike')&&!heavyDays(S.day,2)&&(S.queue.push({d,id:i,at:S.day+2}),true);
+const ultBlocked=(d,i)=>B(2)&&getEv(d,i).c.some(c=>c.fx&&c.fx.news==='strike')&&(!heavyDays(S.day,2)||hvToday)&&(S.queue.push({d,id:i,at:S.day+2}),true);
 function nextEvent(d){
   const qi=S.queue.findIndex(q=>q.d===d&&q.at<=S.day);
   if(qi>-1){const q=S.queue.splice(qi,1)[0];if(!ultBlocked(d,q.id))return q.id}
@@ -2169,15 +2172,20 @@ function endDay(){
 /* ================= УТРО: проверки, конкурент, задания ================= */
 function startDay(){
   S.done=[null,null,null];S.hired=false;rollDistricts();
+  // B(2): проверку откладываем, если идёт удар; рейд и профсоюз не стартуют в один день с ней и друг с другом
+  let tx=(S.taxAt&&S.taxAt.includes(S.day))||(S.mode==='endless'&&S.day>=S.nextTax);
+  if(B(2)&&tx&&(S.crisis||S.raid||S.strike||S.news.some(n=>n.id==='strike')||isTaxDay(S.day))){tx=false;if(S.taxAt&&S.taxAt.includes(S.day))S.taxAt=S.taxAt.map(t=>t===S.day?t+rand(2,4):t);else S.nextTax=S.day+rand(2,4)}
+  const rd=S.day>=S.nextRaid&&!S.raid&&(!B(2)||!tx&&heavyGate('nextRaid',3)),un=S.union&&S.day>=S.nextUnion&&(!B(2)||!tx&&!rd&&heavyGate('nextUnion',2));
+  hvToday=B(2)&&!!(tx||rd||un);
   S.today=[0,1,2].map(nextEvent);
   const m=[];
   if(S.day>1&&S.day%7===1)m.push('paper');
   if(S.day>=S.nextMeeting)m.push('meeting');
   if(S.day>=S.nextInspect)m.push('inspect');
-  if((S.taxAt&&S.taxAt.includes(S.day))||(S.mode==='endless'&&S.day>=S.nextTax))m.push('tax');
-  if(S.day>=S.nextRaid&&!S.raid&&(!B(2)||heavyGate('nextRaid',3)))m.push('raid');
+  if(tx)m.push('tax');
+  if(rd)m.push('raid');
   if(S.branches.length&&Math.random()<.15)m.push('branch');
-  if(S.union&&S.day>=S.nextUnion&&(!B(2)||heavyGate('nextUnion',2)))m.push('union');
+  if(un)m.push('union');
   if(S.day>=S.nextAuction)m.push('auction');
   if(S.day>=S.nextContract&&S.contracts.length<3)m.push('contract');
   if(S.day>=S.nextCareer)m.push('career');
