@@ -5,48 +5,49 @@
 
 ## Структура
 
-Сборки, зависимостей и сервера нет: всё работает прямо в браузере.
+Сборки, зависимостей и сервера нет: всё работает прямо в браузере. Скрипты подключаются обычными `<script src>` по порядку, общий глобальный контекст — как раньше в одном файле.
 
 | Файл | Что внутри |
 |---|---|
-| `index.html` | Вся игра: CSS, разметка, данные, логика, отрисовка, звук |
-| `sw.js` | Офлайн-режим: сначала сеть, без неё — кэш `dst24-vN` |
-| `manifest.webmanifest` | Название, цвета и иконки для установки как приложения |
-| `icon-192.png`, `icon-512.png` | Иконки |
-| `admin.html` | Админ-панель (Supabase): игроки, бан, баланс, события, подарки, рекорды |
+| `index.html` | Только разметка и подключение файлов (~80 строк) |
+| `css/game.css` | Все стили, CSS-переменные (`--night`, `--taxi`, `--panel`, …) |
+| `js/data.js` | Справочники: `MODELS`, `EVENTS`, `CHAINS`, `NEWS`, `CHAPTERS`, `DIFF`, `ACH`, `LIVERY`; баланс `BAL`/`bal()`/`B()`, цели, налоги |
+| `js/state.js` | `G` и `S`, `blankState`, `fixState`, `save`, `load`, цели бесконечного, `newGame`, `recordResult` |
+| `js/day.js` | События дня, автосалон и найм, кредиты, конец дня `endDay`, утро `startDay`, забастовка |
+| `js/minigames.js` | Мини-игры проверок и на линии, диспетчер, газета, совещания, налоговая, награды за вход, офлайн-доход |
+| `js/ui.js` | Финал, выбор режима, `render()` и обработчики, код сохранения `DST24Z.` |
+| `js/art.js` | Звук, пиксель-арт, двор и машины, WebGL, заставка |
+| `js/sim.js` | Бот-измеритель баланса (работает только с `?sim`) |
+| `js/online.js` | Онлайн: `NET`, вход, облако, рекорды, события, подарки, соревнование, город |
+| `js/main.js` | Старт игры |
+| `sw.js` | Офлайн-режим: сначала сеть, без неё — кэш `dst24-vN`; список `CORE` — все файлы игры |
+| `manifest.webmanifest`, `icon-192.png`, `icon-512.png` | Установка как приложения |
+| `admin.html` | Админ-панель (Supabase); числа и списки берёт из `js/data.js` и `js/online.js` |
 | `supabase/schema.sql`, `supabase/README.md` | Схема сервера (таблицы, RLS, функции) и инструкция по настройке |
 
-`index.html` разбит на главы с заголовками `/* ===== ГЛАВА ===== */` и подразделами `/* ---- раздел ---- */`. Искать нужное место удобнее всего по этим заголовкам:
+Порядок файлов в `index.html` важен: код на верхнем уровне файла видит только то, что объявлено в нём самом и в файлах выше. Новый файл — добавить и в `index.html`, и в `CORE` в `sw.js`.
+Внутри файлов — главы `/* ===== ГЛАВА ===== */` и подразделы `/* ---- раздел ---- */`.
 
-- `ДАННЫЕ` — справочники: машины, события и дилеммы, начальники, районы, газета
-- `СОСТОЯНИЕ` — объект `S` (текущая партия) и `G` (общие настройки), `save()` / `load()`
-- `НОВАЯ ИГРА`, `СОБЫТИЯ ДНЯ`, `КОНЕЦ ДНЯ`, `УТРО` — основной игровой цикл
-- `МИНИ-ИГРЫ ПРОВЕРОК` и `мини-игры на линии`, `диспетчер` — всё, что идёт в реальном времени
-- `ОТРИСОВКА ИНТЕРФЕЙСА` — `render()` и обработчики кнопок
-- `ПИКСЕЛЬ-АРТ`, `сцена` — рисование на `<canvas>`
-- `ЗВУК`, `ЗАСТАВКА`, `СТАРТ`
+### Карта кода
 
-### Карта кода (`index.html`)
+Сначала открыть нужный файл из таблицы, потом искать по имени: `grep -n "function endDay" js/day.js`, читать 20–60 строк через `sed -n` или `Read` с `offset`. Крупные файлы (`data.js`, `ui.js`, `minigames.js`) целиком не читать.
 
-Номера строк сдвигаются — ищи по имени: `grep -n "function endDay" index.html`, потом читай 20–60 строк через `sed -n` или `Read` с `offset`. Файл целиком не читать.
-
-| Что | Где искать |
-|---|---|
-| Справочники | `const MODELS`, `EVENTS` (события отделов), `CHAINS` (продолжения), `NEWS`, `CHAPTERS` (сюжет), `DIFF` |
-| Версии баланса | раздел `версия баланса`: `BAL`, `bal(k)`, `B(n)`, `camp()`, `endl()`, `profit()`, `goalMet()`, `starsOf()` |
-| Удары и налоги | `isTaxDay`, `taxDueIn`, `heavyDays`, `heavyGate`, `ultBlocked`; кризис — в `endDay`, рейд/профсоюз/проверка — в `startDay` |
-| Состояние | `blankState`, `fixState`, `save`, `load`, `newGame`, `recordResult` |
-| День | `nextEvent`, `apply`, `choose`, `autoResolve`, `endDay`, `startDay`, `runMorning` |
-| Покупки | `priceOf`, `buy`, `sellCar`, `hire`, `buyLot`, `takeLoan`, `carRevM`, `carFail`, `mgmtCost`, `satK`, `inf` |
-| Утро и события | `inspection`, `meeting`, `taxAudit`, `raidEvent`, `unionEvent`, `newspaper`, `tomorrowTease` |
-| Забастовка | `strikeOn`, `strikeBegins`, `strikeEnds` |
-| Награды | `offlineIncome`, `loginPay`, `checkLogin`, `checkLoginQuiet` |
-| Мини-игры | `mgTiming`, `lgRace`, `lgPark`, `dispatcher`, `TOPCAR`, `mgRAF`, `mgStop` |
-| Финал | `finale`, `gameOver` |
-| Интерфейс | `render`, `renderHud`, `renderMgmt`, `icon16`, `ICON16` |
-| Двор и графика | `draw`, `drawScene`, `drawCar`, `CARS2`, `syncMovers`, `stepParts`, `lightPass`, `post` (WebGL), `fitScene` |
-| Онлайн | раздел `ОНЛАЙН`: `NET`, `api`, `rpc`, `cloudPush/cloudPull`, `netSubmit`, `netDay`, `netGifts`, `netMailRun`, `openCity`, `ctUse/ctSync`; правки баланса — `S.balPatch` |
-| Бот-измеритель | раздел `замер баланса` (только с `?sim`): `__balanceSim`, `.all`, `.story`, `.free` |
+| Что | Файл | Имена |
+|---|---|---|
+| Справочники | `data.js` | `MODELS`, `EVENTS`, `CHAINS`, `NEWS`, `CHAPTERS`, `DIFF`, `ACH`, `LIVERY`, `tomorrowTease` |
+| Версии баланса | `data.js` | раздел `версия баланса`: `BAL`, `bal(k)`, `B(n)`, `camp()`, `endl()`, `profit()`, `goalMet()`, `starsOf()`, `carRevM` |
+| Удары и налоги | `data.js`, `day.js` | `isTaxDay`, `taxDueIn`, `heavyDays`, `heavyGate`, `ultBlocked`; кризис — в `endDay`, рейд/профсоюз/проверка — в `startDay` |
+| Состояние | `state.js` | `blankState`, `fixState`, `save`, `load`, `newGame`, `recordResult` |
+| День | `day.js` | `nextEvent`, `apply`, `choose`, `endDay`, `startDay`, `runMorning`, `inspection`; `autoResolve` — в `minigames.js` |
+| Покупки | `day.js` | `priceOf`, `buy`, `sellCar`, `hire`, `buyLot`, `takeLoan`; `mgmtCost`, `satK`, `inf` — в `data.js`, `carFail` — в `state.js` |
+| Забастовка | `day.js` | `strikeOn`, `strikeBegins`, `strikeEnds` |
+| Утро и события | `minigames.js` | `meeting`, `taxAudit`, `raidEvent`, `unionEvent`, `newspaper` |
+| Награды | `minigames.js` | `offlineIncome`, `loginPay`, `checkLogin`; `checkLoginQuiet` — в `main.js` |
+| Мини-игры | `minigames.js` | `mgTiming`, `lgRace`, `lgPark`, `dispatcher`, `TOPCAR`, `mgRAF`, `mgStop` |
+| Финал и интерфейс | `ui.js` | `finale`, `gameOver`, `render`, `renderHud`, `renderMgmt`, `icon16`, `ICON16` |
+| Двор и графика | `art.js` | `draw`, `drawScene`, `drawCar`, `CARS2`, `syncMovers`, `stepParts`, `lightPass`, `post` (WebGL), `fitScene` |
+| Онлайн | `online.js` | `NET`, `api`, `rpc`, `cloudPush/cloudPull`, `netSubmit`, `netDay`, `netGifts`, `netMailRun`, `openCity`, `ctUse/ctSync`, город `TOWN`/`townK`/`drawTown`; правки баланса — `S.balPatch` |
+| Бот-измеритель | `sim.js` | `__balanceSim`, `.all`, `.story`, `.free` |
 
 ## Данные и сохранения
 
@@ -59,7 +60,7 @@
 
 Пишите так же, как написан остальной код:
 
-- Только чистый JavaScript, HTML и CSS в `index.html`. Никаких библиотек, фреймворков и сборщиков.
+- Только чистый JavaScript, HTML и CSS в файлах проекта (`index.html`, `css/`, `js/`). Никаких библиотек, фреймворков и сборщиков.
 - Плотный стиль: короткие функции в одну-две строки, стрелочные функции, короткие имена для частых вещей (`S`, `G`, `$`, `rub`, `rand`).
 - Комментарии на русском и только там, где без них непонятно. Новый раздел начинать с заголовка `/* ---- название ---- */`.
 - Весь текст для игрока на русском, в тоне игры. Пользовательские строки вставлять в HTML через `esc()`.
@@ -72,8 +73,8 @@
 
 В этом проекте работать вместе со вспомогательными агентами oh-my-claudecode, а не в одиночку. Запускать их без отдельного разрешения.
 
-- Агента выбирать по задаче: `explore` — найти место в `index.html`, `executor` — логика, `designer` — графика и интерфейс, `debugger` — ошибки, `critic` / `code-reviewer` — независимое ревью перед PR, `verifier` — подтверждение, что всё работает.
-- Агенту передавать номера строк и названия разделов `index.html` (см. «Структура»), чтобы он не перечитывал весь файл.
+- Агента выбирать по задаче: `explore` — найти место в коде, `executor` — логика, `designer` — графика и интерфейс, `debugger` — ошибки, `critic` / `code-reviewer` — независимое ревью перед PR, `verifier` — подтверждение, что всё работает.
+- Агенту передавать файл, имена функций и строки (см. «Карта кода»), чтобы он не читал лишнего.
 - Мелочи (вопрос, правка в одну строку, одна команда) делать самому.
 - В отчёте писать, какие агенты что делали.
 
