@@ -377,6 +377,87 @@ grant execute on function public.me(), public.is_admin(), public.touch(), public
 insert into public.profiles(id, nick)
   select id, 'Игрок' || left(replace(id::text,'-',''), 8) from auth.users on conflict do nothing;
 
+/* ---- общий город: районы (Обновление 23) ---- */
+-- Районы те же, что в index.html (TOWN). Игрок пишет только через set_town/leave_town, читает через town_state.
+create table if not exists public.town(
+  user_id uuid primary key references public.profiles(id) on delete cascade,
+  alloc jsonb not null default '{}'::jsonb,
+  color text,
+  updated_at timestamptz not null default now(),
+  win_at timestamptz not null default now(),   -- начало часового окна для лимита вызовов
+  win_n int not null default 0
+);
+alter table public.town enable row level security;
+alter table public.town drop constraint if exists town_sane;
+alter table public.town add constraint town_sane check ((color is null or color ~ '^#[0-9a-fA-F]{6}$')
+  and jsonb_typeof(alloc) = 'object' and octet_length(alloc::text) <= 512) not valid;
+revoke all on public.town from anon, authenticated;
+grant select, insert, update, delete on public.town to authenticated;  -- права урезает RLS: только админ
+drop policy if exists town_admin on public.town;
+create policy town_admin on public.town for all to authenticated using (public.is_admin()) with check (public.is_admin());
+
+drop function if exists public.set_town(jsonb, text);
+create function public.set_town(p_alloc jsonb, p_color text) returns jsonb
+language plpgsql security definer set search_path = public as $$
+declare u uuid := public._uid(); k text; v numeric; s numeric := 0; lim int; w timestamptz; n int; a jsonb := '{}'::jsonb;
+  keys text[] := array['center','station','airport','sleep','univer','industry'];
+begin
+  if p_alloc is null or jsonb_typeof(p_alloc) <> 'object' then return jsonb_build_object('ok', false, 'err', 'Неверное распределение'); end if;
+  if p_color is not null and p_color !~ '^#[0-9a-fA-F]{6}$' then return jsonb_build_object('ok', false, 'err', 'Неверный цвет'); end if;
+  for k in select jsonb_object_keys(p_alloc) loop
+    if not (k = any(keys)) then return jsonb_build_object('ok', false, 'err', 'Неизвестный район'); end if;
+    if jsonb_typeof(p_alloc->k) <> 'number' then return jsonb_build_object('ok', false, 'err', 'Неверное число машин'); end if;
+    v := (p_alloc->>k)::numeric;
+    if v <> trunc(v) or v < 0 or v > 1000 then return jsonb_build_object('ok', false, 'err', 'Неверное число машин'); end if;
+    s := s + v;
+    if v > 0 then a := a || jsonb_build_object(k, v::int); end if;
+  end loop;
+  -- машин не больше, чем правдоподобно для дня партии (saves игрок пишет сам)
+  select least(cars, 10 + 3*coalesce(day,0), 300) into lim from public.saves where user_id = u;
+  if s > coalesce(lim, 10) then return jsonb_build_object('ok', false, 'err', 'Машин в районах больше, чем в парке'); end if;
+  select win_at, win_n into w, n from public.town where user_id = u;
+  if found and w >= now() - interval '1 hour' and n >= 60 then return jsonb_build_object('ok', false, 'err', 'Слишком часто, попробуйте позже'); end if;
+  insert into public.town(user_id, alloc, color, updated_at, win_at, win_n) values (u, a, p_color, now(), now(), 1)
+    on conflict (user_id) do update set alloc = excluded.alloc, color = excluded.color, updated_at = now(),
+      win_at = case when public.town.win_at < now() - interval '1 hour' then now() else public.town.win_at end,
+      win_n  = case when public.town.win_at < now() - interval '1 hour' then 1 else public.town.win_n + 1 end;
+  return jsonb_build_object('ok', true);
+end $$;
+
+drop function if exists public.town_state();
+create function public.town_state() returns table(nick text, alloc jsonb, color text, updated_at timestamptz, mine boolean)
+language plpgsql security definer set search_path = public as $$
+declare u uuid := public._uid();
+begin
+  return query select p.nick, t.alloc, t.color, t.updated_at, (t.user_id = u)
+    from public.town t join public.profiles p on p.id = t.user_id
+    where not p.banned and t.updated_at >= now() - interval '7 days'
+    order by t.updated_at desc;
+end $$;
+
+drop function if exists public.leave_town();
+create function public.leave_town() returns jsonb
+language plpgsql security definer set search_path = public as $$
+declare u uuid := public._uid();
+begin
+  -- строку не удаляем, чтобы не сбрасывать лимит вызовов; через 7 дней она и так не видна в town_state
+  update public.town set alloc = '{}'::jsonb, updated_at = now() - interval '8 days' where user_id = u;
+  return jsonb_build_object('ok', true);
+end $$;
+
+-- для админки: видит user_id, чтобы выгнать игрока из города
+drop function if exists public.admin_town();
+create function public.admin_town() returns table(user_id uuid, nick text, alloc jsonb, color text, updated_at timestamptz)
+language plpgsql security definer set search_path = public as $$
+begin
+  if not public.is_admin() then raise exception 'admin'; end if;
+  return query select t.user_id, p.nick, t.alloc, t.color, t.updated_at
+    from public.town t join public.profiles p on p.id = t.user_id order by t.updated_at desc;
+end $$;
+
+revoke execute on function public.set_town(jsonb,text), public.town_state(), public.leave_town(), public.admin_town() from public, anon, authenticated;
+grant execute on function public.set_town(jsonb,text), public.town_state(), public.leave_town(), public.admin_town() to authenticated;
+
 /* ---- сделать себя админом ---- */
 -- Сначала зарегистрируйтесь в игре, потом уберите «--» в начале строки, впишите свой ник вместо ВАШ_НИК и нажмите Run.
 -- insert into admins(id) select id from profiles where nick='ВАШ_НИК';

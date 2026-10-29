@@ -128,7 +128,7 @@ const balVal=(obj,nv,k)=>{for(let v=nv;v>0;v--)if(obj[v]&&k in obj[v])return obj
 
 /* ---- состояние страницы ---- */
 let tab='sum',D={},msg=null,busy=false,giftTo='';
-const TABS=[['sum','Сводка'],['pl','Игроки'],['bal','Баланс'],['ev','События'],['gf','Подарки'],['sc','Рекорды']];
+const TABS=[['sum','Сводка'],['pl','Игроки'],['bal','Баланс'],['ev','События'],['gf','Подарки'],['sc','Рекорды'],['tn','Город']];
 const root=$('app');
 const head=(who)=>`<header><div class="logo"><span class="checker"></span><h1>ДСТ-24: админка</h1></div>${who?`<div class="who"><span>${esc(st.login||'админ')}</span><button class="btn alt sm" id="out">Выйти</button></div>`:''}</header>`;
 const flash=(t,ok)=>{msg={t,ok};const e=$('msg');if(e){e.hidden=false;e.className='msg '+(ok?'ok':'err');e.textContent=t}};
@@ -177,11 +177,12 @@ async function load(){
   else if(tab==='bal'){const src=await loadSrc();D.b=parseBal(src);D.cfg=await q('/rest/v1/config?select=rev,base,patch,note,active,created_at&order=rev.desc&limit=200');D.chg={}}
   else if(tab==='ev'){D.ev=await q('/rest/v1/events?select=*&order=id.desc&limit=100')}
   else if(tab==='gf'){const src=await loadSrc();D.ach=parseAch(src);D.liv=parseLivery(src);[D.pl,D.gr,D.cl]=await Promise.all([rpc('admin_players'),q('/rest/v1/grants?select=*&order=id.desc&limit=100'),q('/rest/v1/grant_claims?select=grant_id&limit=5000')])}
-  else if(tab==='sc'){[D.sc,D.pl]=await Promise.all([q(sel.sc),rpc('admin_players')])}}
+  else if(tab==='sc'){[D.sc,D.pl]=await Promise.all([q(sel.sc),rpc('admin_players')])}
+  else if(tab==='tn'){D.tn=await rpc('admin_town')}}
 const nickOf=id=>{const p=(D.pl||[]).find(x=>x.id===id);return p?p.nick:'?'};
 
 /* ---- отрисовка ---- */
-function draw(){return{sum:dSum,pl:dPl,bal:dBal,ev:dEv,gf:dGf,sc:dSc}[tab]()}
+function draw(){return{sum:dSum,pl:dPl,bal:dBal,ev:dEv,gf:dGf,sc:dSc,tn:dTn}[tab]()}
 function dSum(){
   const p=D.pl||[],t0=new Date().setHours(0,0,0,0),w=Date.now()-7*864e5,ls=x=>x.last_seen?new Date(x.last_seen).getTime():0,top=D.top&&D.top[0];
   const c=(l,v)=>`<div class="stat px"><span class="lbl">${l}</span><span class="val">${v}</span></div>`;
@@ -247,6 +248,16 @@ function dSc(){
   <div class="kv"><span>режим: <em>${esc(MODES[s.mode]||s.mode)}</em></span><span>сложность: <em>${esc(s.diff||'—')}</em></span>${s.day_key?`<span>ключ: <em>${esc(s.day_key)}</em></span>`:''}<span>счёт: <em>${rub(s.score)}</em></span><span>звёзды: <em>${esc(s.stars)}</em></span><span>дней: <em>${esc(s.days)}</em></span></div>
   <div class="row"><button class="btn sm alt" data-hide="${esc(s.id)}" data-v="${s.hidden?0:1}">${s.hidden?'Показать':'Скрыть'}</button><button class="btn sm bad" data-sdel="${esc(s.id)}">Удалить</button></div></div>`).join('')}
 
+// город: районы те же, что в index.html (TOWN)
+const TOWN_N={center:'Центр',station:'Вокзал',airport:'Аэропорт',sleep:'Спальный',univer:'Студгородок',industry:'Промзона'};
+function dTn(){
+  const t=Array.isArray(D.tn)?D.tn:[];
+  const dist=Object.keys(TOWN_N).map(d=>{const r=t.map(x=>[x.nick,+(x.alloc&&x.alloc[d])||0]).filter(x=>x[1]>0).sort((a,b)=>b[1]-a[1]);
+    return`<div class="stat px"><span class="lbl">${esc(TOWN_N[d])}</span><span class="val">${r.reduce((a,x)=>a+x[1],0)}</span><span class="note">лидер: ${r.length>1&&r[0][1]>r[1][1]?esc(r[0][0]):'—'}</span></div>`}).join('');
+  return`<div class="stats">${dist}</div>`+(t.length?t.map(x=>`<div class="item px"><div class="top"><b>${esc(x.nick)}</b><span class="note">обновлено: ${dt(x.updated_at)}</span></div>
+  <div class="kv">${Object.keys(TOWN_N).map(d=>`<span>${esc(TOWN_N[d])}: <em>${esc(+(x.alloc&&x.alloc[d])||0)}</em></span>`).join('')}${x.color?`<span>цвет: <em>${esc(x.color)}</em></span>`:''}</div>
+  <div class="row"><button class="btn sm bad" data-tkick="${esc(x.user_id)}">Выгнать из города</button></div></div>`).join(''):'<p class="note">В городе пока никого.</p>')}
+
 /* ---- обработчики ---- */
 const P=(path,body)=>q(path,{method:'PATCH',body,prefer:'return=minimal'});
 const num=(id,lo,hi)=>{const v=+$(id).value;if($(id).value===''||!isFinite(v)||(lo!=null&&v<lo)||(hi!=null&&v>hi))throw new Error('Проверьте число в поле: допустимо '+(lo!=null?lo:'')+'…'+(hi!=null?hi:''));return v};
@@ -254,6 +265,7 @@ function bind(){
   const on=(sel_,fn)=>document.querySelectorAll(sel_).forEach(b=>b.onclick=()=>fn(b.dataset,b));
   on('[data-ban]',d=>act(()=>P('/rest/v1/profiles?id=eq.'+encodeURIComponent(d.ban),{banned:d.v==='1'}),d.v==='1'?'Игрок забанен':'Игрок разбанен'));
   on('[data-delsave]',d=>{if(confirm('Удалить облачное сохранение игрока '+nickOf(d.delsave)+'? Это нельзя отменить.'))act(()=>q('/rest/v1/saves?user_id=eq.'+encodeURIComponent(d.delsave),{method:'DELETE',prefer:'return=minimal'}),'Сохранение удалено')});
+  on('[data-tkick]',d=>{if(confirm('Выгнать игрока из города?'))act(()=>q('/rest/v1/town?user_id=eq.'+encodeURIComponent(d.tkick),{method:'DELETE',prefer:'return=minimal'}),'Игрок выгнан из города')});
   on('[data-gift]',d=>{giftTo=d.gift;tab='gf';view()});
   on('[data-cfg]',d=>act(()=>P('/rest/v1/config?rev=eq.'+encodeURIComponent(d.cfg),{active:d.v==='1'}),d.v==='1'?'Правка включена':'Правка отключена'));
   on('[data-eact]',d=>act(()=>P('/rest/v1/events?id=eq.'+encodeURIComponent(d.eact),{active:d.v==='1'}),'Готово'));
