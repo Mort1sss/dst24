@@ -300,6 +300,7 @@ alter table public.mail        enable row level security;
 
 revoke all on all tables in schema public from anon, authenticated;
 revoke all on all sequences in schema public from anon, authenticated;
+grant usage on schema public to anon, authenticated;              -- на случай, если при создании проекта сняли «Автоматически отображать новые таблицы»
 
 grant select on public.config, public.events to anon;
 grant select on public.leaderboard, public.grant_claims to authenticated;
