@@ -309,9 +309,9 @@ language plpgsql security definer set search_path = public as $$
 begin
   perform public._uid();  -- только вошедшим и не забаненным
   return query select p.nick, h.fr_count, h.hold_val,
-      public._hold_medals(s.meta, '1'),
-      public._hold_medals(s.meta, '2'),
       public._hold_medals(s.meta, '3'),
+      public._hold_medals(s.meta, '2'),
+      public._hold_medals(s.meta, '1'),
       s.updated_at
     from public.saves s join public.profiles p on p.id = s.user_id
     cross join lateral public._hold_stats(s.meta, p.created_at) h
