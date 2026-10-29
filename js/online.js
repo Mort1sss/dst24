@@ -47,16 +47,24 @@ async function signOut(){if(netSt.tok)netReq('/auth/v1/logout',{method:'POST'},f
 /* ---- облачные сохранения ---- */
 let netHold=false,netPushT=0;
 const cloudOk=()=>online()&&!netOff&&S&&!S.preview&&S.mode!=='sandbox'&&!netHold;
+const livOpen=()=>Object.entries(UNLOCK.livery||{}).filter(([,a])=>G.ach&&G.ach[a]).map(([k])=>k);
+function metaMerge(m){ // мета всегда объединяется, независимо от выбора партии
+  if(!m||typeof m!=='object')return;try{
+    const h0=JSON.stringify(G.hold),a0=Object.keys(G.ach||{}).length;
+    G.hold=holdMerge(holdG(),m.hold);G.ach=G.ach||{};
+    (Array.isArray(m.ach)?m.ach:[]).slice(0,500).forEach(k=>{if(typeof k==='string'&&k.length<40)G.ach[k]=true});
+    (Array.isArray(m.liv)?m.liv:[]).slice(0,100).forEach(k=>{const a=UNLOCK.livery&&UNLOCK.livery[String(k)];if(a)G.ach[a]=true});
+    if(JSON.stringify(G.hold)!==h0||Object.keys(G.ach).length!==a0){saveG();cloudPush(true)}}catch(e){}}
 async function cloudPush(force,keep){
   if(!cloudOk()||(!force&&Date.now()-netPushT<30000))return;netPushT=Date.now();
-  const body={data:S,mode:S.mode,day:S.day,money:Math.round(S.money),cars:totalCars(),stars:S.stars||0,bal:S.bal||1,updated_at:new Date().toISOString()};
+  const body={data:S,meta:{hold:holdG(),ach:Object.keys(G.ach||{}),liv:livOpen(),at:Date.now()},mode:S.mode,day:S.day,money:Math.round(S.money),cars:totalCars(),stars:S.stars||0,bal:S.bal||1,updated_at:new Date().toISOString()};
   await api('/rest/v1/saves?on_conflict=user_id',{method:'POST',prefer:'resolution=merge-duplicates,return=minimal',body,keep:!!keep&&JSON.stringify(body).length<60000})}
 const cloudInfo=r=>`${{campaign:'кампания',endless:'бесконечный',story:'сюжет',daily:'испытание дня',contest:'соревнование'}[r.mode]||esc(r.mode)}, день ${esc(r.day)}, касса ${rub(r.money)}${r.at?`, сохранено ${esc(new Date(r.at).toLocaleString('ru-RU',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}))}`:''}`;
 const netBusy=()=>!$('modal').hidden||!!(S&&S.morning&&S.morning.length);
 async function cloudPull(tries=0){
   if(!online()||netOff)return;
-  const a=await api('/rest/v1/saves?select=data,mode,day,money,updated_at&limit=1');if(!a)return;
-  const c=a[0],mine=S&&!S.preview&&S.mode!=='sandbox';
+  const a=await api('/rest/v1/saves?select=data,meta,mode,day,money,updated_at&limit=1');if(!a)return;
+  const c=a[0],mine=S&&!S.preview&&S.mode!=='sandbox';if(c)metaMerge(c.meta);
   if(!c||!c.data||!c.data.fleet){if(mine)cloudPush(true);return}
   const use=()=>{S=Object.assign(fixState(c.data),{preview:false});ctSync(S);movers=[];save();hideModal();render();toast('Загружено из облака: день '+S.day);
     if(S.over){hasLimit()&&S.day>dayLimit()?finale():gameOver()}else if(S.morning&&S.morning.length)runMorning()};
@@ -294,9 +302,16 @@ function drawTown(cv,state){const g=cv.getContext('2d'),cs=getComputedStyle(docu
   cv.onclick=e=>{const b=cv.getBoundingClientRect(),px=(e.clientX-b.left)/b.width*192,py=(e.clientY-b.top)/b.height*128;
     const d=TOWN_KEYS.find(k=>{const r=TOWN[k].r;return px>=r[0]&&px<r[0]+r[2]&&py>=r[1]&&py<r[1]+r[3]});if(!d)return;
     townSel=d;drawTown(cv,state);const el=$('td-'+d);if(el){document.querySelectorAll('.tdrow').forEach(q=>q.style.outline='');el.style.outline='3px solid var(--taxi)';try{el.scrollIntoView({block:'center',behavior:'smooth'})}catch(x){el.scrollIntoView()}}}}
-const cityTabs=t=>`<div class="tabs"><button class="tab" style="min-height:44px${t==='map'?';background:var(--taxi);color:var(--edge)':''}" id="ctTm">Карта</button><button class="tab" style="min-height:44px${t==='pk'?';background:var(--taxi);color:var(--edge)':''}" id="ctTp">Таксопарки</button></div>`;
-const cityTabBind=()=>{$('ctTm').onclick=()=>openCity('map');$('ctTp').onclick=()=>openCity('pk')};
-const openCity=t=>t==='pk'?cityParks():cityMap();
+const cityTabs=t=>`<div class="tabs"><button class="tab" style="min-height:44px${t==='map'?';background:var(--taxi);color:var(--edge)':''}" id="ctTm">Карта</button><button class="tab" style="min-height:44px${t==='pk'?';background:var(--taxi);color:var(--edge)':''}" id="ctTp">Таксопарки</button><button class="tab" style="min-height:44px${t==='hd'?';background:var(--taxi);color:var(--edge)':''}" id="ctTh">Холдинги</button></div>`;
+const cityTabBind=()=>{$('ctTm').onclick=()=>openCity('map');$('ctTp').onclick=()=>openCity('pk');$('ctTh').onclick=()=>openCity('hd')};
+const openCity=t=>t==='pk'?cityParks():t==='hd'?cityHold():cityMap();
+async function cityHold(){
+  const bk=()=>{$('ctBack').onclick=()=>openNetModal();cityTabBind()};
+  showModal(`<span class="step">ГОРОД</span><h2>Город</h2>${cityTabs('hd')}<p class="kind">загрузка…</p><div class="btns"><button class="btn ghost" id="ctBack">Назад</button></div>`);bk();
+  const l=await rpc('holdings');if(!$('ctBack'))return;const rows=Array.isArray(l)?l.slice(0,20):null;
+  showModal(`<span class="step">ГОРОД</span><h2>Город</h2>${cityTabs('hd')}<p class="note">Холдинги: проданные парки остаются франшизами. Оценка — сумма стоимости франшиз.</p>
+    ${!rows?'<p class="kind">нет связи</p>':!rows.length?'<p class="kind">Пока пусто.</p>':`<div class="tablewrap"><table><thead><tr><th>Игрок</th><th>Франшиз</th><th>Оценка</th></tr></thead><tbody>${rows.map(r=>`<tr${r.nick===netSt.nick?' style="outline:3px solid var(--taxi)"':''}><td>${esc(r.nick)}<br><span class="sub">${esc('🥇'.repeat(Math.min(9,+r.golds||0))+'🥈'.repeat(Math.min(9,+r.silvers||0))+'🥉'.repeat(Math.min(9,+r.bronzes||0)))}</span></td><td>${+r.fr_count||0}</td><td>${rub(+r.hold_val||0)}</td></tr>`).join('')}</tbody></table></div>`}
+    <div class="btns"><button class="btn ghost" id="ctBack">Назад</button></div>`);bk()}
 async function cityMap(){
   showModal(`<span class="step">ГОРОД</span><h2>Город</h2>${cityTabs('map')}<p class="kind">загрузка…</p><div class="btns"><button class="btn ghost" id="ctBack">Назад</button></div>`);
   $('ctBack').onclick=()=>openNetModal();cityTabBind();

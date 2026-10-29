@@ -191,7 +191,7 @@ function dSum(){
 function dPl(){
     if(!D.pl.length)return'<p class="note">Игроков нет.</p>';
   return D.pl.map(p=>{const s=p.updated_at||p.mode?p:null;return`<div class="item px"><div class="top"><b>${esc(p.nick)} ${p.banned?'<span class="tag bad">БАН</span>':''}</b><span class="note">вход: ${dt(p.last_seen)}</span></div>
-  ${s?`<div class="kv"><span>режим: <em>${esc(MODES[s.mode]||s.mode)}</em></span><span>день: <em>${esc(s.day)}</em></span><span>касса: <em>${rub(s.money)}</em></span><span>машины: <em>${esc(s.cars)}</em></span><span>звёзды: <em>${esc(s.stars)}</em></span><span>баланс: <em>${esc(s.bal)}</em></span><span>обновлено: <em>${dt(s.updated_at)}</em></span></div>`:'<p class="note">Облачного сохранения нет.</p>'}
+  ${s?`<div class="kv"><span>режим: <em>${esc(MODES[s.mode]||s.mode)}</em></span><span>день: <em>${esc(s.day)}</em></span><span>касса: <em>${rub(s.money)}</em></span><span>машины: <em>${esc(s.cars)}</em></span><span>звёзды: <em>${esc(s.stars)}</em></span><span>баланс: <em>${esc(s.bal)}</em></span>${+p.fr_count?`<span>франшиз: <em>${esc(p.fr_count)}</em></span><span>холдинг: <em>${rub(+p.hold_val||0)}</em></span>`:''}<span>обновлено: <em>${dt(s.updated_at)}</em></span></div>`:'<p class="note">Облачного сохранения нет.</p>'}
   <div class="row"><button class="btn sm ${p.banned?'alt':'bad'}" data-ban="${esc(p.id)}" data-v="${p.banned?0:1}">${p.banned?'Разбан':'Бан'}</button><button class="btn sm alt" data-gift="${esc(p.id)}">Подарок</button>${s?`<button class="btn sm alt" data-delsave="${esc(p.id)}">Удалить сохранение</button>`:''}</div></div>`}).join('')}
 // число/объект чисел -> поля ввода; остальное только просмотр
 const isNum=v=>typeof v==='number'&&isFinite(v);
