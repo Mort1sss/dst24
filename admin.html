@@ -1,0 +1,296 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#1d1838">
+<link rel="icon" href="icon-192.png">
+<title>Диспетчерская ДСТ-24: админка</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=PT+Mono&display=swap">
+<style>
+:root{
+  --night:#1d1838; --panel:#2a2450; --panel-2:#352d63; --edge:#0e0b1c;
+  --ink:#f3ecdc; --muted:#a8a0cc; --taxi:#f7c331;
+  --good:#86e06f; --bad:#ff6b6b; --deep:#1b1530; --hover:#41387a;
+  --f-display:"Press Start 2P","PT Mono",monospace; --f-body:"PT Mono","Courier New",monospace;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{margin:0;background:var(--night);color:var(--ink);font-family:var(--f-body);font-size:16px;line-height:1.4}
+.wrap{max-width:1140px;margin:0 auto;padding:20px max(16px,env(safe-area-inset-right)) 40px max(16px,env(safe-area-inset-left));display:grid;gap:14px}
+h1,h2,h3{font-family:var(--f-display);font-weight:400;margin:0;text-wrap:balance}
+h1{font-size:clamp(13px,2.6vw,18px);color:var(--taxi);text-shadow:3px 3px 0 var(--edge)}
+h2{font-size:12px;color:var(--taxi)} h3{font-size:10px;color:var(--muted)}
+p{margin:0} .note{color:var(--muted);font-size:14px}
+button{font:inherit;color:inherit;cursor:pointer}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:3px solid var(--taxi);outline-offset:2px}
+.px{border:3px solid var(--edge);box-shadow:4px 4px 0 var(--edge)}
+header{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px}
+.logo{display:flex;align-items:center;gap:12px}
+.checker{width:36px;height:24px;flex:none;background:conic-gradient(var(--edge) 25%,var(--taxi) 0 50%,var(--edge) 0 75%,var(--taxi) 0) 0 0/12px 12px;border:3px solid var(--edge)}
+.who{display:flex;gap:8px;align-items:center;font-size:14px;color:var(--muted)}
+.btn{font-family:var(--f-display);font-size:10px;line-height:1.3;min-height:44px;padding:10px 14px;background:var(--taxi);color:var(--edge);border:3px solid var(--edge);box-shadow:3px 3px 0 var(--edge)}
+.btn:active{transform:translate(2px,2px);box-shadow:1px 1px 0 var(--edge)}
+.btn.alt{background:var(--panel-2);color:var(--ink)} .btn.bad{background:var(--bad);color:var(--edge)}
+.btn.sm{min-height:40px;font-size:9px;padding:8px 10px}
+.btn[disabled]{opacity:.5;cursor:default}
+.tabs{display:flex;flex-wrap:wrap;gap:8px}
+.tab{font-family:var(--f-display);font-size:9px;min-height:44px;padding:8px 12px;background:var(--panel-2);border:3px solid var(--edge);box-shadow:3px 3px 0 var(--edge)}
+.tab.on{background:var(--taxi);color:var(--edge)}
+.card{background:var(--panel);padding:14px;display:grid;gap:12px;min-width:0}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.stat{background:var(--panel);padding:12px;display:grid;gap:6px}
+.stat .lbl{font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.stat .val{font-family:var(--f-display);font-size:13px;color:var(--taxi);overflow-wrap:anywhere}
+input,select,textarea{font:inherit;color:var(--ink);background:var(--deep);border:3px solid var(--edge);padding:8px 10px;min-height:44px;width:100%;min-width:0}
+textarea{min-height:70px;resize:vertical}
+label{display:grid;gap:4px;font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;min-width:0}
+.form{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.list{display:grid;gap:10px}
+.item{background:var(--deep);border:3px solid var(--edge);padding:10px 12px;display:grid;gap:8px;min-width:0}
+.item .top{display:flex;flex-wrap:wrap;gap:6px 12px;justify-content:space-between;align-items:baseline}
+.item b{overflow-wrap:anywhere}
+.kv{display:flex;flex-wrap:wrap;gap:4px 16px;font-size:14px;color:var(--muted)} .kv span{white-space:nowrap}
+.kv em{font-style:normal;color:var(--ink)}
+.tag{font-family:var(--f-display);font-size:8px;padding:4px 6px;background:var(--panel-2);border:2px solid var(--edge);display:inline-block}
+.tag.bad{background:var(--bad);color:var(--edge)} .tag.good{background:var(--good);color:var(--edge)}
+.msg{padding:10px 12px;border:3px solid var(--edge);background:var(--panel-2)} .msg.err{background:var(--bad);color:var(--edge)} .msg.ok{background:var(--good);color:var(--edge)}
+.login{max-width:420px;margin:8vh auto 0}
+.bal{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px}
+.bal .it{background:var(--deep);border:3px solid var(--edge);padding:8px 10px;display:grid;gap:6px;min-width:0}
+.bal .it.ch{border-color:var(--taxi)}
+.bal .sub{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.bal code,.ro{font-size:13px;color:var(--muted);overflow-wrap:anywhere}
+.bal .k{font-family:var(--f-display);font-size:9px;color:var(--ink)}
+.warn{background:var(--panel-2);border-left:6px solid var(--taxi);padding:10px 12px;font-size:14px}
+@media (max-width:520px){.btn{font-size:9px}.row .btn{flex:1 1 auto}.item .row .btn{flex:1 1 40%}}
+</style>
+</head>
+<body>
+<div class="wrap" id="app"></div>
+<script>
+const $=id=>document.getElementById(id);
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const rub=n=>Math.round(+n||0).toLocaleString('ru-RU')+' ₽';
+const dt=s=>{if(!s)return'—';const d=new Date(s);return isNaN(d)?'—':d.toLocaleString('ru-RU',{day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'})};
+const MODES={campaign:'Кампания',endless:'Бесконечный',story:'Сюжет',daily:'Испытание дня',contest:'Соревнование',sandbox:'Песочница'};
+
+/* ---- сеть (копия сетевого слоя игры; хранилище своё) ---- */
+const NET={url:'',key:'',mail:'mort1sss.github.io'};
+const AKEY='dst24-admin-v1';
+let st={};try{st=JSON.parse(localStorage.getItem(AKEY))||{}}catch(e){}
+const stSave=()=>{try{localStorage.setItem(AKEY,JSON.stringify(st))}catch(e){}};
+async function netReq(path,o={},retry=true){
+  if(!NET.url)return{ok:false,st:0};
+  const ac=new AbortController(),tm=setTimeout(()=>ac.abort(),8000);
+  try{
+    const h={apikey:NET.key,Authorization:'Bearer '+((o.auth!==false&&st.tok)||NET.key),'Content-Type':'application/json'};if(o.prefer)h.Prefer=o.prefer;
+    const r=await fetch(NET.url.replace(/\/$/,'')+path,{method:o.method||'GET',headers:h,body:o.body!=null?JSON.stringify(o.body):undefined,signal:ac.signal});
+    let d=null;try{d=await r.json()}catch(e){}
+    if(r.status===401&&retry&&o.auth!==false&&st.ref&&await refresh())return netReq(path,o,false);
+    return{ok:r.ok,st:r.status,data:d}}
+  catch(e){return{ok:false,st:0}}finally{clearTimeout(tm)}}
+let refP=null;
+const refresh=()=>refP||(refP=(async()=>{const r=await netReq('/auth/v1/token?grant_type=refresh_token',{method:'POST',body:{refresh_token:st.ref},auth:false},false);
+  if(r.ok&&r.data&&r.data.access_token){tokens(r.data);return true}
+  if(r.st>=400&&r.st<500){st.tok=st.ref=null;stSave()}return false})().finally(()=>{refP=null}));
+const tokens=d=>{st.tok=d.access_token;st.ref=d.refresh_token;if(d.user)st.uid=d.user.id;stSave()};
+// админская обёртка: данные или исключение с понятным текстом
+async function q(path,o){const r=await netReq(path,o);
+  if(r.ok)return r.data==null?{}:r.data;
+  if(!r.st)throw new Error('Нет связи');
+  const d=r.data||{};throw new Error('Сервер отклонил: '+(d.message||d.msg||d.error_description||d.hint||r.st))}
+const rpc=(n,a)=>q('/rest/v1/rpc/'+n,{method:'POST',body:a||{}});
+const errTx=e=>e&&e.message?e.message:'Нет связи';
+
+/* ---- разбор констант из index.html (тот же сайт, свой файл) ---- */
+let SRC='';
+async function loadSrc(){if(SRC)return SRC;const r=await fetch('index.html',{cache:'no-store'});if(!r.ok)throw new Error('index.html не загрузился');return SRC=await r.text()}
+function parseNet(src){
+  const m=/const\s+NET\s*=\s*\{([^}]*)\}/.exec(src);if(!m)return null;
+  const f=k=>{const r=new RegExp(k+"\\s*:\\s*(['\"])(.*?)\\1").exec(m[1]);return r?r[2]:''};
+  return{url:f('url'),key:f('key'),mail:f('mail')||'mort1sss.github.io'}}
+function parseBal(src){
+  const a=src.indexOf('BAL_NEW='),b=src.indexOf('BAL={',a);if(a<0||b<0)throw new Error('BAL не найден');
+  const nv=+/BAL_NEW\s*=\s*(\d+)/.exec(src.slice(a,a+30))[1],e=src.indexOf('}};',b);
+  // new Function: это собственный файл игры с того же сайта, не пользовательский ввод; комментарии внутри объекта допустимы
+  const obj=new Function('return '+src.slice(b+4,e+2))();
+  return{nv,obj}}
+function parseList(src,start,end,re){const a=src.indexOf(start);if(a<0)return[];const b=src.indexOf(end,a);const t=src.slice(a,b<0?undefined:b),o=[];let m;while((m=re.exec(t)))o.push([m[1],m[2]]);return o}
+const parseAch=src=>parseList(src,'const ACH=[','\n];',/^\s*\['([a-z0-9_]+)','([^']+)'/gm);
+function parseLivery(src){const m=/const\s+LIVERY\s*=\s*\{([^}]*)\}/.exec(src);if(!m)return[];const o=[],re=/([a-z0-9_]+)\s*:\s*'([^']*)'/g;let x;while((x=re.exec(m[1])))o.push([x[1],x[2]]);return o}
+// действующее значение, как bal(): от версии вниз
+const balVal=(obj,nv,k)=>{for(let v=nv;v>0;v--)if(obj[v]&&k in obj[v])return obj[v][k]};
+
+/* ---- состояние страницы ---- */
+let tab='sum',D={},msg=null,busy=false,giftTo='';
+const TABS=[['sum','Сводка'],['pl','Игроки'],['bal','Баланс'],['ev','События'],['gf','Подарки'],['sc','Рекорды']];
+const root=$('app');
+const head=(who)=>`<header><div class="logo"><span class="checker"></span><h1>ДСТ-24: админка</h1></div>${who?`<div class="who"><span>${esc(st.login||'админ')}</span><button class="btn alt sm" id="out">Выйти</button></div>`:''}</header>`;
+const flash=(t,ok)=>{msg={t,ok};const e=$('msg');if(e){e.hidden=false;e.className='msg '+(ok?'ok':'err');e.textContent=t}};
+
+/* ---- старт ---- */
+async function boot(){
+  root.innerHTML=head(0)+'<p class="note">Загрузка…</p>';
+  try{const src=await loadSrc(),n=parseNet(src);if(n)Object.assign(NET,n)}catch(e){}
+  if(!NET.url){root.innerHTML=head(0)+'<div class="card px"><h2>Онлайн не настроен</h2><p>Адрес проекта не вписан в <code>index.html</code>. См. <code>supabase/README.md</code>.</p></div>';return}
+  if(st.tok&&await checkAdmin())return;
+  loginView()}
+function loginView(m){
+  root.innerHTML=head(0)+`<form class="card px login" id="lf"><h2>Вход</h2><label>Логин<input id="lg" autocomplete="username" autocapitalize="none" value="${esc(st.login||'')}"></label><label>Пароль<input id="pw" type="password" autocomplete="current-password"></label>
+  <div class="msg err" id="msg" ${m?'':'hidden'}>${esc(m||'')}</div><button class="btn" id="go">Войти</button></form>`;
+  $('lf').onsubmit=async ev=>{ev.preventDefault();const lg=$('lg').value.trim().toLowerCase(),pw=$('pw').value;
+    if(!/^[a-z0-9_]{3,20}$/.test(lg)||!pw)return flash('Неверный логин или пароль');
+    $('go').disabled=true;
+    const r=await netReq('/auth/v1/token?grant_type=password',{method:'POST',body:{email:lg+'@'+NET.mail,password:pw},auth:false});
+    if(!r.st){$('go').disabled=false;return flash('Нет связи')}
+    if(!r.ok||!r.data||!r.data.access_token){$('go').disabled=false;return flash('Неверный логин или пароль')}
+    tokens(r.data);st.login=lg;stSave();
+    if(!await checkAdmin()){} }}
+async function checkAdmin(){
+  try{const a=await rpc('is_admin');
+    if(a===true){view();return true}
+    root.innerHTML=head(0)+'<div class="card px"><h2>Нет прав</h2><p>Этот аккаунт не админ.</p><button class="btn" id="out">Выйти</button></div>';
+    $('out').onclick=logout;return true}
+  catch(e){const bad=/Сервер/.test(errTx(e));if(bad){st.tok=st.ref=null;stSave()}loginView(errTx(e));return true}}
+function logout(){if(st.tok)netReq('/auth/v1/logout',{method:'POST'},false);st={};stSave();D={};loginView()}
+
+/* ---- каркас ---- */
+function view(){
+  root.innerHTML=head(1)+`<div class="tabs" role="tablist">${TABS.map(([k,l])=>`<button class="tab${tab===k?' on':''}" role="tab" data-t="${k}">${l}</button>`).join('')}</div><div class="msg ${msg&&msg.ok?'ok':'err'}" id="msg" ${msg?'':'hidden'}>${esc(msg?msg.t:'')}</div><main id="body" class="list"><p class="note">Загрузка…</p></main>`;
+  msg=null;$('out').onclick=logout;
+  root.querySelectorAll('[data-t]').forEach(b=>b.onclick=()=>{tab=b.dataset.t;view()});
+  load().then(()=>{const b=$('body');if(b)b.innerHTML=draw();bind()}).catch(e=>{const b=$('body');if(b)b.innerHTML=`<div class="msg err">${esc(errTx(e))}</div>`})}
+const reload=async(ok)=>{if(ok)msg={t:ok,ok:1};view()};
+const act=async(fn,ok)=>{if(busy)return;busy=true;try{await fn();busy=false;await reload(ok)}catch(e){busy=false;flash(errTx(e))}};
+
+/* ---- загрузка данных по вкладкам ---- */
+const sel={
+  sc:'/rest/v1/scores?select=id,user_id,mode,diff,day_key,score,stars,days,hidden,created_at&order=created_at.desc&limit=100'};
+async function load(){
+  if(tab==='sum'){const[p,s]=await Promise.all([rpc('admin_players'),q('/rest/v1/scores?select=user_id,mode,score,created_at&order=score.desc&limit=1&created_at=gte.'+encodeURIComponent(new Date(new Date().setHours(0,0,0,0)).toISOString()))]);D.pl=p;D.top=s}
+  else if(tab==='pl'){D.pl=await rpc('admin_players')}
+  else if(tab==='bal'){const src=await loadSrc();D.b=parseBal(src);D.cfg=await q('/rest/v1/config?select=rev,base,patch,note,active,created_at&order=rev.desc&limit=200');D.chg={}}
+  else if(tab==='ev'){D.ev=await q('/rest/v1/events?select=*&order=id.desc&limit=100')}
+  else if(tab==='gf'){const src=await loadSrc();D.ach=parseAch(src);D.liv=parseLivery(src);[D.pl,D.gr,D.cl]=await Promise.all([rpc('admin_players'),q('/rest/v1/grants?select=*&order=id.desc&limit=100'),q('/rest/v1/grant_claims?select=grant_id&limit=5000')])}
+  else if(tab==='sc'){[D.sc,D.pl]=await Promise.all([q(sel.sc),rpc('admin_players')])}}
+const nickOf=id=>{const p=(D.pl||[]).find(x=>x.id===id);return p?p.nick:'?'};
+
+/* ---- отрисовка ---- */
+function draw(){return{sum:dSum,pl:dPl,bal:dBal,ev:dEv,gf:dGf,sc:dSc}[tab]()}
+function dSum(){
+  const p=D.pl||[],t0=new Date().setHours(0,0,0,0),w=Date.now()-7*864e5,ls=x=>x.last_seen?new Date(x.last_seen).getTime():0,top=D.top&&D.top[0];
+  const c=(l,v)=>`<div class="stat px"><span class="lbl">${l}</span><span class="val">${v}</span></div>`;
+  return`<div class="stats">${c('Игроков всего',p.length)}${c('Заходили сегодня',p.filter(x=>ls(x)>=t0).length)}${c('За 7 дней',p.filter(x=>ls(x)>=w).length)}${c('Забанено',p.filter(x=>x.banned).length)}</div>
+  <div class="card px"><h2>Лучший результат дня</h2>${top?`<p><b>${esc(nickOf(top.user_id))}</b>: ${rub(top.score)} <span class="note">(${esc(MODES[top.mode]||top.mode)})</span></p>`:'<p class="note">Сегодня рекордов ещё нет.</p>'}</div>`}
+function dPl(){
+    if(!D.pl.length)return'<p class="note">Игроков нет.</p>';
+  return D.pl.map(p=>{const s=p.updated_at||p.mode?p:null;return`<div class="item px"><div class="top"><b>${esc(p.nick)} ${p.banned?'<span class="tag bad">БАН</span>':''}</b><span class="note">вход: ${dt(p.last_seen)}</span></div>
+  ${s?`<div class="kv"><span>режим: <em>${esc(MODES[s.mode]||s.mode)}</em></span><span>день: <em>${esc(s.day)}</em></span><span>касса: <em>${rub(s.money)}</em></span><span>машины: <em>${esc(s.cars)}</em></span><span>звёзды: <em>${esc(s.stars)}</em></span><span>баланс: <em>${esc(s.bal)}</em></span><span>обновлено: <em>${dt(s.updated_at)}</em></span></div>`:'<p class="note">Облачного сохранения нет.</p>'}
+  <div class="row"><button class="btn sm ${p.banned?'alt':'bad'}" data-ban="${esc(p.id)}" data-v="${p.banned?0:1}">${p.banned?'Разбан':'Бан'}</button><button class="btn sm alt" data-gift="${esc(p.id)}">Подарок</button>${s?`<button class="btn sm alt" data-delsave="${esc(p.id)}">Удалить сохранение</button>`:''}</div></div>`}).join('')}
+// число/объект чисел -> поля ввода; остальное только просмотр
+const isNum=v=>typeof v==='number'&&isFinite(v);
+function balField(k,v,path){
+  if(isNum(v))return`<input type="number" step="any" data-bk="${esc(path)}" data-o="${v}" value="${v}" aria-label="${esc(path)}">`;
+  if(v&&typeof v==='object'&&!Array.isArray(v)&&Object.values(v).every(isNum))return`<div class="sub">${Object.entries(v).map(([a,x])=>`<label>${esc(a)}<input type="number" step="any" data-bk="${esc(path+'.'+a)}" data-o="${x}" value="${x}"></label>`).join('')}</div>`;
+  return`<code class="ro">${esc(JSON.stringify(v))}</code>`}
+// текущее значение = BAL плюс все включённые правки этой базы по порядку rev (клиент сливает так же)
+const balCur=(obj,nv,k,cfg)=>{let v=balVal(obj,nv,k);(cfg||[]).filter(c=>c.active&&+c.base===nv&&c.patch&&typeof c.patch==='object'&&k in c.patch).sort((x,y)=>x.rev-y.rev).forEach(c=>{const p=c.patch[k];
+  if(isNum(v)&&isNum(p))v=p;else if(v&&typeof v==='object'&&!Array.isArray(v)&&p&&typeof p==='object')v=Object.fromEntries(Object.entries(v).map(([a,x])=>[a,isNum(x)&&isNum(p[a])?p[a]:x]))});return v};
+function dBal(){
+  const{nv,obj}=D.b,keys=[...new Set(Object.values(obj).flatMap(o=>Object.keys(o)))];
+  const act_=D.cfg.find(c=>c.active);
+  return`<div class="warn">Правка действует только на новые партии (версия баланса ${nv}). Начатые партии играют по своим числам. Работают только числовые ключи.</div>
+  <div class="card px"><h2>Ключи BAL (версия ${nv})</h2><div class="bal">${keys.map(k=>{const v=balCur(obj,nv,k,D.cfg);return`<div class="it" data-w="${esc(k)}"><span class="k">${esc(k)}</span>${balField(k,v,k)}</div>`}).join('')}</div>
+  <label>Заметка к правке<input id="bnote" maxlength="120" placeholder="например: легче цель на Хардкоре"></label><button class="btn" id="bsave">Сохранить правку</button></div>
+  <div class="card px"><h2>Последние правки</h2>${D.cfg.length?`<div class="list">${D.cfg.map(c=>`<div class="item"><div class="top"><b>rev ${esc(c.rev)} ${c.active?'<span class="tag good">ВКЛ</span>':'<span class="tag">ВЫКЛ</span>'}</b><span class="note">${dt(c.created_at)} · база ${esc(c.base)}</span></div>
+  ${c.note?`<p>${esc(c.note)}</p>`:''}<code class="ro">${esc(JSON.stringify(c.patch))}</code><div class="row"><button class="btn sm ${c.active?'alt':''}" data-cfg="${esc(c.rev)}" data-v="${c.active?0:1}">${c.active?'Отключить':'Включить'}</button></div></div>`).join('')}</div>`:'<p class="note">Правок ещё не было.</p>'}</div>`}
+function dEv(){
+  const k=['news','rev','cash','event','contest'],kn={news:'Новость',rev:'Выручка ×k',cash:'Выплата',event:'Событие отдела',contest:'Соревнование'};
+  return`<form class="card px" id="evf"><h2>Новое событие</h2><div class="form">
+  <label>Тип<select id="ek">${k.map(x=>`<option value="${x}">${kn[x]}</option>`).join('')}</select></label>
+  <label>Заголовок<input id="et" maxlength="80" required></label>
+  <label>С<input id="es" type="date"></label><label>По<input id="ee" type="date"></label></div>
+  <label>Текст<textarea id="ex" maxlength="400"></textarea></label>
+  <div class="form" id="ep"></div><button class="btn">Создать</button></form>
+  <div class="card px"><h2>События (${D.ev.length})</h2>${D.ev.length?`<div class="list">${D.ev.map(e=>`<div class="item"><div class="top"><b>${esc(e.title)} ${e.active?'<span class="tag good">ВКЛ</span>':'<span class="tag">ВЫКЛ</span>'}</b><span class="tag">${esc(kn[e.kind]||e.kind)}</span></div>
+  ${e.text?`<p>${esc(e.text)}</p>`:''}<div class="kv"><span>с: <em>${esc(e.starts||'—')}</em></span><span>по: <em>${esc(e.ends||'—')}</em></span><span>${esc(JSON.stringify(e.params||{}))}</span></div>
+  <div class="row"><button class="btn sm alt" data-eact="${esc(e.id)}" data-v="${e.active?0:1}">${e.active?'Выключить':'Включить'}</button><button class="btn sm bad" data-edel="${esc(e.id)}">Удалить</button></div></div>`).join('')}</div>`:'<p class="note">Событий нет.</p>'}</div>`}
+function epFields(k){
+  return{news:'<p class="note">Параметров нет.</p>',
+   rev:'<label>k выручки (0.5–1.5)<input id="p_k" type="number" step="0.01" min="0.5" max="1.5" value="1.1"></label>',
+   cash:'<label>Сумма, ₽<input id="p_a" type="number" step="1" value="10000"></label>',
+   event:'<label>Отдел (0–2)<input id="p_d" type="number" min="0" max="2" step="1" value="0"></label><label>id события<input id="p_i" maxlength="40"></label>',
+   contest:'<label>Seed<div class="row"><input id="p_s" type="number" step="1" style="flex:1 1 120px"><button type="button" class="btn alt sm" id="p_r">Случайный</button></div></label><label>Сложность<select id="p_f"><option>easy</option><option selected>normal</option><option>hard</option></select></label>'}[k]}
+function dGf(){
+  const act_=['ach','money','livery','note'],kn={ach:'Достижение',money:'Деньги',livery:'Раскраска',note:'Записка'};
+  const cl={};D.cl.forEach(c=>cl[c.grant_id]=(cl[c.grant_id]||0)+1);
+  return`<form class="card px" id="gff"><h2>Новый подарок</h2><div class="form">
+  <label>Кому<select id="gu"><option value="">Всем</option>${D.pl.map(p=>`<option value="${esc(p.id)}" ${p.id===giftTo?'selected':''}>${esc(p.nick)}</option>`).join('')}</select></label>
+  <label>Тип<select id="gk">${act_.map(x=>`<option value="${x}">${kn[x]}</option>`).join('')}</select></label></div>
+  <div class="form" id="gp"></div><label>Комментарий<input id="gn" maxlength="120"></label><button class="btn">Выдать</button></form>
+  <div class="card px"><h2>Выданные (${D.gr.length})</h2>${D.gr.length?`<div class="list">${D.gr.map(g=>`<div class="item"><div class="top"><b>${esc(g.user_id?nickOf(g.user_id):'Всем')}</b><span class="tag">${esc(kn[g.kind]||g.kind)}</span></div>
+  <div class="kv"><span>${esc(JSON.stringify(g.params||{}))}</span><span>забрали: <em>${cl[g.id]||0}</em></span><span>${dt(g.created_at)}</span></div>${g.note?`<p>${esc(g.note)}</p>`:''}</div>`).join('')}</div>`:'<p class="note">Подарков не было.</p>'}</div>`}
+function gpFields(k){
+  const opt=a=>a.map(([i,n])=>`<option value="${esc(i)}">${esc(n)} (${esc(i)})</option>`).join('');
+  return{ach:D.ach.length?`<label>Достижение<select id="g_i">${opt(D.ach)}</select></label>`:'<label>id достижения<input id="g_i" maxlength="40"></label>',
+   money:'<label>Сумма, ₽<input id="g_a" type="number" step="1" min="1" value="10000"></label>',
+   livery:D.liv.length?`<label>Раскраска<select id="g_i">${opt(D.liv)}</select></label>`:'<label>id раскраски<input id="g_i" maxlength="40"></label>',
+   note:'<p class="note">Текст записки — в поле «Комментарий», его увидит игрок.</p>'}[k]}
+function dSc(){
+  if(!D.sc.length)return'<p class="note">Рекордов нет.</p>';
+  return D.sc.map(s=>`<div class="item px"><div class="top"><b>${esc(nickOf(s.user_id))} ${s.hidden?'<span class="tag">СКРЫТ</span>':''}</b><span class="note">${dt(s.created_at)}</span></div>
+  <div class="kv"><span>режим: <em>${esc(MODES[s.mode]||s.mode)}</em></span><span>сложность: <em>${esc(s.diff||'—')}</em></span>${s.day_key?`<span>ключ: <em>${esc(s.day_key)}</em></span>`:''}<span>счёт: <em>${rub(s.score)}</em></span><span>звёзды: <em>${esc(s.stars)}</em></span><span>дней: <em>${esc(s.days)}</em></span></div>
+  <div class="row"><button class="btn sm alt" data-hide="${esc(s.id)}" data-v="${s.hidden?0:1}">${s.hidden?'Показать':'Скрыть'}</button><button class="btn sm bad" data-sdel="${esc(s.id)}">Удалить</button></div></div>`).join('')}
+
+/* ---- обработчики ---- */
+const P=(path,body)=>q(path,{method:'PATCH',body,prefer:'return=minimal'});
+const num=(id,lo,hi)=>{const v=+$(id).value;if($(id).value===''||!isFinite(v)||(lo!=null&&v<lo)||(hi!=null&&v>hi))throw new Error('Проверьте число в поле: допустимо '+(lo!=null?lo:'')+'…'+(hi!=null?hi:''));return v};
+function bind(){
+  const on=(sel_,fn)=>document.querySelectorAll(sel_).forEach(b=>b.onclick=()=>fn(b.dataset,b));
+  on('[data-ban]',d=>act(()=>P('/rest/v1/profiles?id=eq.'+encodeURIComponent(d.ban),{banned:d.v==='1'}),d.v==='1'?'Игрок забанен':'Игрок разбанен'));
+  on('[data-delsave]',d=>{if(confirm('Удалить облачное сохранение игрока '+nickOf(d.delsave)+'? Это нельзя отменить.'))act(()=>q('/rest/v1/saves?user_id=eq.'+encodeURIComponent(d.delsave),{method:'DELETE',prefer:'return=minimal'}),'Сохранение удалено')});
+  on('[data-gift]',d=>{giftTo=d.gift;tab='gf';view()});
+  on('[data-cfg]',d=>act(()=>P('/rest/v1/config?rev=eq.'+encodeURIComponent(d.cfg),{active:d.v==='1'}),d.v==='1'?'Правка включена':'Правка отключена'));
+  on('[data-eact]',d=>act(()=>P('/rest/v1/events?id=eq.'+encodeURIComponent(d.eact),{active:d.v==='1'}),'Готово'));
+  on('[data-edel]',d=>{if(confirm('Удалить событие?'))act(()=>q('/rest/v1/events?id=eq.'+encodeURIComponent(d.edel),{method:'DELETE',prefer:'return=minimal'}),'Событие удалено')});
+  on('[data-hide]',d=>act(()=>P('/rest/v1/scores?id=eq.'+encodeURIComponent(d.hide),{hidden:d.v==='1'}),'Готово'));
+  on('[data-sdel]',d=>{if(confirm('Удалить запись рекорда?'))act(()=>q('/rest/v1/scores?id=eq.'+encodeURIComponent(d.sdel),{method:'DELETE',prefer:'return=minimal'}),'Запись удалена')});
+  document.querySelectorAll('[data-bk]').forEach(i=>i.oninput=()=>i.closest('.it').classList.toggle('ch',+i.value!==+i.dataset.o||i.value===''));
+  if($('bsave'))$('bsave').onclick=()=>{
+    const patch={};let bad='';
+    document.querySelectorAll('[data-bk]').forEach(i=>{const o=+i.dataset.o,v=i.value===''?NaN:+i.value;
+      if(!isFinite(v)){bad='В поле «'+i.dataset.bk+'» нужно число';return}
+      if(v===o)return;const p=i.dataset.bk.split('.');
+      if(p.length===1)patch[p[0]]=v;else{(patch[p[0]]=patch[p[0]]||{})[p[1]]=v}});
+    if(bad)return flash(bad);if(!Object.keys(patch).length)return flash('Нечего сохранять: ничего не изменено');
+    act(()=>q('/rest/v1/config',{method:'POST',body:{base:D.b.nv,patch,note:$('bnote').value.trim()||null},prefer:'return=minimal'}),'Правка сохранена, действует на новые партии')};
+  if($('evf')){
+    const ep=()=>{$('ep').innerHTML=epFields($('ek').value);if($('p_r'))$('p_r').onclick=()=>{$('p_s').value=Math.floor(Math.random()*1e6)+1}};
+    $('ek').onchange=ep;ep();
+    $('evf').onsubmit=ev=>{ev.preventDefault();act(()=>{
+      const k=$('ek').value,t=$('et').value.trim();if(!t)throw new Error('Нужен заголовок');
+      let params={};
+      if(k==='rev')params={k:num('p_k',.5,1.5)};
+      else if(k==='cash')params={amount:Math.round(num('p_a'))};
+      else if(k==='event'){const id=$('p_i').value.trim();if(!id)throw new Error('Нужен id события');params={d:Math.round(num('p_d',0,2)),id}}
+      else if(k==='contest')params={seed:Math.round(num('p_s',1,1e6)),diff:$('p_f').value};
+      const s=$('es').value||null,e=$('ee').value||null;if(s&&e&&e<s)throw new Error('Дата «по» раньше даты «с»');
+      return q('/rest/v1/events',{method:'POST',body:{kind:k,title:t,text:$('ex').value.trim()||null,params,starts:s,ends:e,active:true},prefer:'return=minimal'})},'Событие создано')}}
+  if($('gff')){
+    const gp=()=>{$('gp').innerHTML=gpFields($('gk').value)};$('gk').onchange=gp;gp();
+    $('gff').onsubmit=ev=>{ev.preventDefault();act(()=>{
+      const k=$('gk').value,u=$('gu').value||null,note=$('gn').value.trim()||null;let params={};
+      if(k==='money')params={amount:Math.round(num('g_a',1))};
+      else if(k==='ach'||k==='livery'){const id=$('g_i').value.trim();if(!id)throw new Error('Нужен id');params={id}}
+      else if(!note)throw new Error('Для записки нужен комментарий');else params={text:note};
+      return q('/rest/v1/grants',{method:'POST',body:{user_id:u,kind:k,params,note},prefer:'return=minimal'})},'Подарок выдан');giftTo=''}}}
+
+boot();
+</script>
+</body>
+</html>

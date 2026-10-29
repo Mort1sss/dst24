@@ -13,6 +13,8 @@
 | `sw.js` | Офлайн-режим: сначала сеть, без неё — кэш `dst24-vN` |
 | `manifest.webmanifest` | Название, цвета и иконки для установки как приложения |
 | `icon-192.png`, `icon-512.png` | Иконки |
+| `admin.html` | Админ-панель (Supabase): игроки, бан, баланс, события, подарки, рекорды |
+| `supabase/schema.sql`, `supabase/README.md` | Схема сервера (таблицы, RLS, функции) и инструкция по настройке |
 
 `index.html` разбит на главы с заголовками `/* ===== ГЛАВА ===== */` и подразделами `/* ---- раздел ---- */`. Искать нужное место удобнее всего по этим заголовкам:
 
@@ -43,6 +45,7 @@
 | Финал | `finale`, `gameOver` |
 | Интерфейс | `render`, `renderHud`, `renderMgmt`, `icon16`, `ICON16` |
 | Двор и графика | `draw`, `drawScene`, `drawCar`, `CARS2`, `syncMovers`, `stepParts`, `lightPass`, `post` (WebGL), `fitScene` |
+| Онлайн | раздел `ОНЛАЙН`: `NET`, `api`, `rpc`, `cloudPush/cloudPull`, `netSubmit`, `netDay`, `netGifts`, `netMailRun`, `openCity`, `ctUse/ctSync`; правки баланса — `S.balPatch` |
 | Бот-измеритель | раздел `замер баланса` (только с `?sim`): `__balanceSim`, `.all`, `.story`, `.free` |
 
 ## Данные и сохранения
