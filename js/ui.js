@@ -49,6 +49,7 @@ function pickMode(){
     ${netContest()?`<button class="mode" id="mContest"><b>СОРЕВНОВАНИЕ НЕДЕЛИ</b><span>«${esc(DAILY_SC[netCt(netContest()).sc].n)}»: ${esc(DAILY_SC[netCt(netContest()).sc].d)} 7 дней, одинаковые условия у всех игроков.</span></button>`:''}
     <button class="mode" id="mSand"><b>ПЕСОЧНИЦА</b><span>Бесконечные деньги, проиграть нельзя. Просто стройте парк мечты.</span></button>
     <button class="mode" id="mStory"><b>СЮЖЕТ</b><span>${CHAPTERS.length} главы с особыми условиями. Пройдено: ${Math.min(G.story||0,CHAPTERS.length)} из ${CHAPTERS.length}.</span></button></div>
+    <button class="btn ghost" id="mHold">Холдинг${holdG().earned||holdG().fr.length?` · очков ${holdFree()}`:''}</button>
     <button class="btn ghost" id="mLoad">Загрузить по коду сохранения</button>
     ${R.days?`<p class="note">Рекорд бесконечного режима: ${R.days} дн., ${R.cars} машин, ${rub(R.money)}, целей: ${R.goals}.</p>`:''}
     ${S&&!S.over&&!S.preview?'<p class="note">Текущая игра будет сброшена.</p><button class="btn ghost" id="mCancel">Отмена</button>':''}`);
@@ -60,9 +61,41 @@ function pickMode(){
   if($('mContest'))$('mContest').onclick=()=>{const e=netContest();if(!e)return;const c=netCt(e);ensureAudio();chooseHeads('contest',{diff:c.diff,seed:c.seed,sc:c.sc,cid:e.id})};
   $('mSand').onclick=()=>{ensureAudio();chooseHeads('sandbox',{diff:'easy'})};
   if($('mCancel'))$('mCancel').onclick=hideModal;
-  $('mLoad').onclick=openSaveModal;
+  $('mLoad').onclick=openSaveModal;$('mHold').onclick=()=>openHolding();
   $('mCamp').focus();
 }
+/* ---- экран «Холдинг»: очки, дерево владельца, карта городов ---- */
+const HTREE=[['fin','Финансы',['Стартовый капитал +{cap}%','Ставка по кредитам −{loan} п.п.','Налоги −{tax}%','Отчисления франшиз ×{roy}']],
+  ['ppl','Люди',['Лояльность водителей +{loy} на старте','+{staff} сотрудник в каждом отделе','Усталость копится на {fat}% медленнее','Старт со званием «Начальник колонны»']],
+  ['car','Автопарк',['Машины в автосалоне −{price}%','Поломки −{fail}%','ТО и ремонт −{svc}%','В подарок на старте машина бизнес-класса']]];
+const HCOL={home:'#4b8a5a',capital:'#6a5fd0',resort:'#e0a040',north:'#7ab4d8',port:'#3a8aa8',science:'#a068d0'};
+function holdTxt(b,i){const t=bal('tree',7),e=t[b],p=x=>Math.round(x*100);
+  return HTREE.find(x=>x[0]===b)[2][i].replace('{cap}',p(e.cap||0)).replace('{loan}',p(e.loan||0)).replace('{tax}',p(e.tax||0)).replace('{roy}',String(bal('royFin4',7)).replace('.',',')).replace('{loy}',e.loy).replace('{staff}',e.staff).replace('{fat}',p(e.fat||0)).replace('{price}',p(e.price||0)).replace('{fail}',p(e.fail||0)).replace('{svc}',p(e.svc||0))}
+// отчисления на следующую партию (как holdRoyalty, но без начисления)
+function holdRoyPrev(){const h=holdG(),s=h.fr.reduce((a,f)=>a+f.val*bal('royK',7),0);return s<=0?0:Math.round(Math.min(s,bal('royCap',7))*(h.tree.fin>=4?bal('royFin4',7):1)/100)*100}
+function citySvg(k,lk){const c=lk?'#4a4470':HCOL[k]||'#888',r=(x,y,w,h,f)=>`<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${f}"/>`,i=Object.keys(CITIES).indexOf(k);let o=r(0,0,48,28,lk?'#2a2450':'#352d63')+r(0,22,48,6,lk?'#3a3560':'#1d1838');
+  for(let j=0;j<6;j++){const h=8+((i*7+j*5)%11),x=2+j*7.5;o+=r(x,22-h,6,h,c)+(lk?'':r(x+1,22-h+2,1.5,1.5,'#f7c331')+r(x+3.5,22-h+5,1.5,1.5,'#f7c331'))}
+  if(k==='resort')o+=r(38,3,5,5,'#f7c331');if(k==='north')o+=r(4,4,2,2,'#fff')+r(20,7,2,2,'#fff')+r(34,3,2,2,'#fff');if(k==='port')o+=r(0,24,48,2,'#7ab4d8');if(k==='science')o+=r(21,6,4,4,'#7dd3a8');
+  return `<svg class="hcity" viewBox="0 0 48 28" preserveAspectRatio="xMidYMax slice" shape-rendering="crispEdges" aria-hidden="true">${o}</svg>`}
+function openHolding(back,confirmReset){
+  const h=holdG(),fr=h.fr,tot=fr.reduce((a,f)=>a+f.val,0),roy=holdRoyPrev(),cost=bal('tree',7).cost,free=holdFree(),sameDay=h.resetAt&&mskDay(h.resetAt)===mskDay(Date.now()),spent=holdSpent(h.tree),bk=back||pickMode;
+  const tree=HTREE.map(([b,n])=>`<div class="htcol"><h3>${n} <small>${h.tree[b]}/4</small></h3>${[0,1,2,3].map(i=>{const own=h.tree[b]>i,nx=h.tree[b]===i;
+    return `<div class="hstep ${own?'own':nx&&free>=cost[i]?'next':nx?'wait':'lock'}"><b>${['I','II','III','IV'][i]}</b><span>${esc(holdTxt(b,i))}</span>${own?'<em>куплено</em>':nx?`<button class="buy" data-b="${b}" ${free>=cost[i]?'':'disabled'}>Взять за ${cost[i]}</button>`:`<em>${cost[i]} очк.</em>`}</div>`}).join('')}</div>`).join('');
+  const cities=Object.entries(CITIES).map(([k,C])=>{const lk=!holdCityOpen(k),m=h.medals[k]||0,T=TRIAL[k],th=bal('trials',7)[k]||[],f=fr.filter(x=>x.city===k),cur=S&&S.mode==='endless'&&B(7)&&!S.preview&&(S.city||'home')===k&&T?T.v():null;
+    return `<div class="hcityc ${lk?'lk':''}">${citySvg(k,lk)}<div class="hcn"><b>${esc(C.n)}</b><span class="hmed">${lk?'🔒':['','🥉','🥈','🥇'][m]||'○'}</span></div>
+    ${lk?`<p class="note">Откроется ${C.gold?`после золота в ${C.gold} городах`:`после ${C.need} франшиз(ы)`}.</p>`:`<p class="note">${esc(T.t)}: ${th.map((x,j)=>`<span class="${m>j?'pos':m===j?'tx':''}">${esc(T.f(x))}</span>`).join(' · ')}${cur!=null?`<br>Сейчас: <b>${esc(T.f(cur))}</b>`:''}</p>
+    <p class="note">${f.length?`Франшиз: ${f.length}, оценка ${rub(f.reduce((a,x)=>a+x.val,0))}`:'Франшиз нет'}</p>`}</div>`}).join('');
+  showModal(`<span class="step">ХОЛДИНГ</span><h2>Холдинг владельца</h2>
+    <div class="hsum"><div><b>${free}</b><span>очков свободно (из ${h.earned})</span></div><div><b>${fr.length}</b><span>франшиз</span></div><div><b>${rub(tot)}</b><span>оценка холдинга</span></div><div><b>${rub(roy)}</b><span>отчислений в новой партии</span></div></div>
+    <h3>Дерево владельца</h3><p class="note">Действует в новых партиях бесконечного режима. Идущая партия не меняется.</p><div class="htree">${tree}</div>
+    <div class="btns">${confirmReset?`<button class="btn" id="hRes2">Точно сбросить</button><button class="btn ghost" id="hResNo">Отмена</button>`:`<button class="btn ghost" id="hRes" ${!spent||sameDay?'disabled':''}>Сбросить дерево</button>`}</div>
+    ${sameDay&&spent?'<p class="note">Сегодня дерево уже сбрасывали: следующий сброс завтра (по Москве).</p>':''}
+    <h3>Карта городов</h3><div class="hmap">${cities}</div>
+    <button class="btn ghost" id="hBack">Назад</button>`);
+  document.querySelectorAll('.hstep .buy').forEach(e=>e.onclick=()=>{if(holdBuy(e.dataset.b))sfx('coin'),openHolding(back)});
+  if($('hRes'))$('hRes').onclick=()=>openHolding(back,1);if($('hRes2'))$('hRes2').onclick=()=>{holdReset();openHolding(back)};if($('hResNo'))$('hResNo').onclick=()=>openHolding(back);
+  $('hBack').onclick=()=>bk()}
+
 function pickDiff(mode){
   showModal(`<span class="step">${mode==='endless'?'БЕСКОНЕЧНЫЙ РЕЖИМ':'КАМПАНИЯ'}</span><h2>Сложность</h2><div class="modes">
     ${Object.entries(DIFF).map(([k,v])=>`<button class="mode" id="df_${k}"><b>${v.n.toUpperCase()}</b><span>${v.d}${mode==='campaign'?`. Цель: ${GOAL_CARS} машин, ${goalTxt(k)}, репутация 50+.`:''}</span></button>`).join('')}</div>

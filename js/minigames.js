@@ -510,11 +510,11 @@ function sellFranchise(){const nw=B(7),pts=prestPts(),h=holdG(),op=Object.entrie
   $('frYes').onclick=()=>{const v=valuation();if(!nw){G.prestige=prestige()+pts;G.franchises=(G.franchises||0)+1}
     h.fr.push({id:holdId(),city:S.city||'home',val:nw?v:0,day:S.day,at:Date.now()});h.earned+=pts;h.at=Date.now();
     recordResult('франшиза');S.cnt.franchise=1;S.ach.franchise=S.day;G.ach.franchise=true;S.over=true;saveG();save();render();sfx('win');
-    showModal(`<h2>Франшиза открыта!</h2><p>Очков холдинга свободно: ${holdFree()}${nw?'':`, престиж: ${G.prestige}`}. Выберите новый город в бесконечном режиме.</p><button class="btn" id="frGo">К выбору режима</button>`);$('frGo').onclick=pickMode};
+    showModal(`<h2>Франшиза открыта!</h2><p>Очков холдинга свободно: ${holdFree()}${nw?'':`, престиж: ${G.prestige}`}. Выберите новый город в бесконечном режиме.</p><div class="btns"><button class="btn" id="frGo">К выбору режима</button><button class="btn ghost" id="frHold">Открыть холдинг</button></div>`);$('frGo').onclick=pickMode;$('frHold').onclick=()=>openHolding()};
 }
 function pickCity(mode,opts){
   showModal(`<span class="step">ХОЛДИНГ · ОЧКОВ СВОБОДНО ${holdFree()}</span><h2>Выберите город</h2><div class="modes">
-    ${Object.entries(CITIES).map(([k,C])=>{const lk=!holdCityOpen(k),m=holdG().medals[k]||0;return `<button class="mode" id="ct_${k}" ${lk?'disabled style="opacity:.5"':''}><b>${C.n.toUpperCase()}${lk?' 🔒':''}${m?' · '+HOLD_MED[m]:''}</b><span>${lk?`Откроется ${C.gold?`после золота в ${C.gold} городах`:`после ${C.need} франшиз(ы)`}.`:C.d}</span></button>`}).join('')}</div>`);
+    ${Object.entries(CITIES).map(([k,C])=>{const lk=!holdCityOpen(k),m=holdG().medals[k]||0;return `<button class="mode" id="ct_${k}" ${lk?'disabled style="opacity:.5"':''}><b>${C.n.toUpperCase()}${lk?' 🔒':''}${m?' · '+HOLD_MED[m]:''}</b><span>${lk?`Откроется ${C.gold?`после золота в ${C.gold} городах`:`после ${C.need} франшиз(ы)`}.`:C.d}</span></button>`}).join('')}</div><button class="btn ghost" id="ctHold">Холдинг: дерево и карта</button>`);$('ctHold').onclick=()=>openHolding(()=>pickCity(mode,opts));
   Object.keys(CITIES).forEach(k=>{if(holdCityOpen(k))$('ct_'+k).onclick=()=>chooseHeads(mode,Object.assign({},opts,{city:k}))});
 }
 function autoResolve(){if(S.over||S.preview)return;let n=0;
