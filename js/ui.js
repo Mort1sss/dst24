@@ -41,7 +41,7 @@ function storyFinale(){
 function pickMode(){
   const R=G.rec;
   showModal(`<h2>Таксопарк «${esc(G.custom&&G.custom.name||'ДСТ-24')}»</h2>${!G.tutDone?'<p class="hintbox">Впервые здесь? Начните с «Кампании» на лёгком уровне — игра будет открываться постепенно.</p>':''}
-    ${prestige()?`<p class="note">Престиж франшизы: ${prestige()}. ${prestList(prestige()).map(x=>`${x[0].replace(/ \(.*\)/,'')}: ${x[1]}`).join('; ')}.</p>`:''}
+    ${holdG().earned?`<p class="note">Холдинг: очков свободно ${holdFree()} из ${holdG().earned}, франшиз ${holdG().fr.length}. Бонусы дерева действуют в новых партиях бесконечного режима.</p>`:''}
     <label class="chk"><input type="checkbox" id="simpleChk" ${G.simple!==false?'checked':''}> Режим новичка: возможности открываются постепенно, подсказки и советы</label><div class="modes">
     <button class="mode" id="mCamp"><b>КАМПАНИЯ</b><span>${DAYS} дней. Цель: ${GOAL_CARS} машин, прибыль или касса (зависит от сложности) и репутация 50+.</span></button>
     <button class="mode" id="mEnd"><b>БЕСКОНЕЧНЫЙ РЕЖИМ</b><span>Без лимита дней и машин. Цели идут одна за другой.</span></button>
@@ -67,7 +67,7 @@ function pickDiff(mode){
   showModal(`<span class="step">${mode==='endless'?'БЕСКОНЕЧНЫЙ РЕЖИМ':'КАМПАНИЯ'}</span><h2>Сложность</h2><div class="modes">
     ${Object.entries(DIFF).map(([k,v])=>`<button class="mode" id="df_${k}"><b>${v.n.toUpperCase()}</b><span>${v.d}${mode==='campaign'?`. Цель: ${GOAL_CARS} машин, ${goalTxt(k)}, репутация 50+.`:''}</span></button>`).join('')}</div>
     <button class="btn ghost" id="dfBack">Назад</button>`);
-  Object.keys(DIFF).forEach(k=>$('df_'+k).onclick=()=>mode==='endless'&&(G.franchises||0)>0?pickCity(mode,{diff:k}):chooseHeads(mode,{diff:k}));$('dfBack').onclick=pickMode;$(G.tutDone?'df_normal':'df_easy').focus();
+  Object.keys(DIFF).forEach(k=>$('df_'+k).onclick=()=>mode==='endless'&&holdG().fr.length>0?pickCity(mode,{diff:k}):chooseHeads(mode,{diff:k}));$('dfBack').onclick=pickMode;$(G.tutDone?'df_normal':'df_easy').focus();
 }
 function pickChapter(){const done=G.story||0;
   showModal(`<span class="step">СЮЖЕТ</span><h2>Выберите главу</h2><div class="modes">
@@ -200,7 +200,7 @@ function render(prev){
   else if(warSoon()&&featOpen('rival'))tick.push(card('down','rival','Завтра ценовая война',`«${esc(S.war.by)}» · спрос ×${bal('warK')} на ${S.war.len} дн.`));
   if(S.raid)tick.push(card('down','gai','Рейды ГАИ',`подготовка ${Math.round(S.raid.prep*100)}%`,S.raid.days));
   if((S.tdebt||0)>=4)tick.unshift(card('down','warn',`Отложенные проблемы: ${S.tdebt}/8`,'дешёвые решения копятся'));
-  if(taxOn()&&taxDueIn()<=10)tick.unshift(card('down','tax',`Налог через ${taxDueIn()+1} дн.`,`≈${rub(Math.round(S.taxAcc*TAX_RATE/1000)*1000)}`));
+  if(taxOn()&&taxDueIn()<=10)tick.unshift(card('down','tax',`Налог через ${taxDueIn()+1} дн.`,`≈${rub(Math.round(S.taxAcc*taxRate()/1000)*1000)}`));
   if(satK()<.97)tick.unshift(card('down','down','Рынок насыщен',`выручка с машины ×${satK().toFixed(2)}`));
   if(S.city&&S.city!=='home')tick.unshift(card('','city',cityDef().n));
   if(S.crisis)tick.unshift(card('down','crisis',`Кризис: ${CRISES[S.crisis.id].n}`,CRISES[S.crisis.id].d,S.crisis.days,0,' crisis'));
@@ -459,7 +459,7 @@ function renderMgmt(){
       <div class="tablewrap"><table><thead><tr><th>#</th><th>Парк</th><th>Машин</th><th>Репутация</th><th>Стиль</th></tr></thead><tbody>
       ${rows.map((r,i)=>`<tr${r.me?' style="outline:3px solid var(--taxi)"':''}><td>${i+1}</td><td>${r.me?'<b>':''}${esc(r.name)}${r.me?'</b>':''}</td><td>${r.cars}</td><td>${r.rep}</td><td>${r.style}</td></tr>`).join('')}</tbody></table></div>
       <p class="sub">Если ваша репутация выше средней у конкурентов, пассажиры чаще выбирают вас: до +8% к спросу.</p></div>
-      ${S.mode==='endless'?`<div class="card2"><h3>Франшиза</h3><p class="kind">Продайте парк и начните в новом городе с постоянными бонусами. Престиж сейчас: ${prestige()}. За этот парк: ${prestPts()} очк.</p><div class="btns"><button class="buy" id="frBtn" ${S.over||(S.rank<4&&S.day<60)?'disabled':''}>${S.rank<4&&S.day<60?'Откроется на звании «Таксомагнат» или с 60-го дня':'Продать парк'}</button></div></div>`:''}
+      ${S.mode==='endless'?`<div class="card2"><h3>Франшиза</h3><p class="kind">Продайте парк и начните в новом городе с постоянными бонусами. ${B(7)?`Очков холдинга свободно: ${holdFree()}.`:`Престиж сейчас: ${prestige()}.`} За этот парк: ${prestPts()} очк.</p><div class="btns"><button class="buy" id="frBtn" ${S.over||(S.rank<4&&S.day<60)?'disabled':''}>${S.rank<4&&S.day<60?'Откроется на звании «Таксомагнат» или с 60-го дня':'Продать парк'}</button></div></div>`:''}
       <div class="card2"><h3>Ваше звание</h3><p><b class="pos">★ ${rankName(S.rank||0)}</b></p>${R?`<p class="kind">Следующее: «${R.n}» — нужно ${R.txt}. Откроет: ${R.unlock}.</p>`:'<p class="kind">Высшее звание получено!</p>'}</div>
       <div class="card2"><h3>Бензин и электро</h3><p class="kind">${fuelInfo()}</p>${evCars().length?`<p class="kind">Электромобилей в парке: ${evCars().length}${S.upg.charger?'.':`, без зарядной станции они теряют ≈${rub(evLoss())} в день.`}</p>`:''}</div>
       <div class="card2"><h3>Рейды и проверки</h3><p class="kind">${S.raid?`Идут рейды ГАИ: ещё ${S.raid.days} дн.`:'Рейдов ГАИ сейчас нет.'} Налоговая и учредители приходят без предупреждения.</p></div></div>`;

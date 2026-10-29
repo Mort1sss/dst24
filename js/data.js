@@ -843,7 +843,7 @@ const totalCars=()=>S.fleet.length+(S.branches||[]).reduce((a,b)=>a+b.cars,0);
 
 /* ---- версия баланса ---- */
 // числа по версиям: партия читает свою версию, нет ключа — берётся ближайшая меньшая; новая настройка = новая запись, старые не менять
-const BAL_NEW=6,BAL={
+const BAL_NEW=7,BAL={
  1:{meet:30,plan:150000,offK:.5,offCap:1e12,loginDay:5000,loginBonus:20000,loginParts:0,loginLoy:0,leaseRet:0},
  2:{start:{normal:1,hard:.9},rev:{normal:1.08,hard:1.1},goal:{normal:175000,hard:175000},star2:1.3,star3:1.7, // подобрано ботом bot-2: «Обычный» ≈55%, «Хардкор» ≈27% побед
   taxDays:[14,28],endTax:60,crisisFirst:[16,21],crisisMin:16,crisisMax:6,endCrisisFirst:[20,30],endCrisisNext:[40,60],inflDay:15,inflPct:[2,3],endInfl:30,
@@ -852,9 +852,13 @@ const BAL_NEW=6,BAL={
  4:{agg:{mig:{fee:.2,ord:1,poach:1},bee:{fee:.15,ord:.98,poach:.5},shash:{fee:.22,ord:1.12,poach:1}},grossK:.8,beeSkip:['comm','lowprio','backup'],shashR:4.75,shashOrd:.95,shashDrop:.005,aggGap:7,aggIdle:.5,
   warLow:.1,warDays:3,warP:.4,warAt:2,warLen:5,warK:.9,poachFrom:15,lostP:.25},
  5:{cA:4,cC:-1,cD:-4,cMax:10,cOk:2,cEarly:1,cStreak:10,cAmt:{A:1.5,C:.7},cRate:{A:-.05,C:.1},cOver:{D:1.5},cLoans:{A:3,B:2,C:2,D:1},cThird:100000,cHold:10},
- 6:{brRev:5200,lotBack:.5,upgVal:.5,brVal:.7,prestK:6e5,rk:[[0,0,0],[16,0,0],[22,65,0],[32,70,0],[50,75,1],[80,80,2]],town:{center:{k:1.1,cap:14},station:{k:1.05,cap:12},airport:{k:1.2,cap:8},sleep:{k:.95,cap:24},univer:{k:1,cap:14},industry:{k:.9,cap:30}},townLead:.05,townFloor:.6,townMin:.6,townMax:1.25}}; // BAL[4] подобран ботом bot-4: «Обычный» ≈60%, агрегаторы 55/54/60%; BAL[5] (кредитный рейтинг) bot-5: «Обычный» ≈60%, «Хардкор» ≈31%
+ 6:{brRev:5200,lotBack:.5,upgVal:.5,brVal:.7,prestK:6e5,rk:[[0,0,0],[16,0,0],[22,65,0],[32,70,0],[50,75,1],[80,80,2]],town:{center:{k:1.1,cap:14},station:{k:1.05,cap:12},airport:{k:1.2,cap:8},sleep:{k:.95,cap:24},univer:{k:1,cap:14},industry:{k:.9,cap:30}},townLead:.05,townFloor:.6,townMin:.6,townMax:1.25},
+ 7:{tree:{cost:[1,2,3,4],fin:{cap:.2,loan:.03,tax:.1},ppl:{loy:10,staff:1,fat:.2},car:{price:.05,fail:.1,svc:.25,gift:'monjaro'}},royK:.01,royCap:150000,royFin4:1.5,
+  trials:{home:[2e6,4e6,7e6],capital:[30,45,60],resort:[1e6,2e6,3.5e6],north:[40,70,100],port:[800000,1800000,3500000],science:[10,18,25]},goldPts:2}}; // BAL[4] подобран ботом bot-4: «Обычный» ≈60%, агрегаторы 55/54/60%; BAL[5] (кредитный рейтинг) bot-5: «Обычный» ≈60%, «Хардкор» ≈31%
 // BAL[6]: brRev — выручка филиала с машины (было 3300); lotBack — доля цены при продаже стоянки; upgVal/brVal — доля цены улучшений и филиалов в оценке парка; prestK — ₽ оценки на очко престижа; rk — пороги званий
 // BAL[6] город: town — k выручки и cap (заказов на всех) по районам; townLead — надбавка лидера; townFloor — нижний предел давки; townMin/townMax — границы множителя парка
+// BAL[7] холдинг (только бесконечный): tree — цены ступеней (cost) и эффекты веток: fin — капитал, ставка кредитов (п.п.), налоги; ppl — лояльность на старте, сотрудники в отделе, медленнее усталость; car — цены автосалона, поломки, ТО и ремонт, подарок-машина
+// BAL[7]: royK/royCap — отчисления франшиз (доля оценки, потолок ₽), royFin4 — множитель «Финансы IV»; trials — пороги бронза/серебро/золото по городам (port — прибавка выручки от ночных смен, ₽); goldPts — очки за золото
 // BAL[3] подобран ботом bot-3: «Обычный» ≈63%, без смены и ТО ≈50%, смена всегда на максимуме ≈12%
 // balRev: правки баланса из админки действуют только на партии, начатые после них (см. ОНЛАЙН)
 const bal=(k,v)=>{const e=v;for(v=v||(S&&S.bal)||1;v>0;v--)if(BAL[v]&&k in BAL[v])return S&&S.balRev&&(!e||e===S.bal)?netPatch(k,BAL[v][k]):BAL[v][k]};
@@ -938,7 +942,7 @@ function advice(){
   const left=S.done.filter(x=>!x).length,working=carsN()-brokenN(),free=working-S.drivers,idle=S.drivers-working;
   if(S.over)return null;
   if((S.tdebt||0)>=6)return{t:`Отложенных проблем уже ${S.tdebt} из 8 — скоро рванёт. Выбирайте надёжные (платные) варианты и делайте ТО в «Сервисе».`};
-  if(taxOn()&&taxDueIn()<=5&&S.money<S.taxAcc*TAX_RATE)return{t:`Через ${taxDueIn()+1} дн. налог ≈${rub(Math.round(S.taxAcc*TAX_RATE/1000)*1000)}, а в кассе не хватает. Придержите покупки.`};
+  if(taxOn()&&taxDueIn()<=5&&S.money<S.taxAcc*taxRate())return{t:`Через ${taxDueIn()+1} дн. налог ≈${rub(Math.round(S.taxAcc*taxRate()/1000)*1000)}, а в кассе не хватает. Придержите покупки.`};
   if(S.mode!=='sandbox'&&!S.preview&&S.day>=8&&S.day-(S.lastExport||0)>=10)return{t:'Прогресс хранится только в этом браузере. Сохраните код — если браузер очистит данные, вы всё восстановите за минуту.',act:'save'};
   if(satK()<.85&&S.money>200000)return{t:`Город насыщен такси: каждая новая машина приносит меньше (×${satK().toFixed(2)}). Выгоднее расти через филиалы и машины классом выше.`,tab:'branch'};
   if(S.parts===0&&S.day>3&&!S.over&&S.money>40000)return{t:'Склад запчастей пуст — каждый ремонт обходится дороже. Докупите запчасти во вкладке «База».',tab:'base'};
@@ -1006,6 +1010,8 @@ const valExtra=()=>B(6)?[['Улучшения базы',Object.keys(S.upg).filte
   ['Филиалы',S.branches.reduce((a,b,i)=>a+branchSite(i).price,0)*bal('brVal')]]:[];
 const valuation=()=>Math.round((valBase()+valExtra().reduce((a,x)=>a+x[1],0))/1000)*1000;
 const prestPts=()=>Math.max(1,Math.floor(valuation()/(B(6)?bal('prestK'):1e6))+(S.rank||0));
+// строки оценки в очках холдинга: [название, ₽, очки]; сумма очков округляется вниз, звание прибавляется целым
+const valRows=()=>{const K=B(6)?bal('prestK'):1e6;return [['Машины',totalCars()*65000],['Касса',Math.max(0,S.money)*.3],['Репутация',S.rep*3000],...valExtra()].map(x=>[x[0],x[1],x[1]/K]).concat([['Звание',0,S.rank||0]])};
 const invShare=()=>(S.investors||[]).reduce((a,i)=>a+i.share,0);
 
 /* ---- испытание дня ---- */
@@ -1072,8 +1078,9 @@ const b6=()=>B(6);
 const ownHas=k=>B(6)&&!!(S.owned&&S.owned[k]);
 const ownRev=()=>1+.005*ownHas('merch')+.01*ownHas('museum')+.015*ownHas('yacht');
 const UNLOCK={color:{lemon:'first_buy',mint:'cat',orange:'quest3',gold:'rich1m',neon:'fleet50',pink:'vip'},logo:{bolt:'raid0',crown:'rank5',cat:'cat',goose:'geese'},avatar:{3:'branch1',4:'inspect3',5:'month'},
- livery:{checker:'fleet25',stripe:'rep90',flame:'crisis1',neon:'disp15',retro:'day100',night:'nye'}};
-const LIVERY={none:'Без раскраски',checker:'Шашечки',stripe:'Полоса',flame:'Пламя',neon:'Неон',retro:'Ретро',night:'Звёздная ночь'};
+ livery:{checker:'fleet25',stripe:'rep90',flame:'crisis1',neon:'disp15',retro:'day100',night:'nye',
+  gl_home:'gold_home',gl_capital:'gold_capital',gl_resort:'gold_resort',gl_north:'gold_north',gl_port:'gold_port',gl_science:'gold_science'}};
+const LIVERY={none:'Без раскраски',checker:'Шашечки',stripe:'Полоса',flame:'Пламя',neon:'Неон',retro:'Ретро',night:'Звёздная ночь',gl_home:'Золото: дом',gl_capital:'Золото: столица',gl_resort:'Золото: курорт',gl_north:'Золото: север',gl_port:'Золото: порт',gl_science:'Золото: наука'};
 const unlockOf=id=>Object.entries(UNLOCK).flatMap(([kind,m])=>Object.entries(m).filter(([,v])=>v===id).map(([k])=>({color:'цвет',logo:'логотип',avatar:'аватар',livery:'раскраска'}[kind]+` «${kind==='color'?COLORS[k].n:kind==='logo'?LOGO_N[k]:kind==='avatar'?'№'+(+k+1):LIVERY[k]}»`))).join(', ');
 const achName=id=>(ACH.find(a=>a[0]===id)||[0,id])[1];
 const skinLock=(kind,k)=>{const id=UNLOCK[kind][k];return id&&!G.ach[id]&&!(S&&S.ach&&S.ach[id])?id:null};
@@ -1097,6 +1104,7 @@ function setAgg(k){if(!B(4)||S.over||S.preview||!AGG[k]||k===(S.agg||'mig'))retu
 const costScale=()=>Math.max(1,Math.pow(totalCars()/8,.6))*inf();
 const negScale=()=>costScale()*(S.day<=7?.6:1);
 const TAX_RATE=.15;
+const taxRate=()=>TAX_RATE*(hq('fin',3)?1-bal('tree',7).fin.tax:1);
 const isTaxDay=d=>B(2)&&camp()?bal('taxDays').includes(d):d%(B(2)&&endl()?bal('endTax'):90)===0;
 const taxOn=()=>S.mode!=='sandbox'&&!dailyLike()&&(!B(2)||!simpleOn()||tabOpen('fin'));
 const taxDueIn=()=>{if(B(2)&&camp()){const t=bal('taxDays').find(d=>d>=S.day);return t?t-S.day:99}const p=B(2)&&endl()?bal('endTax'):90;return p-((S.day-1)%p)-1};
@@ -1117,12 +1125,18 @@ const mgmtCost=()=>{if(S.mode==='sandbox')return 0;const n=totalCars();return n<
 const CITIES={home:{n:'Родной город',d:'обычные условия'},
  capital:{n:'Столица',d:'спрос +15%, но машины на 20% дороже и пробки: поломок +10%',need:1,demand:1.15,price:1.2,fail:1.1},
  resort:{n:'Курортный город',d:'летом спрос ×1,5, зимой ×0,7',need:1,resort:1},
- north:{n:'Северный город',d:'вечная зима: поломок +30%, зато спрос +20%',need:2,demand:1.2,fail:1.3}};
+ north:{n:'Северный город',d:'вечная зима: поломок +30%, зато спрос +20%',need:2,demand:1.2,fail:1.3},
+ port:{n:'Портовый город',d:'ночные смены приносят в 1,5 раза больше, грузовые заказы: спрос +5%',gold:2,demand:1.05,night:1.5},
+ science:{n:'Наукоград',d:'электромобили на 25% дешевле, но топливо дороже',gold:3,evPrice:.75,fuel:1.15}};
 const cityDef=()=>CITIES[(S&&S.city)||'home']||CITIES.home;
 function cityDemand(){const C=cityDef();if(C.resort){const m=dateOf(S.day).getMonth();return m>=5&&m<=8?1.5:(m===11||m<=1)?.7:1.05}return C.demand||1}
 const prestige=()=>G.prestige||0;
 const prestCap=p=>1+Math.min(1,p*.05), prestRevK=p=>1+Math.min(.2,p*.02);
-const prestRev=()=>endl()?prestRevK(prestige()):1;
+const prestRev=()=>endl()&&!B(7)?prestRevK(prestige()):1;
+/* ---- холдинг: дерево владельца (снимок S.hold = {fin,ppl,car}, только бесконечный bal 7) ---- */
+const hq=(b,n)=>!!S&&!!S.hold&&S.hold[b]>=n;
+const TRIAL={home:{t:'Оценка парка',v:()=>valuation(),f:n=>rub(n)},capital:{t:'Машин в парке',v:()=>totalCars(),f:n=>n+' маш.'},resort:{t:'Выручка за лето',v:()=>S.cnt.sum||0,f:n=>rub(n)},
+ north:{t:'Дней подряд без забастовки при 20+ машинах',v:()=>S.cnt.calm||0,f:n=>n+' дн.'},port:{t:'Прибавка выручки от ночных смен',v:()=>S.cnt.night||0,f:n=>rub(n)},science:{t:'Электромобилей в парке',v:()=>evCars().length,f:n=>n+' шт.'}};
 // бонусы престижа списком; p — очки, to — очки «после» (для окна продажи)
 const prestList=(p,to)=>{const d=(a,b)=>to==null?a:`${a} → ${b}`,pc=x=>'+'+Math.round((x-1)*100)+'%',yn=(n,x)=>x>=n?'есть':'с '+n+' очк.';
   return [['Стартовый капитал (до +100%)',d(pc(prestCap(p)),pc(prestCap(to)))],['Выручка в бесконечном режиме (до +20%)',d(pc(prestRevK(p)),pc(prestRevK(to)))],
@@ -1166,7 +1180,7 @@ function tomorrowTease(){
   if(S.tdebt>=6)return'Отложенные проблемы копятся. Это добром не кончится…';
   if(featOpen('inspect')&&S.day>=S.nextInspect)return'Ходят слухи, что завтра нагрянет проверка от учредителей…';
   if(featOpen('raid')&&S.day>=S.nextRaid&&!S.raid)return'Знакомый гаишник шепнул: скоро рейды на такси.';
-  if(taxOn()&&taxDueIn()<=3)return`Через ${taxDueIn()+1} дн. ${B(2)&&camp()?'':'квартальный '}налог: примерно ${rub(Math.round(S.taxAcc*TAX_RATE/1000)*1000)}.`;
+  if(taxOn()&&taxDueIn()<=3)return`Через ${taxDueIn()+1} дн. ${B(2)&&camp()?'':'квартальный '}налог: примерно ${rub(Math.round(S.taxAcc*taxRate()/1000)*1000)}.`;
   if(featOpen('rival')&&S.day>=S.nextRival)return'Конкуренты что-то затевают…';
   const w=WEATHER[S.weather[0]];if(w&&w!==WEATHER.clear)return`Синоптики обещают: ${w.n.toLowerCase()}.`;
   return'Завтра обычный день. Наверное.'}
@@ -1232,4 +1246,10 @@ const ACH=[
  ['disp15','Король эфира','Выполнить 15 заказов за смену диспетчера',s=>(s.cnt.disp||0)>=15],
  ['party','Душа компании','Устроить корпоратив',s=>(s.cnt.party||0)>0],
  ['story','Сага «ДСТ-24»','Пройти все главы сюжета',s=>(G.story||0)>=CHAPTERS.length],
+ ['gold_home','Золото: Родной город','Золотая медаль испытания Родного города',s=>false],
+ ['gold_capital','Золото: Столица','Золотая медаль испытания Столицы',s=>false],
+ ['gold_resort','Золото: Курорт','Золотая медаль испытания Курорта',s=>false],
+ ['gold_north','Золото: Север','Золотая медаль испытания Северного города',s=>false],
+ ['gold_port','Золото: Порт','Золотая медаль испытания Портового города',s=>false],
+ ['gold_science','Золото: Наукоград','Золотая медаль испытания Наукограда',s=>false],
 ];

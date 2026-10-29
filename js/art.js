@@ -324,6 +324,12 @@ function livPix(s,flip,v){const P=new Map();const w=s[0].length;let R=LIV_RANGE.
     else if(v==='neon')k=lerp('#4fffd0','#e66fa8',c/w);
     else if(v==='retro'){const rr=r0+Math.round(h*.4);if(r===rr)k='#c23a3a';else if(r>rr)k='#f3ecdc'}
     else if(v==='night')k=(c*7+r*13)%11===0?'#f7c331':'#2a2460';
+    else if(v==='gl_home'){if(r===rb)k='#f7c331';else if(r===rb+1)k=(c+r)&1?'#0e0b1c':'#f7c331'}
+    else if(v==='gl_capital'){const t=Math.floor((r-r0)*3/h);k=t===0?'#f3ecdc':t===1?'#2b5d8a':'#c23a3a'}
+    else if(v==='gl_resort'){if(r>=rb)k=((c+(r&1)*2)%6)<3?'#ff8a4c':'#4fc7b0'}
+    else if(v==='gl_north')k=(c*5+r*7)%9===0?'#f3ecdc':'#2b5d8a';
+    else if(v==='gl_port'){if(r>=rb-1)k=(r-rb)%3===0?'#1d3a5f':'#e8e4d4'}
+    else if(v==='gl_science')k=(c%4===0||r%4===0)?'#4fffd0':'#0e1b2a';
     if(k){const col=ch==='s'?shade(k,.78):k;if(!P.has(col))P.set(col,[]);P.get(col).push(flip?w-1-c:c,r)}}
   return P}
 // узор не зависит от цвета кузова: пиксели считаются один раз на спрайт, разворот и раскраску
