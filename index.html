@@ -1387,7 +1387,8 @@ const BAL_NEW=6,BAL={
  6:{brRev:5200,lotBack:.5,upgVal:.5,brVal:.7,prestK:6e5,rk:[[0,0,0],[16,0,0],[22,65,0],[32,70,0],[50,75,1],[80,80,2]]}}; // BAL[4] подобран ботом bot-4: «Обычный» ≈60%, агрегаторы 55/54/60%; BAL[5] (кредитный рейтинг) bot-5: «Обычный» ≈60%, «Хардкор» ≈31%
 // BAL[6]: brRev — выручка филиала с машины (было 3300); lotBack — доля цены при продаже стоянки; upgVal/brVal — доля цены улучшений и филиалов в оценке парка; prestK — ₽ оценки на очко престижа; rk — пороги званий
 // BAL[3] подобран ботом bot-3: «Обычный» ≈63%, без смены и ТО ≈50%, смена всегда на максимуме ≈12%
-const bal=(k,v)=>{for(v=v||(S&&S.bal)||1;v>0;v--)if(BAL[v]&&k in BAL[v])return BAL[v][k]};
+// balRev: правки баланса из админки действуют только на партии, начатые после них (см. ОНЛАЙН)
+const bal=(k,v)=>{const e=v;for(v=v||(S&&S.bal)||1;v>0;v--)if(BAL[v]&&k in BAL[v])return S&&S.balRev&&(!e||e===S.bal)?netPatch(k,BAL[v][k]):BAL[v][k]};
 const B=n=>!!S&&(S.bal||1)>=n,camp=()=>S.mode==='campaign',endl=()=>S.mode==='endless';
 const goalBase=()=>S.diff==='easy'?GOAL_MONEY:bal('goal')[S.diff];
 const debtLeft=()=>S.loans.reduce((a,l)=>a+l.pay*l.left,0);
@@ -1441,10 +1442,11 @@ const CHAPTERS=[
   setup:s=>{s.money=250000;s.taxAt=[8,17]},goal:s=>s.money>=300000&&(s.cnt.taxOk||0)>=1},
  {n:'Глава 4. Империя',d:'Пора расти по-настоящему: новые машины, филиал, свой район.',days:45,goalTxt:'35 машин вместе с филиалами и 1 филиал к 45-му дню',
   setup:s=>{s.money=500000;s.rep=65},goal:s=>totalCars()>=35&&s.branches.length>=1}];
-const dayLimit=()=>S.mode==='story'?CHAPTERS[S.chapter||0].days:S.mode==='daily'?7:DAYS;
-const hasLimit=()=>['campaign','story','daily'].includes(S.mode);
+const dailyLike=()=>!!S&&(S.mode==='daily'||S.mode==='contest');
+const dayLimit=()=>S.mode==='story'?CHAPTERS[S.chapter||0].days:dailyLike()?7:DAYS;
+const hasLimit=()=>['campaign','story','daily','contest'].includes(S.mode);
 /* ---- режим новичка: возможности открываются постепенно ---- */
-const simpleOn=()=>G.simple!==false&&S&&!['sandbox','daily'].includes(S.mode);
+const simpleOn=()=>G.simple!==false&&S&&!['sandbox','daily','contest'].includes(S.mode);
 const FEATURE_DAY={quest:3,inspect:5,rival:6,paper:8,auction:10,contract:11,raid:12,union:14,agency:15,conflict:16,career:20};
 const TAB_DAY={shop:1,fleet:1,style:2,ach:2,drivers:3,depts:4,fin:5,base:6,map:8,stats:9,biz:10,city:12,branch:12};
 const TAB_HINTS={shop:'Покупайте машины и нанимайте водителей. Больше экипажей на линии — больше выручки. Новые машины надёжнее, б/у дешевле.',
@@ -1627,7 +1629,7 @@ const costScale=()=>Math.max(1,Math.pow(totalCars()/8,.6))*inf();
 const negScale=()=>costScale()*(S.day<=7?.6:1);
 const TAX_RATE=.15;
 const isTaxDay=d=>B(2)&&camp()?bal('taxDays').includes(d):d%(B(2)&&endl()?bal('endTax'):90)===0;
-const taxOn=()=>S.mode!=='sandbox'&&S.mode!=='daily'&&(!B(2)||!simpleOn()||tabOpen('fin'));
+const taxOn=()=>S.mode!=='sandbox'&&!dailyLike()&&(!B(2)||!simpleOn()||tabOpen('fin'));
 const taxDueIn=()=>{if(B(2)&&camp()){const t=bal('taxDays').find(d=>d>=S.day);return t?t-S.day:99}const p=B(2)&&endl()?bal('endTax'):90;return p-((S.day-1)%p)-1};
 /* ---- не больше одного тяжёлого удара: налог, кризис, рейд ГАИ, забастовка ---- */
 // свободны ли дни from…from+len−1; идущий удар занимает дни с «сейчас» ещё на остаток срока
@@ -1893,7 +1895,7 @@ function blankState(mode){
     nextAuction:7,nextContract:rand(9,13),nextAgency:rand(10,15),contracts:[],lines:{},ads:null,school:[],agency:[],stat:[],wk:{rev:0,net:0,breaks:0,fines:0,fails:[]},
     custom:Object.assign({name:'ДСТ-24',color:'yellow',logo:'checker',avatar:0,livery:'none'},G.custom||{}),
     parts:10,crisis:null,nextCrisis:rand(25,40),extraHeads:[[],[],[]],moodMod:[0,0,0],nextCareer:rand(18,24),nextConflict:rand(14,20),lastParty:-99,strike:null,owned:{},dispDay:0,
-    agg:'mig',aggAt:-99,aggNext:0,aggLast:0,lowDays:0,cscore:0,cstreak:0,war:null,ctLost:null,infl:1,mInfl:1,taxAcc:0,kpi:null,kpiStreak:0,kpiFails:0,tdebt:0,rel:{},relCd:{},city:'home'};
+    agg:'mig',aggAt:-99,aggNext:0,aggLast:0,lowDays:0,cscore:0,cstreak:0,war:null,ctLost:null,infl:1,mInfl:1,taxAcc:0,kpi:null,kpiStreak:0,kpiFails:0,tdebt:0,rel:{},relCd:{},city:'home',balRev:0,netSeen:{},netRev:[],seed:0};
 }
 function fixState(v){const b=blankState(v.mode||'campaign');const o=Object.assign(b,v);o.bal=v.bal||1;if(!AGG[o.agg])o.agg='mig';
   if(!v.rivals){o.rivals=b.rivals;if(v.rival){o.rivals[0].name=v.rival.name;o.rivals[0].cars=v.rival.cars}}
@@ -1904,7 +1906,8 @@ function syncDrivers(){if(!S.dlist)S.dlist=[];while(S.dlist.length<S.drivers)S.d
   if(S.dlist.length>S.drivers){S.dlist.sort((a,b)=>a.loy-b.loy);S.dlist.splice(0,S.dlist.length-S.drivers)}}
 function newGame(mode,heads,opts={}){
   if(S&&!S.over&&!S.preview&&S.day>1)recordResult('прервана');
-  S=blankState(mode);hvToday=false;S.heads=heads;S.diff=opts.diff||'normal';S.chapter=opts.chapter||0;
+  if(mode==='contest')ctUse(opts.seed,1);else ctSync(null);
+  S=blankState(mode);S.balRev=netOff?0:netRevNow();hvToday=false;S.heads=heads;S.diff=opts.diff||'normal';S.chapter=opts.chapter||0;
   START_FLEET.forEach(([m,k])=>addCar(m,k));
   S.city=opts.city||'home';
   S.money=Math.round(S.money*(B(2)&&mode==='campaign'&&S.diff!=='easy'?bal('start')[S.diff]:dif().money)*(mode==='endless'?prestCap(prestige()):1)*(cityDef().price||1)/1000)*1000;
@@ -1912,25 +1915,27 @@ function newGame(mode,heads,opts={}){
   if(mode==='endless'&&prestige()>=10)S.rank=1;
   if(mode==='story')CHAPTERS[S.chapter].setup(S);
   if(mode==='daily'){S.dailyKey=todayKey();S.dailyIdx=dailyIdx();DAILY_SC[S.dailyIdx].setup(S)}
+  if(mode==='contest'){S.seed=opts.seed;S.dailyKey='c'+opts.cid;S.dailyIdx=opts.sc;DAILY_SC[S.dailyIdx].setup(S)}
   if(mode==='sandbox'){S.money=99999999;S.rank=3}
   S.startMoney=S.money;
   if(mode==='campaign')S.nextCrisis=S.diff==='easy'?1e9:rand(...bal('crisisFirst'));else if(mode==='endless')S.nextCrisis=rand(...bal('endCrisisFirst'));
   S.weather=[0,1,2].map(i=>genWeather(1+i));rollDistricts();
   syncDrivers();
-  addLog(mode==='daily'?`Испытание дня «${DAILY_SC[S.dailyIdx].n}»: ${DAILY_SC[S.dailyIdx].d} 7 дней, наберите как можно больше очков.`:mode==='sandbox'?'Песочница: денег без счёта, стройте парк мечты.':mode==='story'?`${CHAPTERS[S.chapter].n}. ${CHAPTERS[S.chapter].d}`:`Вы приняли таксопарк «ДСТ-24»: 8 подержанных машин и 7 водителей.`+(mode==='endless'?' Режим без конца: растите сколько хотите.':''));
+  addLog(dailyLike()?`${mode==='contest'?'Соревнование недели':'Испытание дня'} «${DAILY_SC[S.dailyIdx].n}»: ${DAILY_SC[S.dailyIdx].d} 7 дней, наберите как можно больше очков.`:mode==='sandbox'?'Песочница: денег без счёта, стройте парк мечты.':mode==='story'?`${CHAPTERS[S.chapter].n}. ${CHAPTERS[S.chapter].d}`:`Вы приняли таксопарк «ДСТ-24»: 8 подержанных машин и 7 водителей.`+(mode==='endless'?' Режим без конца: растите сколько хотите.':''));
   S.today=[0,1,2].map(nextEvent);
   if(G.loginPending&&mode!=='sandbox'){const lp=G.loginPending;
     if(lp.streak){const w=loginPay(lp.streak);addLog(`Награда за вход: ${rub(w.m)}${w.w?`, +${bal('loginParts')} запчасти, лояльность +${bal('loginLoy')}`:''}.`)}
     else{S.money+=lp;addLog(`Награда за вход: ${rub(lp)}.`)}
     G.loginPending=0;saveG()}
+  if(G.netGift&&mode!=='sandbox'&&!dailyLike()){const g=Math.min(1e5,+G.netGift||0);S.money+=g;addLog(`Подарок от диспетчерской: ${rub(g)}.`);G.netGift=0;saveG()}
   save();render();
   if(mode==='story')showModal(`<span class="step">СЮЖЕТ</span><h2>${CHAPTERS[S.chapter].n}</h2><p>${CHAPTERS[S.chapter].d}</p><p><b>Цель:</b> ${CHAPTERS[S.chapter].goalTxt}.</p><button class="btn" id="chGo">Начать</button>`),$('chGo').onclick=()=>{hideModal();if(!G.tutDone)tutorial()};
-  else if(mode==='daily'){showModal(`<span class="step">ИСПЫТАНИЕ ДНЯ · ${todayKey()}</span><h2>${DAILY_SC[S.dailyIdx].n}</h2><p>${DAILY_SC[S.dailyIdx].d}</p><p>7 дней. Очки = касса + 50 000 ₽ за каждую машину + 2 000 ₽ за каждое очко репутации. Сегодня у всех игроков одинаковое испытание — сравните результат с друзьями.</p>${G.daily&&G.daily.key===todayKey()?`<p class="note">Ваш лучший результат сегодня: ${G.daily.best.toLocaleString('ru-RU')} очков.</p>`:''}<button class="btn" id="dyGo">Поехали</button>`);$('dyGo').onclick=hideModal}
+  else if(dailyLike()){showModal(`<span class="step">${mode==='contest'?'СОРЕВНОВАНИЕ НЕДЕЛИ':'ИСПЫТАНИЕ ДНЯ'} · ${mode==='contest'?esc(S.dailyKey):todayKey()}</span><h2>${DAILY_SC[S.dailyIdx].n}</h2><p>${DAILY_SC[S.dailyIdx].d}</p><p>7 дней. Очки = касса + 50 000 ₽ за каждую машину + 2 000 ₽ за каждое очко репутации. Сегодня у всех игроков одинаковое испытание — сравните результат с друзьями.</p>${mode==='daily'&&G.daily&&G.daily.key===todayKey()?`<p class="note">Ваш лучший результат сегодня: ${G.daily.best.toLocaleString('ru-RU')} очков.</p>`:''}<button class="btn" id="dyGo">Поехали</button>`);$('dyGo').onclick=hideModal}
   else if(!G.tutDone)coachStart();
 }
 function recordResult(st){if(!S||S.preview||S.mode==='sandbox')return;
   const r={date:new Date().toLocaleDateString('ru-RU'),mode:S.mode,diff:S.diff||'normal',days:Math.max(0,S.day-1),cars:totalCars(),money:Math.round(S.money),rank:S.rank||0,st,bal:S.bal||1};if(S.stars)r.stars=S.stars;
-  G.board=(G.board||[]).concat([r]).sort((a,b)=>(b.cars*20000+b.money)-(a.cars*20000+a.money)).slice(0,10);saveG();netSubmit(r,S.mode==='daily'?dailyScore():r.cars*20000+r.money)}
+  G.board=(G.board||[]).concat([r]).sort((a,b)=>(b.cars*20000+b.money)-(a.cars*20000+a.money)).slice(0,10);saveG();netSubmit(r,dailyLike()?dailyScore():r.cars*20000+r.money)}
 function addCar(m,kmv){const M=MODELS[m],c={m,b:0,id:++S.seq,km:kmv!=null?kmv:(M.km0?M.km0+rand(-15000,15000):rand(0,40)),lease:M.lease?LEASE_DAYS:0};if(B(3))c.to=c.km+bal('toKm');S.fleet.push(c)}
 function removeCar(){for(const k of MODEL_KEYS){const i=S.fleet.findIndex(c=>c.m===k&&!(c.lease>0));if(i>-1){S.fleet.splice(i,1);return}}if(S.fleet.length)S.fleet.shift()}
 function breakCars(n){shuffle(S.fleet.filter(c=>!c.b&&!c.svc)).slice(0,n).forEach(c=>c.b=1)}
@@ -2123,7 +2128,7 @@ function endDay(){
   const share=1+Math.max(-.08,Math.min(.08,(S.rep-rivalAvg)/100*.2));
   const nightK=B(3)?1+(S.shift2||0)/100*bal('shiftRev'):1+(S.night||0)/100*.25,distK=distFactor();
   const shB=shashBad();
-  const demand=cityDemand()*(crisisOn('giant')?.85:1)*(crisisOn('cyber')?.75:1)*mood*sea.demand*newsMod('demand')*(hol?hol[0]:1)*share*RANK_BONUS[S.rank||0]*prestRev()*(warOn()?bal('warK'):1)*ownRev();
+  const demand=cityDemand()*(crisisOn('giant')?.85:1)*(crisisOn('cyber')?.75:1)*mood*sea.demand*newsMod('demand')*(hol?hol[0]:1)*share*RANK_BONUS[S.rank||0]*prestRev()*(warOn()?bal('warK'):1)*ownRev()*netRevK();
   const base=working.slice(0,regular).reduce((a,c,i)=>a+carRev(c)*drvQ(crewD[i]),0);
   const sat=satK(),mgmt=mgmtCost();
   const revK=B(2)&&camp()&&bal('rev')[S.diff]||1,AG=B(4)?aggDef():null,aggM=AG?AG.ord*(shB?bal('shashOrd'):1)*(S.aggNext===S.day?bal('aggIdle'):1):1;
@@ -2240,7 +2245,7 @@ function endDay(){
   if(S.mode==='sandbox')S.money=Math.max(S.money,99999999);
   // кризисы
   if(S.crisis){S.crisis.days--;if(S.crisis.days<=0){notes.push(`Кризис «${CRISES[S.crisis.id].n}» позади. Парк выстоял: +2 к репутации.`);S.rep=Math.min(100,S.rep+2);S.cnt.crisis=(S.cnt.crisis||0)+1;S.crisis=null}}
-  else if(S.mode!=='daily'&&S.day>=S.nextCrisis&&S.day>=(B(2)&&camp()?bal('crisisMin'):20)&&(!B(2)||!simpleOn()||S.day>=FEATURE_DAY.raid)){
+  else if(!dailyLike()&&S.day>=S.nextCrisis&&S.day>=(B(2)&&camp()?bal('crisisMin'):20)&&(!B(2)||!simpleOn()||S.day>=FEATURE_DAY.raid)){
     const ks=Object.keys(CRISES),k=ks[rand(0,ks.length-1)],len=B(2)&&camp()?Math.min(CRISES[k].days,bal('crisisMax')):CRISES[k].days;
     if(B(2)&&!heavyDays(S.day+1,len))S.nextCrisis=S.day+rand(2,4);
     else{S.crisis={id:k,days:len};S.nextCrisis=B(2)&&camp()?1e9:B(2)&&endl()?S.day+rand(...bal('endCrisisNext')):S.day+rand(45,70);
@@ -2296,6 +2301,7 @@ function endDay(){
 
 /* ================= УТРО: проверки, конкурент, задания ================= */
 function startDay(){
+  ctSync(S);const nn=netDay();
   S.done=[null,null,null];S.hired=false;rollDistricts();
   // B(2): проверку откладываем, если идёт удар; рейд и профсоюз не стартуют в один день с ней и друг с другом
   let tx=(S.taxAt&&S.taxAt.includes(S.day))||(S.mode==='endless'&&S.day>=S.nextTax);
@@ -2328,12 +2334,13 @@ function startDay(){
   const opened=MTABS.filter(([k])=>simpleOn()&&S.day===(TAB_DAY[k]||1)&&S.day>1).map(([k,l])=>l);
   if(opened.length){toast(`Открыто: ${opened.join(', ')}`);addLog(`Новые возможности: ${opened.join(', ')}.`)}
   S.later=S.later||[];const due=S.later.filter(x=>x.at<=S.day);if(due.length){S.later=S.later.filter(x=>x.at>S.day);S.echoDue=due;mm.unshift('echo')}
-  S.morning=mm;freshDesks=true;save();render();runMorning();
+  if(nn)mm.push('netnews');
+  S.morning=mm;freshDesks=true;save();render();runMorning();netGifts();netMailRun();
 }
 function runMorning(){
   if(!S.morning.length||S.over){save();render();return}
   const k=S.morning.shift();save();
-  ({inspect:inspection,rival:rivalEvent,quest:newQuest,meeting:meeting,tax:taxAudit,raid:raidEvent,branch:branchEvent,paper:newspaper,career:careerEvent,a2hs:a2hsEvent,boom:debtBoom,rare:rareEvent,echo:echoEvent,quit:quitEvent,conflict:conflictEvent,union:unionEvent,auction:auction,contract:contractOffer,agency:agencyEvent}[k]||runMorning)();
+  ({inspect:inspection,rival:rivalEvent,quest:newQuest,meeting:meeting,tax:taxAudit,raid:raidEvent,branch:branchEvent,paper:newspaper,career:careerEvent,a2hs:a2hsEvent,boom:debtBoom,rare:rareEvent,echo:echoEvent,quit:quitEvent,conflict:conflictEvent,union:unionEvent,auction:auction,contract:contractOffer,agency:agencyEvent,netnews:netNewsEv}[k]||runMorning)();
 }
 const fName=i=>G.founders[i]||FOUNDERS[i].name;
 function inspection(){
@@ -3080,10 +3087,10 @@ function gameOver(){
 }
 function finale(){
   if(S.mode==='story')return storyFinale();
-  if(S.mode==='daily'){const sc=dailyScore(),first=!S.over;if(first){recordResult('испытание дня');if(!G.daily||G.daily.key!==S.dailyKey||sc>G.daily.best)G.daily={key:S.dailyKey,best:sc};saveG()}
+  if(dailyLike()){const ct=S.mode==='contest',gk=ct?'contest':'daily',sc=dailyScore(),first=!S.over;if(first){recordResult(ct?'соревнование':'испытание дня');if(!G[gk]||G[gk].key!==S.dailyKey||sc>G[gk].best)G[gk]={key:S.dailyKey,best:sc};saveG()}
     S.over=true;save();render();
-    showModal(`<span class="step">ИСПЫТАНИЕ ДНЯ · ${S.dailyKey}</span><h2>${sc.toLocaleString('ru-RU')} очков</h2><p>«${DAILY_SC[S.dailyIdx].n}». Касса ${rub(S.money)}, машин ${totalCars()}, репутация ${S.rep}.</p>
-      <p class="note">Лучший результат сегодня: ${G.daily.best.toLocaleString('ru-RU')}. Отправьте друзьям — у них сегодня такое же испытание.</p><p class="note" id="dyPlace"></p><button class="btn" id="again">В меню</button>`);
+    showModal(`<span class="step">${ct?'СОРЕВНОВАНИЕ НЕДЕЛИ':'ИСПЫТАНИЕ ДНЯ'} · ${esc(S.dailyKey)}</span><h2>${sc.toLocaleString('ru-RU')} очков</h2><p>«${DAILY_SC[S.dailyIdx].n}». Касса ${rub(S.money)}, машин ${totalCars()}, репутация ${S.rep}.</p>
+      <p class="note">${ct?'Лучший результат в этом соревновании':'Лучший результат сегодня'}: ${G[gk].best.toLocaleString('ru-RU')}. Отправьте друзьям — у них сегодня такое же испытание.</p><p class="note" id="dyPlace"></p><button class="btn" id="again">В меню</button>`);
     $('again').onclick=pickMode;netPlace();return}
   const pg=B(2)&&S.diff!=='easy',ok=[goalMet(),carsN()>=GOAL_CARS,S.rep>=50],win=ok.every(Boolean),stars=win&&B(2)?S.stars||starsOf():0;
   if(!S.over){S.stars=stars;recordResult('финиш')}
@@ -3117,6 +3124,7 @@ function pickMode(){
     <button class="mode" id="mCamp"><b>КАМПАНИЯ</b><span>${DAYS} дней. Цель: ${GOAL_CARS} машин, прибыль или касса (зависит от сложности) и репутация 50+.</span></button>
     <button class="mode" id="mEnd"><b>БЕСКОНЕЧНЫЙ РЕЖИМ</b><span>Без лимита дней и машин. Цели идут одна за другой.</span></button>
     <button class="mode" id="mDaily"><b>ИСПЫТАНИЕ ДНЯ</b><span>«${DAILY_SC[dailyIdx()].n}»: ${DAILY_SC[dailyIdx()].d} 7 дней, одно испытание для всех.${G.daily&&G.daily.key===todayKey()?` Ваш рекорд сегодня: ${G.daily.best.toLocaleString('ru-RU')} очков.`:''}</span></button>
+    ${netContest()?`<button class="mode" id="mContest"><b>СОРЕВНОВАНИЕ НЕДЕЛИ</b><span>«${esc(DAILY_SC[netCt(netContest()).sc].n)}»: ${esc(DAILY_SC[netCt(netContest()).sc].d)} 7 дней, одинаковые условия у всех игроков.</span></button>`:''}
     <button class="mode" id="mSand"><b>ПЕСОЧНИЦА</b><span>Бесконечные деньги, проиграть нельзя. Просто стройте парк мечты.</span></button>
     <button class="mode" id="mStory"><b>СЮЖЕТ</b><span>${CHAPTERS.length} главы с особыми условиями. Пройдено: ${Math.min(G.story||0,CHAPTERS.length)} из ${CHAPTERS.length}.</span></button></div>
     <button class="btn ghost" id="mLoad">Загрузить по коду сохранения</button>
@@ -3127,6 +3135,7 @@ function pickMode(){
   $('mStory').onclick=()=>{ensureAudio();pickChapter()};
   $('simpleChk').onchange=e=>{G.simple=e.target.checked;saveG()};
   $('mDaily').onclick=()=>{ensureAudio();chooseHeads('daily',{diff:'normal'})};
+  if($('mContest'))$('mContest').onclick=()=>{const e=netContest();if(!e)return;const c=netCt(e);ensureAudio();chooseHeads('contest',{diff:c.diff,seed:c.seed,sc:c.sc,cid:e.id})};
   $('mSand').onclick=()=>{ensureAudio();chooseHeads('sandbox',{diff:'easy'})};
   if($('mCancel'))$('mCancel').onclick=hideModal;
   $('mLoad').onclick=openSaveModal;
@@ -3226,7 +3235,7 @@ function renderHud(prev){
   const date=dateOf(S.day),sea=season(date),hol=HOLIDAYS[mmdd(date)];
   $('date').innerHTML=`${WD[date.getDay()]} ${date.getDate()} ${MONTHS[date.getMonth()]}<span class="dsea"> · ${sea.n}</span>${hol?' · '+hol[1]:''}`;
   $('parkName').textContent=`Таксопарк «${parkName()}»`;
-  $('goalHead').innerHTML=(S.mode==='sandbox'?'Песочница: деньги без счёта, проиграть нельзя.':S.mode==='daily'?`<b>Испытание дня «${DAILY_SC[S.dailyIdx||0].n}».</b> Очки сейчас: ${dailyScore().toLocaleString('ru-RU')}.`:S.mode==='story'?`<b>${CHAPTERS[S.chapter].n}.</b> Цель: ${CHAPTERS[S.chapter].goalTxt}.`:endless?'Бесконечный режим: цели одна за другой.':`Цель к ${DAYS}-му дню: <b>${GOAL_CARS} машин</b> · <b>${B(2)&&S.diff!=='easy'?`прибыль ${rub(Math.max(0,profit()))} / ${rub(goalBase())}`:rub(GOAL_MONEY)}</b> · репутация <b>50+</b>`)+` <span class="sub">· ${dif().n}.${S.strategy&&S.day<S.strategy.until?` Стратегия: «${STRATS[S.strategy.id].n}» ещё ${S.strategy.until-S.day} дн.`:''}</span>`;
+  $('goalHead').innerHTML=(S.mode==='sandbox'?'Песочница: деньги без счёта, проиграть нельзя.':dailyLike()?`<b>${S.mode==='contest'?'Соревнование недели':'Испытание дня'} «${DAILY_SC[S.dailyIdx||0].n}».</b> Очки сейчас: ${dailyScore().toLocaleString('ru-RU')}.`:S.mode==='story'?`<b>${CHAPTERS[S.chapter].n}.</b> Цель: ${CHAPTERS[S.chapter].goalTxt}.`:endless?'Бесконечный режим: цели одна за другой.':`Цель к ${DAYS}-му дню: <b>${GOAL_CARS} машин</b> · <b>${B(2)&&S.diff!=='easy'?`прибыль ${rub(Math.max(0,profit()))} / ${rub(goalBase())}`:rub(GOAL_MONEY)}</b> · репутация <b>50+</b>`)+` <span class="sub">· ${dif().n}.${S.strategy&&S.day<S.strategy.until?` Стратегия: «${STRATS[S.strategy.id].n}» ещё ${S.strategy.until-S.day} дн.`:''}</span>`;
   $('rank').textContent='★ '+rankName(S.rank||0);
   const stats=[
     ['money','Касса',rub(S.money),null,'money'],
@@ -3694,7 +3703,7 @@ function openSaveModal(){
     try{res=await readCode($('codeIn').value)}catch(e){
       msg.className='neg';msg.textContent=e.message==='browser'?'Этот браузер не умеет распаковывать код. Откройте игру в свежем Chrome, Safari или Firefox.':'Код не подошёл. Проверьте, что он скопирован целиком, от «DST24» до последнего символа.';sfx('bad');return}
     if(canExport&&!S.over&&!armed){armed=true;msg.className='neg';msg.textContent=`Текущая игра (день ${S.day}) заменится игрой из кода: день ${res.s.day}, ${rub(res.s.money)}. Нажмите «Загрузить» ещё раз, чтобы подтвердить.`;$('loadCode').textContent='Да, загрузить';return}
-    S=res.s;
+    S=res.s;ctSync(S);
     if(Array.isArray(res.g.pins)&&res.g.pins.length===3)G.pins=res.g.pins.map((p,d)=>p&&HEADS[d].some(x=>x.key===p.key)?{key:p.key,name:String(p.name||'').slice(0,40)}:null);
     if(Array.isArray(res.g.founders)&&res.g.founders.length===3)G.founders=res.g.founders.map((n,i)=>String(n||'').slice(0,40)||FOUNDERS[i].name);
     saveG();addLog('Игра загружена из кода сохранения.');movers=[];save();hideModal();render();toast(`Игра загружена: день ${S.day}`);sfx('win');
@@ -4580,7 +4589,7 @@ function simGuard(fn){
   const ls=JSON.stringify(localStorage),S0=S===undefined?undefined:JSON.stringify(S),G0=JSON.stringify(G),card=[...$('modalCard').childNodes];
   const mod={uiTab,shopTab,mgTimer,mgRaf,mgKey,paused,scn,parts,movers,shownMoney,freshDesks};
   const orig={},fns=[...SIM_STUBS,'showModal','hideModal','render','taxAudit'],rnd=Math.random,now=Date.now,mg=[...MINIGAMES],lg=Object.assign({},LINE_GAMES);
-  fns.forEach(n=>orig[n]=window[n]);
+  fns.forEach(n=>orig[n]=window[n]);netOff=true;
   try{
     SIM_STUBS.forEach(n=>window[n]=()=>{});
     window.showModal=h=>{$('modalCard').innerHTML=h;simOpen=true};window.hideModal=()=>{simOpen=false};
@@ -4591,7 +4600,7 @@ function simGuard(fn){
     return fn();
   }finally{
     fns.forEach(n=>window[n]=orig[n]);MINIGAMES.splice(0,3,...mg);Object.assign(LINE_GAMES,lg);
-    Math.random=rnd;Date.now=now;
+    Math.random=rnd;Date.now=now;netOff=false;
     S=S0===undefined?undefined:JSON.parse(S0);G=JSON.parse(G0);
     ({uiTab,shopTab,mgTimer,mgRaf,mgKey,paused,scn,parts,movers,shownMoney,freshDesks}=mod);
     try{if(JSON.stringify(localStorage)!==ls){const o=JSON.parse(ls);localStorage.clear();for(const k in o)localStorage.setItem(k,o[k])}}catch(e){}
@@ -4667,7 +4676,7 @@ async function cloudPull(){
   const a=await api('/rest/v1/saves?select=data,mode,day,money&limit=1');if(!a)return;
   const c=a[0],mine=S&&!S.preview&&S.mode!=='sandbox';
   if(!c||!c.data||!c.data.fleet){if(mine)cloudPush(true);return}
-  const use=()=>{S=Object.assign(fixState(c.data),{preview:false});movers=[];save();hideModal();render();toast('Загружено из облака: день '+S.day);
+  const use=()=>{S=Object.assign(fixState(c.data),{preview:false});ctSync(S);movers=[];save();hideModal();render();toast('Загружено из облака: день '+S.day);
     if(S.over){hasLimit()&&S.day>dayLimit()?finale():gameOver()}else if(S.morning&&S.morning.length)runMorning()};
   if(!mine){if(S&&S.mode==='sandbox')return;use();return}
   if(c.mode===S.mode&&c.day===S.day&&Math.round(c.money)===Math.round(S.money))return;
@@ -4680,7 +4689,7 @@ document.addEventListener('visibilitychange',()=>{if(document.hidden)cloudPush(t
 /* ---- рекорды ---- */
 let netLB={},netView='mine',netLBMode='campaign';
 let netSubP=null;
-function netSubmit(r,sc){if(!online())return;netSubP=rpc('submit_score',{p_mode:r.mode,p_diff:r.diff,p_day_key:r.mode==='daily'?S.dailyKey:'',p_score:Math.max(0,Math.round(sc)),p_stars:r.stars||0,p_days:r.days,p_cars:r.cars,p_money:r.money,p_bal:r.bal})}
+function netSubmit(r,sc){if(!online())return;netSubP=rpc('submit_score',{p_mode:r.mode,p_diff:r.diff,p_day_key:r.mode==='daily'||r.mode==='contest'?S.dailyKey:'',p_score:Math.max(0,Math.round(sc)),p_stars:r.stars||0,p_days:r.days,p_cars:r.cars,p_money:r.money,p_bal:r.bal})}
 async function netBoardLoad(mode,key){
   const k=mode+'|'+(key||'');netLB[k]='load';
   const q=key?'&day_key=eq.'+encodeURIComponent(key):'';
@@ -4691,21 +4700,22 @@ async function netPlace(){
   const key=S.dailyKey,mine=netSt.nick,el=()=>$('dyPlace');
   if(!online()||!key)return;
   try{await netSubP}catch(e){}
-  const rows=await netBoardLoad('daily',key);if(!el())return;
+  const rows=await netBoardLoad(S.mode==='contest'?'contest':'daily',key);if(!el())return;
   if(!Array.isArray(rows)){el().textContent='';return}
-  const i=rows.findIndex(x=>x.nick===mine);el().textContent=i<0?'':`Сегодня: место ${i+1} из ${rows.length}`}
-const NET_MODES=[['campaign','Кампания'],['endless','Бесконечный'],['story','Сюжет'],['daily','Испытание дня']];
-const netBoardHead=()=>`<div class="tabs" style="margin-bottom:8px"><button class="tab${netView==='mine'?' on':''}" data-nv="mine">Мои</button><button class="tab${netView==='all'?' on':''}" data-nv="all">Все игроки</button></div>${netView==='all'?`<div class="tabs" style="margin-bottom:8px">${NET_MODES.map(([k,l])=>`<button class="tab${netLBMode===k?' on':''}" data-nm="${k}">${l}</button>`).join('')}</div>`:''}`;
+  const i=rows.findIndex(x=>x.nick===mine);el().textContent=i<0?'':`${S.mode==='contest'?'Место':'Сегодня: место'} ${i+1} из ${rows.length}`}
+const NET_MODES=[['campaign','Кампания'],['endless','Бесконечный'],['story','Сюжет'],['daily','Испытание дня'],['contest','Соревнование']];
+const netKey=()=>netLBMode==='daily'?todayKey():netLBMode==='contest'&&netContest()?'c'+netContest().id:'';
+const netBoardHead=()=>`<div class="tabs" style="margin-bottom:8px"><button class="tab${netView==='mine'?' on':''}" data-nv="mine">Мои</button><button class="tab${netView==='all'?' on':''}" data-nv="all">Все игроки</button></div>${netView==='all'?`<div class="tabs" style="margin-bottom:8px">${NET_MODES.filter(([k])=>k!=='contest'||netContest()).map(([k,l])=>`<button class="tab${netLBMode===k?' on':''}" data-nm="${k}">${l}</button>`).join('')}</div>`:''}`;
 function netBoardRows(){
   if(!online())return'<p class="kind">Войдите через «Меню → Онлайн», чтобы видеть общий рейтинг.</p>';
-  const key=netLBMode==='daily'?todayKey():'',v=netLB[netLBMode+'|'+key];
+  const key=netKey(),v=netLB[netLBMode+'|'+key];
   if(!v||v==='load')return'<p class="kind">загрузка…</p>';
   if(v==='err')return'<p class="kind">нет связи</p>';
   if(!v.length)return'<p class="kind">Пока пусто.</p>';
   return`<div class="tablewrap"><table><thead><tr><th>#</th><th>Игрок</th><th>Дней</th><th>Машин</th><th>Касса</th><th>Очки</th></tr></thead><tbody>${v.map((r,i)=>`<tr${r.nick===netSt.nick?' style="outline:3px solid var(--taxi)"':''}><td>${i+1}</td><td>${esc(r.nick)}</td><td>${r.days}</td><td>${r.cars}</td><td>${rub(r.money)}</td><td>${Number(r.score).toLocaleString('ru-RU')}${r.stars?' '+'★'.repeat(r.stars):''}</td></tr>`).join('')}</tbody></table></div>`}
 function netBoardBind(){
   const B=$('mbody');if(!B)return;
-  const load=()=>{const key=netLBMode==='daily'?todayKey():'';if(online()&&netView==='all'){netBoardLoad(netLBMode,key).then(()=>{if(uiTab==='ach')renderMgmt()});}};
+  const load=()=>{const key=netKey();if(online()&&netView==='all'){netBoardLoad(netLBMode,key).then(()=>{if(uiTab==='ach')renderMgmt()});}};
   B.querySelectorAll('[data-nv]').forEach(b=>b.onclick=()=>{netView=b.dataset.nv;if(netView==='all')load();renderMgmt()});
   B.querySelectorAll('[data-nm]').forEach(b=>b.onclick=()=>{netLBMode=b.dataset.nm;load();renderMgmt()})}
 /* ---- окно «Онлайн» ---- */
@@ -4714,7 +4724,8 @@ function openNetModal(msg){
   if(!NET.url){showModal(`<span class="step">ОНЛАЙН</span><h2>Онлайн не настроен</h2><p class="note">Игра работает без сети.</p><div class="btns"><button class="btn ghost" id="nvClose">Закрыть</button></div>`);$('nvClose').onclick=hideModal;return}
   if(online()){
     showModal(`<span class="step">ОНЛАЙН</span><h2>${netDot()} На связи</h2><p>Вы вошли как <b>${esc(netSt.nick||'игрок')}</b>. Партия копируется в облако после каждого дня, результаты уходят в общую таблицу.</p><p class="note" id="nvMsg">${msg?esc(msg):''}</p>
-      <div class="btns"><button class="buy" id="nvSync">Синхронизировать</button><button class="buy alt" id="nvOut">Выйти</button><button class="btn ghost" id="nvClose">Закрыть</button></div>`);
+      <div class="btns"><button class="buy" id="nvCity">Город</button><button class="buy" id="nvSync">Синхронизировать</button><button class="buy alt" id="nvOut">Выйти</button><button class="btn ghost" id="nvClose">Закрыть</button></div>`);
+    $('nvCity').onclick=openCity;
     $('nvSync').onclick=async()=>{$('nvMsg').textContent='Связываюсь…';netPushT=0;await cloudPull();if($('nvMsg'))$('nvMsg').textContent='Готово'};
     $('nvOut').onclick=async()=>{await signOut();openNetModal('Вы вышли.')};
   }else{
@@ -4728,12 +4739,105 @@ function openNetModal(msg){
       toast('Вы на связи: '+(netSt.nick||''));sfx('coin');openNetModal();cloudPull();render()};
     $('nvIn').onclick=go(0);$('nvUp').onclick=go(1)}
   $('nvClose').onclick=hideModal}
-if(NET.url&&netSt.tok)setTimeout(()=>{rpc('touch');cloudPull()},1500);
+if(NET.url&&netSt.tok)setTimeout(()=>{rpc('touch');cloudPull();netGifts();netMailRun()},1500);
+if(NET.url)setTimeout(netLoad,600);
+
+/* ---- правки баланса, события, подарки ---- */
+let netOff=false; // бот ?sim: онлайн-правки не видит
+const netBC=new Map(),netToday=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};
+const netIn=(e,t)=>(!e.starts||String(e.starts).slice(0,10)<=t)&&(!e.ends||String(e.ends).slice(0,10)>=t);
+const netClamp=(x,a,b)=>Math.max(a,Math.min(b,+x||0));
+async function netLoad(){if(!NET.url)return;
+  const[c,e]=await Promise.all([api('/rest/v1/config?active=eq.true&select=rev,base,patch'),api('/rest/v1/events?active=eq.true&select=id,kind,title,text,params,starts,ends')]);
+  if(Array.isArray(c)){netSt.cfg=c;netBC.clear()}if(Array.isArray(e))netSt.ev=e;if(c||e)netSave()}
+// последняя правка для текущей базы баланса: новая партия запоминает её номер
+const netRevNow=()=>{let m=0;if(NET.url&&Array.isArray(netSt.cfg))for(const x of netSt.cfg)if(x&&+x.base===BAL_NEW&&+x.rev>m)m=+x.rev;return m};
+// слияние: число к числу, объект к объекту; иное — база
+const netMerge=(b,p)=>typeof b==='number'?(typeof p==='number'&&isFinite(p)?p:b):b&&typeof b==='object'&&!Array.isArray(b)?(p&&typeof p==='object'&&!Array.isArray(p)?Object.fromEntries(Object.entries(b).map(([k,x])=>[k,k in p?netMerge(x,p[k]):x])):b):b;
+function netPatch(k,b){if(netOff)return b;const key=S.balRev+'|'+S.bal+'|'+k;if(netBC.has(key))return netBC.get(key);
+  const row=Array.isArray(netSt.cfg)&&netSt.cfg.find(x=>x&&+x.rev===S.balRev&&+x.base===S.bal),p=row&&row.patch;
+  const r=p&&typeof p==='object'&&k in p?netMerge(b,p[k]):b;netBC.set(key,r);return r}
+const netLiveGame=()=>!netOff&&!!S&&!S.preview&&!S.over&&S.mode!=='sandbox'&&!dailyLike()&&(S.bal||1)>=6;
+const netRevK=()=>{if(!S.netRev||!S.netRev.length)return 1;const t=netToday();return netClamp(S.netRev.reduce((a,x)=>x.ends>=t?a*x.k:a,1),.5,1.5)};
+function netDay(){
+  if(!NET.url||!Array.isArray(netSt.ev)||!netLiveGame())return false;
+  const t=netToday();let news=false;S.netSeen=S.netSeen||{};
+  for(const e of netSt.ev){if(!e||S.netSeen[e.id]||!netIn(e,t))continue;const p=e.params||{};
+    if(e.kind==='news'){S.netNews=(S.netNews||[]).concat([{t:String(e.title||'').slice(0,80),x:String(e.text||'').slice(0,400)}]);news=true}
+    else if(e.kind==='rev'){const k=netClamp(p.k||1,.5,1.5);S.netRev=(S.netRev||[]).concat([{k,ends:e.ends?String(e.ends).slice(0,10):t}]);addLog(`Новости города: ${esc(String(e.title||'выручка').slice(0,60))} (выручка ×${k}).`)}
+    else if(e.kind==='cash'){const a=Math.round(netClamp(p.amount,-1e5,1e5));S.money+=a;addLog(`${esc(String(e.title||'Диспетчерская').slice(0,60))}: ${a<0?'−':'+'}${rub(Math.abs(a))}.`)}
+    else if(e.kind==='event'){const id=typeof p.id==='string'&&isNaN(+p.id)?p.id:Math.round(+p.id),d=typeof id==='string'?(CHAINS[id]&&CHAINS[id].d):Math.round(+p.d);
+      if(!(d>=0&&d<=2)||(typeof id==='string'?!CHAINS[id]:!EVENTS[d][id]))continue;S.queue.push({d,id,at:S.day})}
+    else continue;
+    S.netSeen[e.id]=1}
+  return news}
+function netNewsEv(){const n=S.netNews||[];S.netNews=[];
+  if(!n.length){runMorning();return}
+  n.forEach(x=>addLog('Новости: '+esc(x.t)));save();
+  showModal(`<div class="paper"><div class="paper-head">СРОЧНО ИЗ ДИСПЕТЧЕРСКОЙ</div>${n.map(x=>`<h3>${esc(x.t)}</h3><p>${esc(x.x)}</p>`).join('')}</div><button class="btn" id="nnOk">Понятно</button>`);
+  $('nnOk').onclick=()=>{hideModal();runMorning()}}
+function netGrant(r){const p=r.params||{};
+  if(r.kind==='ach'){const a=ACH.find(x=>x[0]===p.id);if(!a)return;G.ach[a[0]]=true;saveG();if(S&&!S.preview){S.ach[a[0]]=S.ach[a[0]]||S.day;addLog(`Достижение: «${a[1]}»`)}}
+  else if(r.kind==='money'){const a=Math.round(netClamp(p.amount,0,1e5));if(!a)return;
+    if(netLiveGame()){S.money+=a;addLog(`Подарок от диспетчерской: ${rub(a)}.`);save();render()}else{G.netGift=(+G.netGift||0)+a;saveG()}}
+  else if(r.kind==='livery'){const a=UNLOCK.livery[String(p.id)];if(!a)return;G.ach[a]=true;saveG()}
+  else if(r.kind==='note'){const t=String(p.text||p.note||'').slice(0,400);if(!t)return;
+    if($('modal').hidden)showModal(`<span class="step">ДИСПЕТЧЕРСКАЯ</span><h2>Сообщение</h2><p>${esc(t)}</p><button class="btn" id="ngOk">Понятно</button>`),$('ngOk').onclick=hideModal;
+    else if(S&&!S.preview)addLog('Диспетчерская: '+esc(t))}
+  else return;
+  toast('Подарок от диспетчерской');sfx('win')}
+let netGB=false;
+async function netGifts(){if(!online()||netGB||netOff)return;netGB=true;
+  try{const l=await rpc('my_grants');if(!Array.isArray(l))return;
+    for(const g of l.slice(0,20)){const id=Math.round(+g.id);if(!id)continue;const r=await rpc('claim_grant',{p_id:id});if(r&&r.kind)netGrant(r)}}
+  catch(e){}finally{netGB=false}}
+// входящие письма: сначала my_mail (список), mail_done забирает письмо, и только его ответ даёт награду/потерю
+let netMB=false;
+async function netMailRun(){if(!online()||netMB||!netLiveGame())return;netMB=true;
+  try{const l=await rpc('my_mail');if(!Array.isArray(l))return;let any=false;
+    for(const m of l.slice(0,10)){if(!netLiveGame())break;const id=Math.round(+m.id);if(!id)continue;
+      const r=await rpc('mail_done',{p_id:id});if(!r||!r.kind||!netLiveGame())continue;
+      const p=r.params||m.params||{},from=esc(String(p.from||(m.params&&m.params.from)||'другой таксопарк').slice(0,16));
+      if(r.kind==='poach'){S.drivers=Math.max(1,S.drivers-1);syncDrivers();addLog(`Водителя переманил ${from}.`);toast('Водителя переманили')}
+      else if(r.kind==='gift'){const a=Math.round(netClamp(p.amount,0,20000));if(!a)continue;S.money+=a;addLog(`Подарок от ${from}: ${rub(a)}.`);toast('Подарок от игрока')}
+      else continue;any=true}
+    if(any){save();render()}}
+  catch(e){}finally{netMB=false}}
+/* ---- соревнование недели ---- */
+const netCt=e=>{const p=e.params||{},seed=Math.round(netClamp(p.seed,1,1e6))||1,sc=p.sc!=null&&p.sc!==''&&Number.isInteger(+p.sc)&&+p.sc>=0&&+p.sc<DAILY_SC.length?+p.sc:seed%DAILY_SC.length;return{seed,sc,diff:DIFF[p.diff]?p.diff:'normal'}};
+const netContest=()=>{if(netOff||!NET.url||!Array.isArray(netSt.ev))return null;const t=netToday();return netSt.ev.find(e=>e&&e.kind==='contest'&&netIn(e,t))||null};
+let ctOn=false,ctRnd0=null;
+const mulberry32=a=>()=>{a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296};
+function ctUse(seed,day){if(!ctOn){ctOn=true;ctRnd0=Math.random}Math.random=mulberry32((Math.round(+seed)||1)*1000+(+day||1))}
+function ctSync(st){if(st&&st.mode==='contest'&&!st.over&&!st.preview)ctUse(st.seed,st.day);else if(ctOn){ctOn=false;Math.random=ctRnd0}}
+/* ---- город ---- */
+const cityLive=()=>netLiveGame();
+async function openCity(){
+  showModal(`<span class="step">ГОРОД</span><h2>Таксопарки города</h2><p class="kind">загрузка…</p><div class="btns"><button class="btn ghost" id="ctBack">Назад</button></div>`);
+  $('ctBack').onclick=()=>openNetModal();
+  const l=await rpc('parks');if(!$('ctBack'))return;
+  const rows=Array.isArray(l)?l.filter(x=>x&&x.nick):null;
+  const MN={campaign:'кампания',endless:'бесконечный',story:'сюжет',daily:'испытание',contest:'соревнование',sandbox:'песочница'};
+  const live=cityLive(),can5=live&&S.money>=5000;
+  showModal(`<span class="step">ГОРОД</span><h2>Таксопарки города</h2><p class="note" id="ctMsg">${live?'Переманить можно раз в сутки. Подарок — 5 000 ₽ из вашей кассы.':'Подарки и переманивание — только в живой партии (не песочница, не испытание).'}</p>
+    ${!rows?'<p class="kind">нет связи</p>':!rows.length?'<p class="kind">Пока пусто.</p>':`<div class="tablewrap"><table><thead><tr><th>Игрок</th><th>День</th><th>Касса</th><th>Машин</th></tr></thead><tbody>${rows.map((r,i)=>`<tr${r.nick===netSt.nick?' style="outline:3px solid var(--taxi)"':''}><td>${esc(r.nick)}<br><span class="sub">${esc(MN[r.mode]||String(r.mode||''))}</span>${r.nick===netSt.nick?'':`<br><button class="buy sm" data-po="${i}"${live?'':' disabled'}>Переманить водителя</button> <button class="buy sm alt" data-gf="${i}"${can5?'':' disabled'}>Подарок 5 000 ₽</button>`}</td><td>${+r.day||0}</td><td>${rub(+r.money||0)}</td><td>${+r.cars||0}</td></tr>`).join('')}</tbody></table></div>`}
+    <div class="btns"><button class="btn ghost" id="ctBack">Назад</button></div>`);
+  $('ctBack').onclick=()=>openNetModal();
+  const msg=t=>{const m=$('ctMsg');if(m)m.textContent=t};
+  document.querySelectorAll('[data-po]').forEach(b=>b.onclick=async()=>{const r=rows[+b.dataset.po];b.disabled=true;msg('Связываюсь…');
+    const a=await rpc('poach',{p_nick:r.nick});
+    if(a&&a.ok){if(cityLive()){S.drivers++;syncDrivers();addLog(`Вы переманили водителя у ${esc(r.nick)}.`);save();render()}msg('Водитель теперь ваш')}
+    else msg(a&&a.err?String(a.err).slice(0,80):'Не получилось, попробуйте позже')});
+  document.querySelectorAll('[data-gf]').forEach(b=>b.onclick=async()=>{const r=rows[+b.dataset.gf];if(!cityLive()||S.money<5000)return;b.disabled=true;msg('Связываюсь…');
+    const a=await rpc('send_gift',{p_nick:r.nick,p_amount:5000});
+    if(a&&a.ok){if(cityLive()&&S.money>=5000){S.money-=5000;addLog(`Подарок игроку ${esc(r.nick)}: −5 000 ₽.`);save();render()}msg('Подарок отправлен')}
+    else msg(a&&a.err?String(a.err).slice(0,80):'Не получилось, попробуйте позже')})}
+
 
 /* ================= СТАРТ ================= */
 try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist()}catch(e){}
 studioLogo(splash);
-S=load();
+S=load();ctSync(S);
 if(!S){S=blankState('campaign');S.preview=true;START_FLEET.forEach(([m,k])=>addCar(m,k));S.today=[0,1,2].map(nextEvent);render();pickMode()}
 else{render();if(S.over){hasLimit()&&S.day>dayLimit()?finale():gameOver()}else if(S.morning&&S.morning.length)runMorning()}
 if(document.fonts&&document.fonts.ready)document.fonts.ready.then(draw);

@@ -25,6 +25,18 @@ create table if not exists public.saves(
   updated_at timestamptz not null default now()
 );
 
+alter table public.saves drop constraint if exists saves_sane;
+alter table public.saves add constraint saves_sane check (
+  (mode is null or mode in ('campaign','endless','story','daily','contest'))
+  and (day is null or day between 0 and 2000) and (cars is null or cars between 0 and 1000)
+  and (money is null or abs(money) < 10000000000) and (stars is null or stars between 0 and 3));
+
+create or replace function public.saves_touch() returns trigger
+language plpgsql as $$ begin new.updated_at := now(); return new; end $$;
+drop trigger if exists saves_touch on public.saves;
+create trigger saves_touch before insert or update on public.saves
+  for each row execute function public.saves_touch();
+
 create table if not exists public.scores(
   id bigserial primary key,
   user_id uuid not null default public.me(),
@@ -78,12 +90,26 @@ create table if not exists public.mail(
 );
 create index if not exists mail_inbox on public.mail(to_user, done);
 
+/* ---- помощники (игрок не читает profiles.banned/created_at напрямую) ---- */
+create or replace function public.is_banned(u uuid) returns boolean
+language sql stable security definer set search_path = public as
+$$ select coalesce((select banned from public.profiles where id = u), false) $$;
+
+create or replace function public.reg_at() returns timestamptz
+language sql stable security definer set search_path = public as
+$$ select created_at from public.profiles where id = public.me() $$;
+
+-- ник: кириллица или латиница (не вперемешку), цифры, _ - пробел
+create or replace function public.nick_ok(v text) returns boolean
+language sql immutable as
+$$ select v ~ '^[A-Za-zА-Яа-яЁё0-9_ -]{2,16}$' and not (v ~ '[A-Za-z]' and v ~ '[А-Яа-яЁё]') $$;
+
 /* ---- вид рекордов ---- */
 create or replace view public.leaderboard with (security_invoker = on) as
   select s.id, s.user_id, p.nick, s.mode, s.diff, s.day_key, s.score, s.stars,
          s.days, s.cars, s.money, s.bal, s.created_at
   from public.scores s join public.profiles p on p.id = s.user_id
-  where not s.hidden and not p.banned;
+  where not s.hidden and not public.is_banned(s.user_id);
 
 /* ---- админ ---- */
 create or replace function public.is_admin() returns boolean
@@ -103,15 +129,19 @@ end $$;
 /* ---- новый пользователь -> профиль ---- */
 create or replace function public.handle_new_user() returns trigger
 language plpgsql security definer set search_path = public as $$
-declare n text := left(btrim(coalesce(new.raw_user_meta_data->>'nick','')), 16);
+declare n text := left(btrim(coalesce(new.raw_user_meta_data->>'nick','')), 16); i int := 0;
 begin
-  if n !~ '^[A-Za-zА-Яа-яЁё0-9_ -]{2,16}$' or exists(select 1 from public.profiles where lower(nick) = lower(n)) then
-    loop
-      n := 'Игрок' || lpad((floor(random()*10000))::int::text, 4, '0');
-      exit when not exists(select 1 from public.profiles where lower(nick) = lower(n));
-    end loop;
+  if not public.nick_ok(n) or exists(select 1 from public.profiles where lower(nick) = lower(n)) then n := null; end if;
+  while n is null and i < 20 loop
+    i := i + 1;
+    n := 'Игрок' || lpad((floor(random()*10000))::int::text, 4, '0');
+    if exists(select 1 from public.profiles where lower(nick) = lower(n)) then n := null; end if;
+  end loop;
+  if n is null then n := 'Игрок' || left(replace(new.id::text,'-',''), 8); end if;
+  insert into public.profiles(id, nick) values (new.id, n) on conflict do nothing;
+  if not found then
+    insert into public.profiles(id, nick) values (new.id, 'Игрок' || left(replace(new.id::text,'-',''), 8)) on conflict do nothing;
   end if;
-  insert into public.profiles(id, nick) values (new.id, n);
   return new;
 end $$;
 
@@ -129,9 +159,10 @@ create or replace function public.set_nick(n text) returns jsonb
 language plpgsql security definer set search_path = public as $$
 declare u uuid := public._uid(); v text := btrim(coalesce(n,''));
 begin
-  if v !~ '^[A-Za-zА-Яа-яЁё0-9_ -]{2,16}$' then return jsonb_build_object('err','Ник: 2–16 символов, буквы, цифры, пробел, _ и -'); end if;
+  if not public.nick_ok(v) then return jsonb_build_object('err','Ник: 2–16 символов, буквы (не вперемешку русские и латинские), цифры, пробел, _ и -'); end if;
   if exists(select 1 from public.profiles where lower(nick) = lower(v) and id <> u) then return jsonb_build_object('err','Ник занят'); end if;
   update public.profiles set nick = v where id = u;
+  if not found then return jsonb_build_object('err','Нет профиля'); end if;
   return jsonb_build_object('ok', true, 'nick', v);
 exception when unique_violation then return jsonb_build_object('err','Ник занят');
 end $$;
@@ -148,7 +179,7 @@ begin
   if p_money is null or abs(p_money) >= 10000000000 then raise exception 'money'; end if;
   if p_score is null or p_score < 0 or p_score >= 10000000000 then raise exception 'score'; end if;
   if p_stars is null or p_stars < 0 or p_stars > 3 then raise exception 'stars'; end if;
-  if length(coalesce(p_diff,'')) > 20 or length(coalesce(p_day_key,'')) > 20 then raise exception 'key'; end if;
+  if coalesce(p_diff,'') not in ('easy','normal','hard','') or length(coalesce(p_day_key,'')) > 20 then raise exception 'key'; end if;
   if (select count(*) from public.scores where user_id = u and created_at > now() - interval '1 hour') >= 30 then raise exception 'limit'; end if;
   insert into public.scores(user_id, mode, diff, day_key, score, stars, days, cars, money, bal)
     values (u, p_mode, p_diff, p_day_key, p_score, p_stars, p_days, p_cars, p_money, p_bal)
@@ -157,12 +188,13 @@ begin
 end $$;
 
 /* ---- подарки ---- */
-create or replace function public.my_grants() returns setof public.grants
+drop function if exists public.my_grants();
+create function public.my_grants() returns table(id int, kind text, params jsonb)
 language plpgsql security definer set search_path = public as $$
 declare u uuid := public._uid(); reg timestamptz;
 begin
-  select created_at into reg from public.profiles where id = u;
-  return query select g.* from public.grants g
+  select p.created_at into reg from public.profiles p where p.id = u;
+  return query select g.id, g.kind, g.params from public.grants g
     where (g.user_id = u or (g.user_id is null and g.created_at >= reg))
       and not exists(select 1 from public.grant_claims c where c.grant_id = g.id and c.user_id = u)
     order by g.id;
@@ -170,10 +202,11 @@ end $$;
 
 create or replace function public.claim_grant(p_id int) returns jsonb
 language plpgsql security definer set search_path = public as $$
-declare u uuid := public._uid(); g public.grants; reg timestamptz; n int;
+declare u uuid := public.me(); g public.grants; reg timestamptz; n int;
 begin
-  select created_at into reg from public.profiles where id = u;
-  select * into g from public.grants where id = p_id and (user_id = u or (user_id is null and created_at >= reg));
+  if u is null or public.is_banned(u) then return null; end if;
+  select p.created_at into reg from public.profiles p where p.id = u;
+  select * into g from public.grants where grants.id = p_id and (user_id = u or (user_id is null and created_at >= reg));
   if not found then return null; end if;
   insert into public.grant_claims(grant_id, user_id) values (g.id, u) on conflict do nothing;
   get diagnostics n = row_count;
@@ -194,7 +227,7 @@ end $$;
 
 create or replace function public.poach(p_nick text) returns jsonb
 language plpgsql security definer set search_path = public as $$
-declare u uuid := public._uid(); t uuid; me_nick text;
+declare u uuid := public._uid(); t uuid;
 begin
   select id into t from public.profiles where lower(nick) = lower(btrim(coalesce(p_nick,''))) and not banned;
   if t is null then return jsonb_build_object('err','Игрок не найден'); end if;
@@ -217,6 +250,8 @@ begin
   if t = u then return jsonb_build_object('err','Себе нельзя'); end if;
   if (select count(*) from public.mail where from_user = u and kind = 'gift' and created_at > now() - interval '1 day') >= 3 then
     return jsonb_build_object('err','Не больше 3 подарков в сутки'); end if;
+  if (select count(*) from public.mail where to_user = t and kind = 'gift' and created_at > now() - interval '1 day') >= 3 then
+    return jsonb_build_object('err','Этому игроку сегодня уже много подарков'); end if;
   insert into public.mail(to_user, from_user, kind, params) values (t, u, 'gift', jsonb_build_object('amount', p_amount));
   return jsonb_build_object('ok', true);
 end $$;
@@ -231,10 +266,26 @@ begin
     where m.to_user = u and not m.done order by m.id;
 end $$;
 
-create or replace function public.mail_done(p_id bigint) returns void
+drop function if exists public.mail_done(bigint);
+create function public.mail_done(p_id bigint) returns jsonb
 language plpgsql security definer set search_path = public as $$
-declare u uuid := public._uid();
-begin update public.mail set done = true where id = p_id and to_user = u; end $$;
+declare u uuid := public._uid(); r jsonb;
+begin
+  update public.mail set done = true where id = p_id and to_user = u and not done
+    returning jsonb_build_object('kind', kind, 'params', params) into r;
+  return r;
+end $$;
+
+/* ---- список игроков для админки ---- */
+create or replace function public.admin_players() returns table(id uuid, nick text, banned boolean,
+  created_at timestamptz, last_seen timestamptz, mode text, day int, money bigint, cars int, stars int, bal int, updated_at timestamptz)
+language plpgsql security definer set search_path = public as $$
+begin
+  if not public.is_admin() then raise exception 'admin'; end if;
+  return query select p.id, p.nick, p.banned, p.created_at, p.last_seen, s.mode, s.day, s.money, s.cars, s.stars, s.bal, s.updated_at
+    from public.profiles p left join public.saves s on s.user_id = p.id
+    order by p.last_seen desc nulls last;
+end $$;
 
 /* ---- права на таблицы ---- */
 alter table public.profiles    enable row level security;
@@ -251,13 +302,13 @@ revoke all on all tables in schema public from anon, authenticated;
 revoke all on all sequences in schema public from anon, authenticated;
 
 grant select on public.config, public.events to anon;
-grant select on public.profiles, public.leaderboard, public.grant_claims to authenticated;
-grant update (banned, nick, last_seen) on public.profiles to authenticated;   -- игроку закрыто политикой, нужно админу
+grant select on public.leaderboard, public.grant_claims to authenticated;
+grant select (id, nick) on public.profiles to authenticated;     -- игрок видит только id и ник (в запросах select=id,nick, не *)
+grant update (banned, nick) on public.profiles to authenticated; -- игроку закрыто политикой, нужно админу (Prefer: return=minimal)
 grant select, insert, delete on public.admins to authenticated;
 grant select, insert, update, delete on public.saves, public.scores, public.config, public.events, public.grants to authenticated;
 grant delete on public.grant_claims to authenticated;
-grant select, insert, delete on public.mail to authenticated;
-grant update (done) on public.mail to authenticated;                          -- игрок меняет только «прочитано»
+grant select, insert, update, delete on public.mail to authenticated;         -- update игроку закрыт политикой, «прочитано» ставит mail_done
 grant usage on all sequences in schema public to authenticated;
 
 /* ---- политики (RLS) ---- */
@@ -274,16 +325,16 @@ drop policy if exists saves_sel on public.saves;
 create policy saves_sel on public.saves for select to authenticated using (user_id = public.me());
 drop policy if exists saves_ins on public.saves;
 create policy saves_ins on public.saves for insert to authenticated
-  with check (user_id = public.me() and octet_length(data::text) <= 409600);
+  with check (user_id = public.me() and not public.is_banned(public.me()) and octet_length(data::text) <= 409600);
 drop policy if exists saves_upd on public.saves;
 create policy saves_upd on public.saves for update to authenticated
-  using (user_id = public.me()) with check (user_id = public.me() and octet_length(data::text) <= 409600);
+  using (user_id = public.me()) with check (user_id = public.me() and not public.is_banned(public.me()) and octet_length(data::text) <= 409600);
 drop policy if exists saves_admin on public.saves;
 create policy saves_admin on public.saves for all to authenticated using (public.is_admin()) with check (public.is_admin());
 -- scores
 drop policy if exists scores_sel on public.scores;
 create policy scores_sel on public.scores for select to authenticated
-  using (user_id = public.me() or (not hidden and not exists(select 1 from public.profiles p where p.id = scores.user_id and p.banned)));
+  using (user_id = public.me() or (not hidden and not public.is_banned(user_id)));
 drop policy if exists scores_admin on public.scores;
 create policy scores_admin on public.scores for all to authenticated using (public.is_admin()) with check (public.is_admin());
 -- config
@@ -298,7 +349,7 @@ drop policy if exists events_admin on public.events;
 create policy events_admin on public.events for all to authenticated using (public.is_admin()) with check (public.is_admin());
 -- grants
 drop policy if exists grants_sel on public.grants;
-create policy grants_sel on public.grants for select to authenticated using (user_id is null or user_id = public.me());
+create policy grants_sel on public.grants for select to authenticated using (user_id = public.me() or (user_id is null and created_at >= public.reg_at()));
 drop policy if exists grants_admin on public.grants;
 create policy grants_admin on public.grants for all to authenticated using (public.is_admin()) with check (public.is_admin());
 -- grant_claims
@@ -309,8 +360,7 @@ create policy claims_admin on public.grant_claims for all to authenticated using
 -- mail
 drop policy if exists mail_sel on public.mail;
 create policy mail_sel on public.mail for select to authenticated using (to_user = public.me());
-drop policy if exists mail_upd on public.mail;
-create policy mail_upd on public.mail for update to authenticated using (to_user = public.me()) with check (to_user = public.me());
+drop policy if exists mail_upd on public.mail;   -- игрок не обновляет mail напрямую
 drop policy if exists mail_admin on public.mail;
 create policy mail_admin on public.mail for all to authenticated using (public.is_admin()) with check (public.is_admin());
 
@@ -318,8 +368,13 @@ create policy mail_admin on public.mail for all to authenticated using (public.i
 revoke execute on all functions in schema public from public, anon, authenticated;
 grant execute on function public.me(), public.is_admin(), public.touch(), public.set_nick(text),
   public.submit_score(text,text,text,bigint,int,int,int,bigint,int), public.my_grants(), public.claim_grant(int),
-  public.parks(), public.poach(text), public.send_gift(text,int), public.my_mail(), public.mail_done(bigint)
+  public.parks(), public.poach(text), public.send_gift(text,int), public.my_mail(), public.mail_done(bigint),
+  public.is_banned(uuid), public.reg_at(), public.admin_players()
   to authenticated;
+
+/* ---- профили для уже зарегистрированных ---- */
+insert into public.profiles(id, nick)
+  select id, 'Игрок' || left(replace(id::text,'-',''), 8) from auth.users on conflict do nothing;
 
 /* ---- сделать себя админом ---- */
 -- Сначала зарегистрируйтесь в игре, потом уберите «--» в начале строки, впишите свой ник вместо ВАШ_НИК и нажмите Run.
