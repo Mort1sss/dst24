@@ -41,7 +41,7 @@ function storyFinale(){
 function pickMode(){
   const R=G.rec;
   showModal(`<h2>Таксопарк «${esc(G.custom&&G.custom.name||'ДСТ-24')}»</h2>${!G.tutDone?'<p class="hintbox">Впервые здесь? Начните с «Кампании» на лёгком уровне — игра будет открываться постепенно.</p>':''}
-    ${prestige()?`<p class="note">Престиж франшизы: ${prestige()}. ${prestList(prestige()).map(x=>`${x[0].replace(/ \(.*\)/,'')}: ${x[1]}`).join('; ')}.</p>`:''}
+    ${holdG().earned?`<p class="note">Холдинг: очков свободно ${holdFree()} из ${holdG().earned}, франшиз ${holdG().fr.length}. Бонусы дерева действуют в новых партиях бесконечного режима.</p>`:''}
     <label class="chk"><input type="checkbox" id="simpleChk" ${G.simple!==false?'checked':''}> Режим новичка: возможности открываются постепенно, подсказки и советы</label><div class="modes">
     <button class="mode" id="mCamp"><b>КАМПАНИЯ</b><span>${DAYS} дней. Цель: ${GOAL_CARS} машин, прибыль или касса (зависит от сложности) и репутация 50+.</span></button>
     <button class="mode" id="mEnd"><b>БЕСКОНЕЧНЫЙ РЕЖИМ</b><span>Без лимита дней и машин. Цели идут одна за другой.</span></button>
@@ -49,6 +49,7 @@ function pickMode(){
     ${netContest()?`<button class="mode" id="mContest"><b>СОРЕВНОВАНИЕ НЕДЕЛИ</b><span>«${esc(DAILY_SC[netCt(netContest()).sc].n)}»: ${esc(DAILY_SC[netCt(netContest()).sc].d)} 7 дней, одинаковые условия у всех игроков.</span></button>`:''}
     <button class="mode" id="mSand"><b>ПЕСОЧНИЦА</b><span>Бесконечные деньги, проиграть нельзя. Просто стройте парк мечты.</span></button>
     <button class="mode" id="mStory"><b>СЮЖЕТ</b><span>${CHAPTERS.length} главы с особыми условиями. Пройдено: ${Math.min(G.story||0,CHAPTERS.length)} из ${CHAPTERS.length}.</span></button></div>
+    <button class="btn ghost" id="mHold">Холдинг${holdG().earned||holdG().fr.length?` · очков ${holdFree()}`:''}</button>
     <button class="btn ghost" id="mLoad">Загрузить по коду сохранения</button>
     ${R.days?`<p class="note">Рекорд бесконечного режима: ${R.days} дн., ${R.cars} машин, ${rub(R.money)}, целей: ${R.goals}.</p>`:''}
     ${S&&!S.over&&!S.preview?'<p class="note">Текущая игра будет сброшена.</p><button class="btn ghost" id="mCancel">Отмена</button>':''}`);
@@ -60,14 +61,46 @@ function pickMode(){
   if($('mContest'))$('mContest').onclick=()=>{const e=netContest();if(!e)return;const c=netCt(e);ensureAudio();chooseHeads('contest',{diff:c.diff,seed:c.seed,sc:c.sc,cid:e.id})};
   $('mSand').onclick=()=>{ensureAudio();chooseHeads('sandbox',{diff:'easy'})};
   if($('mCancel'))$('mCancel').onclick=hideModal;
-  $('mLoad').onclick=openSaveModal;
+  $('mLoad').onclick=openSaveModal;$('mHold').onclick=()=>openHolding();
   $('mCamp').focus();
 }
+/* ---- экран «Холдинг»: очки, дерево владельца, карта городов ---- */
+const HTREE=[['fin','Финансы',['Стартовый капитал +{cap}%','Ставка по кредитам −{loan} п.п.','Налоги −{tax}%','Отчисления франшиз ×{roy}']],
+  ['ppl','Люди',['Лояльность водителей +{loy} на старте','+{staff} сотрудник в каждом отделе','Усталость копится на {fat}% медленнее','Старт со званием «Начальник колонны»']],
+  ['car','Автопарк',['Машины в автосалоне −{price}%','Поломки −{fail}%','ТО и ремонт −{svc}%','В подарок на старте машина бизнес-класса']]];
+const HCOL={home:'#4b8a5a',capital:'#6a5fd0',resort:'#e0a040',north:'#7ab4d8',port:'#3a8aa8',science:'#a068d0'};
+function holdTxt(b,i){const t=bal('tree',7),e=t[b],p=x=>Math.round(x*100);
+  return HTREE.find(x=>x[0]===b)[2][i].replace('{cap}',p(e.cap||0)).replace('{loan}',p(e.loan||0)).replace('{tax}',p(e.tax||0)).replace('{roy}',String(bal('royFin4',7)).replace('.',',')).replace('{loy}',e.loy).replace('{staff}',e.staff).replace('{fat}',p(e.fat||0)).replace('{price}',p(e.price||0)).replace('{fail}',p(e.fail||0)).replace('{svc}',p(e.svc||0))}
+// отчисления на следующую партию (как holdRoyalty, но без начисления)
+function holdRoyPrev(){const h=holdG(),s=h.fr.reduce((a,f)=>a+f.val*bal('royK',7),0);return s<=0?0:Math.round(Math.min(s,bal('royCap',7))*(h.tree.fin>=4?bal('royFin4',7):1)/100)*100}
+function citySvg(k,lk){const c=lk?'#4a4470':HCOL[k]||'#888',r=(x,y,w,h,f)=>`<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${f}"/>`,i=Object.keys(CITIES).indexOf(k);let o=r(0,0,48,28,lk?'#2a2450':'#352d63')+r(0,22,48,6,lk?'#3a3560':'#1d1838');
+  for(let j=0;j<6;j++){const h=8+((i*7+j*5)%11),x=2+j*7.5;o+=r(x,22-h,6,h,c)+(lk?'':r(x+1,22-h+2,1.5,1.5,'#f7c331')+r(x+3.5,22-h+5,1.5,1.5,'#f7c331'))}
+  if(k==='resort')o+=r(38,3,5,5,'#f7c331');if(k==='north')o+=r(4,4,2,2,'#fff')+r(20,7,2,2,'#fff')+r(34,3,2,2,'#fff');if(k==='port')o+=r(0,24,48,2,'#7ab4d8');if(k==='science')o+=r(21,6,4,4,'#7dd3a8');
+  return `<svg class="hcity" viewBox="0 0 48 28" preserveAspectRatio="xMidYMax slice" shape-rendering="crispEdges" aria-hidden="true">${o}</svg>`}
+function openHolding(back,confirmReset){
+  const h=holdG(),fr=h.fr,tot=fr.reduce((a,f)=>a+f.val,0),roy=holdRoyPrev(),cost=bal('tree',7).cost,free=holdFree(),sameDay=h.resetAt&&mskDay(h.resetAt)===mskDay(Date.now()),spent=holdSpent(h.tree),bk=back||pickMode;
+  const tree=HTREE.map(([b,n])=>`<div class="htcol"><h3>${n} <small>${h.tree[b]}/4</small></h3>${[0,1,2,3].map(i=>{const own=h.tree[b]>i,nx=h.tree[b]===i;
+    return `<div class="hstep ${own?'own':nx&&free>=cost[i]?'next':nx?'wait':'lock'}"><b>${['I','II','III','IV'][i]}</b><span>${esc(holdTxt(b,i))}</span>${own?'<em>куплено</em>':nx?`<button class="buy" data-b="${b}" ${free>=cost[i]?'':'disabled'}>Взять за ${cost[i]}</button>`:`<em>${cost[i]} очк.</em>`}</div>`}).join('')}</div>`).join('');
+  const cities=Object.entries(CITIES).map(([k,C])=>{const lk=!holdCityOpen(k),m=h.medals[k]||0,T=TRIAL[k],th=bal('trials',7)[k]||[],f=fr.filter(x=>x.city===k),cur=S&&S.mode==='endless'&&B(7)&&!S.preview&&(S.city||'home')===k&&T?T.v():null;
+    return `<div class="hcityc ${lk?'lk':''}">${citySvg(k,lk)}<div class="hcn"><b>${esc(C.n)}</b><span class="hmed">${lk?'🔒':['','🥉','🥈','🥇'][m]||'○'}</span></div>
+    ${lk?`<p class="note">Откроется ${C.gold?`после золота в ${C.gold} городах`:`после ${C.need} франшиз(ы)`}.</p>`:`<p class="note">${esc(T.t)}: ${th.map((x,j)=>`<span class="${m>j?'pos':m===j?'tx':''}">${esc(T.f(x))}</span>`).join(' · ')}${cur!=null?`<br>Сейчас: <b>${esc(T.f(cur))}</b>`:''}</p>
+    <p class="note">${f.length?`Франшиз: ${f.length}, оценка ${rub(f.reduce((a,x)=>a+x.val,0))}`:'Франшиз нет'}</p>`}</div>`}).join('');
+  showModal(`<span class="step">ХОЛДИНГ</span><h2>Холдинг владельца</h2>
+    <div class="hsum"><div><b>${free}</b><span>очков свободно (из ${h.earned})</span></div><div><b>${fr.length}</b><span>франшиз</span></div><div><b>${rub(tot)}</b><span>оценка холдинга</span></div><div><b>${rub(roy)}</b><span>отчислений в новой партии</span></div></div>
+    <h3>Дерево владельца</h3><p class="note">Действует в новых партиях бесконечного режима. Идущая партия не меняется.</p><div class="htree">${tree}</div>
+    <div class="btns">${confirmReset?`<button class="btn" id="hRes2">Точно сбросить</button><button class="btn ghost" id="hResNo">Отмена</button>`:`<button class="btn ghost" id="hRes" ${!spent||sameDay?'disabled':''}>Сбросить дерево</button>`}</div>
+    ${sameDay&&spent?'<p class="note">Сегодня дерево уже сбрасывали: следующий сброс завтра (по Москве).</p>':''}
+    <h3>Карта городов</h3><div class="hmap">${cities}</div>
+    <button class="btn ghost" id="hBack">Назад</button>`);
+  document.querySelectorAll('.hstep .buy').forEach(e=>e.onclick=()=>{if(holdBuy(e.dataset.b))sfx('coin'),openHolding(back)});
+  if($('hRes'))$('hRes').onclick=()=>openHolding(back,1);if($('hRes2'))$('hRes2').onclick=()=>{holdReset();openHolding(back)};if($('hResNo'))$('hResNo').onclick=()=>openHolding(back);
+  $('hBack').onclick=()=>bk()}
+
 function pickDiff(mode){
   showModal(`<span class="step">${mode==='endless'?'БЕСКОНЕЧНЫЙ РЕЖИМ':'КАМПАНИЯ'}</span><h2>Сложность</h2><div class="modes">
     ${Object.entries(DIFF).map(([k,v])=>`<button class="mode" id="df_${k}"><b>${v.n.toUpperCase()}</b><span>${v.d}${mode==='campaign'?`. Цель: ${GOAL_CARS} машин, ${goalTxt(k)}, репутация 50+.`:''}</span></button>`).join('')}</div>
     <button class="btn ghost" id="dfBack">Назад</button>`);
-  Object.keys(DIFF).forEach(k=>$('df_'+k).onclick=()=>mode==='endless'&&(G.franchises||0)>0?pickCity(mode,{diff:k}):chooseHeads(mode,{diff:k}));$('dfBack').onclick=pickMode;$(G.tutDone?'df_normal':'df_easy').focus();
+  Object.keys(DIFF).forEach(k=>$('df_'+k).onclick=()=>mode==='endless'&&holdG().fr.length>0?pickCity(mode,{diff:k}):chooseHeads(mode,{diff:k}));$('dfBack').onclick=pickMode;$(G.tutDone?'df_normal':'df_easy').focus();
 }
 function pickChapter(){const done=G.story||0;
   showModal(`<span class="step">СЮЖЕТ</span><h2>Выберите главу</h2><div class="modes">
@@ -200,13 +233,13 @@ function render(prev){
   else if(warSoon()&&featOpen('rival'))tick.push(card('down','rival','Завтра ценовая война',`«${esc(S.war.by)}» · спрос ×${bal('warK')} на ${S.war.len} дн.`));
   if(S.raid)tick.push(card('down','gai','Рейды ГАИ',`подготовка ${Math.round(S.raid.prep*100)}%`,S.raid.days));
   if((S.tdebt||0)>=4)tick.unshift(card('down','warn',`Отложенные проблемы: ${S.tdebt}/8`,'дешёвые решения копятся'));
-  if(taxOn()&&taxDueIn()<=10)tick.unshift(card('down','tax',`Налог через ${taxDueIn()+1} дн.`,`≈${rub(Math.round(S.taxAcc*TAX_RATE/1000)*1000)}`));
+  if(taxOn()&&taxDueIn()<=10)tick.unshift(card('down','tax',`Налог через ${taxDueIn()+1} дн.`,`≈${rub(Math.round(S.taxAcc*taxRate()/1000)*1000)}`));
   if(satK()<.97)tick.unshift(card('down','down','Рынок насыщен',`выручка с машины ×${satK().toFixed(2)}`));
   if(S.city&&S.city!=='home')tick.unshift(card('','city',cityDef().n));
   if(S.crisis)tick.unshift(card('down','crisis',`Кризис: ${CRISES[S.crisis.id].n}`,CRISES[S.crisis.id].d,S.crisis.days,0,' crisis'));
   (S.dnews||[]).forEach(e=>tick.push(card(e.m>1?'up':'down','pin',`${DISTRICTS.find(D=>D.k===e.d).n}: ${e.t}`,`спрос ×${e.m}`)));
   if(S.union)tick.push(card('down','warn','Профсоюз водителей'));
-  if(Math.abs(S.fuel-1)>.06)tick.push(card(S.fuel>1.05?'down':S.fuel<.95?'up':'','fuel',`Бензин ${(58*S.fuel).toFixed(1).replace('.',',')} ₽/л`,`уходы водителей +${pct1(fuelP())}/день`,0,0,'',fuelInfo()));
+  if(Math.abs(fuelNow()-1)>.06)tick.push(card(fuelNow()>1.05?'down':fuelNow()<.95?'up':'','fuel',`Бензин ${(58*fuelNow()).toFixed(1).replace('.',',')} ₽/л`,`уходы водителей +${pct1(fuelP())}/день`,0,0,'',fuelInfo()));
   {const top=[...S.rivals].sort((a,b)=>b.cars-a.cars)[0];if(top&&top.cars>totalCars())tick.push(card('down','rival',`«${esc(top.name)}» больше вас`,`${top.cars} маш.`))}
   $('ticker').innerHTML=`<span class="lab">${icon16('city',16)}Город</span><div class="wxs">${[0,1,2].map(i=>wx(S.weather[i],i)).join('')}</div>${tick.length?`<div class="tk">${tick.join('')}</div>`:''}`;
   let tasks='';
@@ -459,7 +492,7 @@ function renderMgmt(){
       <div class="tablewrap"><table><thead><tr><th>#</th><th>Парк</th><th>Машин</th><th>Репутация</th><th>Стиль</th></tr></thead><tbody>
       ${rows.map((r,i)=>`<tr${r.me?' style="outline:3px solid var(--taxi)"':''}><td>${i+1}</td><td>${r.me?'<b>':''}${esc(r.name)}${r.me?'</b>':''}</td><td>${r.cars}</td><td>${r.rep}</td><td>${r.style}</td></tr>`).join('')}</tbody></table></div>
       <p class="sub">Если ваша репутация выше средней у конкурентов, пассажиры чаще выбирают вас: до +8% к спросу.</p></div>
-      ${S.mode==='endless'?`<div class="card2"><h3>Франшиза</h3><p class="kind">Продайте парк и начните в новом городе с постоянными бонусами. Престиж сейчас: ${prestige()}. За этот парк: ${prestPts()} очк.</p><div class="btns"><button class="buy" id="frBtn" ${S.over||(S.rank<4&&S.day<60)?'disabled':''}>${S.rank<4&&S.day<60?'Откроется на звании «Таксомагнат» или с 60-го дня':'Продать парк'}</button></div></div>`:''}
+      ${S.mode==='endless'?`<div class="card2"><h3>Франшиза</h3><p class="kind">Продайте парк и начните в новом городе с постоянными бонусами. ${B(7)?`Очков холдинга свободно: ${holdFree()}.`:`Престиж сейчас: ${prestige()}.`} За этот парк: ${prestPts()} очк.</p><div class="btns"><button class="buy" id="frBtn" ${S.over||(S.rank<4&&S.day<60)?'disabled':''}>${S.rank<4&&S.day<60?'Откроется на звании «Таксомагнат» или с 60-го дня':'Продать парк'}</button></div></div>`:''}
       <div class="card2"><h3>Ваше звание</h3><p><b class="pos">★ ${rankName(S.rank||0)}</b></p>${R?`<p class="kind">Следующее: «${R.n}» — нужно ${R.txt}. Откроет: ${R.unlock}.</p>`:'<p class="kind">Высшее звание получено!</p>'}</div>
       <div class="card2"><h3>Бензин и электро</h3><p class="kind">${fuelInfo()}</p>${evCars().length?`<p class="kind">Электромобилей в парке: ${evCars().length}${S.upg.charger?'.':`, без зарядной станции они теряют ≈${rub(evLoss())} в день.`}</p>`:''}</div>
       <div class="card2"><h3>Рейды и проверки</h3><p class="kind">${S.raid?`Идут рейды ГАИ: ещё ${S.raid.days} дн.`:'Рейдов ГАИ сейчас нет.'} Налоговая и учредители приходят без предупреждения.</p></div></div>`;

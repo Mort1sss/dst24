@@ -31,6 +31,12 @@ alter table public.saves add constraint saves_sane check (
   and (day is null or day between 0 and 2000) and (cars is null or cars between 0 and 1000)
   and (money is null or abs(money) < 10000000000) and (stars is null or stars between 0 and 3)) not valid;
 
+/* ---- холдинг: мета игрока (холдинг, достижения, раскраски) ---- */
+alter table public.saves add column if not exists meta jsonb;
+alter table public.saves drop constraint if exists saves_meta_sane;
+alter table public.saves add constraint saves_meta_sane check (
+  meta is null or (jsonb_typeof(meta) = 'object' and octet_length(meta::text) <= 65536)) not valid;
+
 create or replace function public.saves_touch() returns trigger
 language plpgsql as $$ begin new.updated_at := now(); return new; end $$;
 drop trigger if exists saves_touch on public.saves;
@@ -276,14 +282,55 @@ begin
   return r;
 end $$;
 
+/* ---- холдинги ---- */
+-- франшиза учитывается, только если val — число 0…5e7; без повторов id; не больше, чем дней с регистрации + 1, и не больше 30
+create or replace function public._hold_stats(m jsonb, since timestamptz) returns table(fr_count int, hold_val bigint)
+language sql stable set search_path = public as $$
+  select count(*)::int, coalesce(sum(v), 0)::bigint from (
+    select v, row_number() over (order by k) rn from (
+      select distinct on (coalesce(f->>'id', f::text)) coalesce(f->>'id', f::text) k,
+        case when jsonb_typeof(f->'val') = 'number' then (f->>'val')::numeric end v
+      from jsonb_array_elements(case when jsonb_typeof(m->'hold'->'fr') = 'array' then m->'hold'->'fr' else '[]'::jsonb end) f
+      where jsonb_typeof(f) = 'object'
+      order by coalesce(f->>'id', f::text)) d
+    where v between 0 and 5e7) t
+  where rn <= least(30, greatest(0, floor(extract(epoch from now() - coalesce(since, now())) / 86400)) + 1) $$;
+
+-- медали: только настоящие города и значения 1…3
+create or replace function public._hold_medals(m jsonb, lvl text) returns int
+language sql immutable set search_path = public as $$
+  select count(*)::int from jsonb_each_text(case when jsonb_typeof(m->'hold'->'medals') = 'object' then m->'hold'->'medals' else '{}'::jsonb end) e
+  where e.value = lvl and e.key = any(array['home','capital','resort','north','port','science']) $$;
+
+drop function if exists public.holdings();
+create or replace function public.holdings() returns table(nick text, fr_count int, hold_val bigint,
+  golds int, silvers int, bronzes int, updated_at timestamptz)
+language plpgsql security definer set search_path = public as $$
+begin
+  perform public._uid();  -- только вошедшим и не забаненным
+  return query select p.nick, h.fr_count, h.hold_val,
+      public._hold_medals(s.meta, '3'),
+      public._hold_medals(s.meta, '2'),
+      public._hold_medals(s.meta, '1'),
+      s.updated_at
+    from public.saves s join public.profiles p on p.id = s.user_id
+    cross join lateral public._hold_stats(s.meta, p.created_at) h
+    where not p.banned and s.meta is not null and (h.fr_count > 0 or s.meta->'hold'->'medals' is not null)
+    order by h.hold_val desc, h.fr_count desc limit 20;
+end $$;
+
 /* ---- список игроков для админки ---- */
+drop function if exists public.admin_players();
 create or replace function public.admin_players() returns table(id uuid, nick text, banned boolean,
-  created_at timestamptz, last_seen timestamptz, mode text, day int, money bigint, cars int, stars int, bal int, updated_at timestamptz)
+  created_at timestamptz, last_seen timestamptz, mode text, day int, money bigint, cars int, stars int, bal int, updated_at timestamptz,
+  fr_count int, hold_val bigint)
 language plpgsql security definer set search_path = public as $$
 begin
   if not public.is_admin() then raise exception 'admin'; end if;
-  return query select p.id, p.nick, p.banned, p.created_at, p.last_seen, s.mode, s.day, s.money, s.cars, s.stars, s.bal, s.updated_at
+  return query select p.id, p.nick, p.banned, p.created_at, p.last_seen, s.mode, s.day, s.money, s.cars, s.stars, s.bal, s.updated_at,
+      h.fr_count, h.hold_val
     from public.profiles p left join public.saves s on s.user_id = p.id
+    left join lateral public._hold_stats(s.meta, p.created_at) h on true
     order by p.last_seen desc nulls last;
 end $$;
 
@@ -370,7 +417,7 @@ revoke execute on all functions in schema public from public, anon, authenticate
 grant execute on function public.me(), public.is_admin(), public.touch(), public.set_nick(text),
   public.submit_score(text,text,text,bigint,int,int,int,bigint,int), public.my_grants(), public.claim_grant(int),
   public.parks(), public.poach(text), public.send_gift(text,int), public.my_mail(), public.mail_done(bigint),
-  public.is_banned(uuid), public.reg_at(), public.admin_players()
+  public.is_banned(uuid), public.reg_at(), public.admin_players(), public.holdings()
   to authenticated;
 
 /* ---- профили для уже зарегистрированных ---- */

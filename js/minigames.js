@@ -493,23 +493,29 @@ function quitEvent(){const d=[0,1,2].find(x=>relOf(x)<=-5);if(d===undefined)retu
 }
 function headBonus(d){const k=S.heads[d].key;S.relCd=S.relCd||{};if(S.day-(S.relCd[k]||-99)<15)return toast(`Премию можно дать через ${15-(S.day-(S.relCd[k]||-99))} дн.`);
   const c=Math.round(10000*inf());if(S.money<c)return toast('Не хватает денег');const before=snap();S.money-=c;S.relCd[k]=S.day;relAdd(d,2);addLog(`Премия начальнику: ${S.heads[d].name} доволен(а).`);toast('Отношения улучшились');sfx('coin');save();render(before)}
-function sellFranchise(){const pts=prestPts(),fr=(G.franchises||0)+1,to=prestige()+pts,nx=[5,10].find(x=>x>to),op=Object.values(CITIES).filter(C=>(C.need||0)>(G.franchises||0)&&(C.need||0)<=fr).map(C=>C.n);
-  const ex=valExtra();
+function sellFranchise(){const nw=B(7),pts=prestPts(),h=holdG(),op=Object.entries(CITIES).filter(([k,C])=>!holdCityOpen(k)&&holdCityOpen(k,1)).map(([,C])=>C.n);
+  const ex=valExtra(),to=prestige()+pts,nx=[5,10].find(x=>x>to),f1=x=>x.toFixed(1).replace('.',',');
+  holdTrials();
   showModal(`<span class="step">ФРАНШИЗА</span><h2>Продать парк и начать в новом городе?</h2>
-    <p>Парк «${esc(parkName())}» оценён в <b>${rub(valuation())}</b>${ex.length?` (машины, касса, репутация + ${ex.map(x=>`${x[0].toLowerCase()} ${rub(Math.round(x[1]/1000)*1000)}`).join(', ')})`:''}.</p>
-    <p><b class="pos">Вы получите:</b> <b>${pts}</b> очк. престижа (было ${prestige()}, станет ${to}) — навсегда.</p>
+    <p>Парк «${esc(parkName())}» оценён в <b>${rub(valuation())}</b>${nw?'':ex.length?` (машины, касса, репутация + ${ex.map(x=>`${x[0].toLowerCase()} ${rub(Math.round(x[1]/1000)*1000)}`).join(', ')})`:''}.</p>
+    ${nw?`<p><b class="pos">Вы получите:</b> <b>${pts}</b> очк. холдинга (свободно было ${holdFree()}, станет ${holdFree()+pts}).</p>
+    <p class="note">${valRows().map(x=>`${x[0].toLowerCase()} ${f1(x[2])}`).join(' · ')} = ${pts} (дробная часть отбрасывается, минимум 1)</p>
+    <p class="note">Франшиза останется в холдинге: в начале каждой новой партии бесконечного режима она перечисляет ${Math.round(bal('royK',7)*100)}% оценки (всего до ${rub(bal('royCap',7))}). Очки тратятся в дереве владельца.${op.length?` Откроются города: ${op.join(', ')}.`:''}</p>`
+    :`<p><b class="pos">Вы получите:</b> <b>${pts}</b> очк. престижа (было ${prestige()}, станет ${to}) — навсегда.</p>
     <ul class="note">${prestList(prestige(),to).map(x=>`<li>${x[0]}: ${x[1]}</li>`).join('')}</ul>
-    <p class="note">${nx?`Следующий порог: ${nx} очк.`:'Все пороги пройдены.'}${op.length?` Откроются города: ${op.join(', ')}.`:''}</p>
+    <p class="note">${nx?`Следующий порог: ${nx} очк.`:'Все пороги пройдены.'}${op.length?` Откроются города: ${op.join(', ')}.`:''}</p>`}
     <p><b class="neg">Вы потеряете:</b> текущую партию — она закончится, парк, деньги, филиалы и кредиты не переносятся.</p>
     <div class="btns"><button class="btn" id="frYes">Продать и открыть франшизу</button><button class="btn ghost" id="frNo">Не сейчас</button></div>`);
   $('frNo').onclick=hideModal;
-  $('frYes').onclick=()=>{G.prestige=prestige()+pts;G.franchises=(G.franchises||0)+1;recordResult('франшиза');S.cnt.franchise=1;S.ach.franchise=S.day;G.ach.franchise=true;S.over=true;saveG();save();render();sfx('win');
-    showModal(`<h2>Франшиза открыта!</h2><p>Престиж: ${G.prestige}. Выберите новый город в бесконечном режиме.</p><button class="btn" id="frGo">К выбору режима</button>`);$('frGo').onclick=pickMode};
+  $('frYes').onclick=()=>{if(S.over)return;if(h.fr.some(f=>f.gid&&f.gid===S.gid))return toast('Этот парк уже продан');const v=valuation();if(!nw){G.prestige=prestige()+pts;G.franchises=(G.franchises||0)+1}
+    h.fr.push({id:holdId(),city:S.city||'home',val:nw?v:0,day:S.day,at:Date.now(),pts,gid:S.gid||''});h.earned+=pts;h.at=Date.now();
+    recordResult('франшиза');S.cnt.franchise=1;S.ach.franchise=S.day;G.ach.franchise=true;S.over=true;saveG();save();render();sfx('win');
+    showModal(`<h2>Франшиза открыта!</h2><p>Очков холдинга свободно: ${holdFree()}${nw?'':`, престиж: ${G.prestige}`}. Выберите новый город в бесконечном режиме.</p><div class="btns"><button class="btn" id="frGo">К выбору режима</button><button class="btn ghost" id="frHold">Открыть холдинг</button></div>`);$('frGo').onclick=pickMode;$('frHold').onclick=()=>openHolding()};
 }
 function pickCity(mode,opts){
-  showModal(`<span class="step">ФРАНШИЗА · ПРЕСТИЖ ${prestige()}</span><h2>Выберите город</h2>${prestige()?`<p class="note">${prestList(prestige()).map(x=>`${x[0].replace(/ \(.*\)/,'')}: ${x[1]}`).join('; ')}.</p>`:''}<div class="modes">
-    ${Object.entries(CITIES).map(([k,C])=>{const lk=(C.need||0)>(G.franchises||0);return `<button class="mode" id="ct_${k}" ${lk?'disabled style="opacity:.5"':''}><b>${C.n.toUpperCase()}${lk?' 🔒':''}</b><span>${lk?`Откроется после ${C.need} франшиз(ы).`:C.d}</span></button>`}).join('')}</div>`);
-  Object.entries(CITIES).forEach(([k,C])=>{if((C.need||0)<=(G.franchises||0))$('ct_'+k).onclick=()=>chooseHeads(mode,Object.assign({},opts,{city:k}))});
+  showModal(`<span class="step">ХОЛДИНГ · ОЧКОВ СВОБОДНО ${holdFree()}</span><h2>Выберите город</h2><div class="modes">
+    ${Object.entries(CITIES).map(([k,C])=>{const lk=!holdCityOpen(k),m=holdG().medals[k]||0;return `<button class="mode" id="ct_${k}" ${lk?'disabled style="opacity:.5"':''}><b>${C.n.toUpperCase()}${lk?' 🔒':''}${m?' · '+HOLD_MED[m]:''}</b><span>${lk?`Откроется ${C.gold?`после золота в ${C.gold} городах`:`после ${C.need} франшиз(ы)`}.`:C.d}</span></button>`}).join('')}</div><button class="btn ghost" id="ctHold">Холдинг: дерево и карта</button>`);$('ctHold').onclick=()=>openHolding(()=>pickCity(mode,opts));
+  Object.keys(CITIES).forEach(k=>{if(holdCityOpen(k))$('ct_'+k).onclick=()=>chooseHeads(mode,Object.assign({},opts,{city:k}))});
 }
 function autoResolve(){if(S.over||S.preview)return;let n=0;
   for(let d=0;d<3;d++){if(S.done[d])continue;const ev=getEv(d,S.today[d]);let best=-1,bs=1e18;

@@ -50,8 +50,8 @@ function simDesks(){
 function simRun(cfg,seed,stopDay){
   Math.random=mulberry(seed);let clock=Date.UTC(2026,10,1,12);Date.now=()=>clock;
   const r={seed,fat:0,fails:0,win:false,why:'',money:0,goalDay:null,heavy:0,stuck:0,tax:0,crises:0};let crisis0=null;
-  S=null;G.tutDone=1;G.a2hs=1;G.loginPending=0;G.simple=cfg.simple;simOpen=false;
-  newGame(cfg.mode,[0,1,2].map(d=>({key:HEADS[d][0].key,name:HEADS[d][0].name})),{diff:cfg.diff,chapter:cfg.chapter||0});
+  S=null;G.tutDone=1;G.a2hs=1;G.loginPending=0;G.simple=cfg.simple;simOpen=false;G.hold=null;G.holdMig=1;
+  newGame(cfg.mode,[0,1,2].map(d=>({key:HEADS[d][0].key,name:HEADS[d][0].name})),{diff:cfg.diff,chapter:cfg.chapter||0,city:cfg.city,hold:cfg.hold});
   if(simOpen)simPump();
   if(B(4))S.agg=cfg.agg||'mig';
   const C=S.mode==='story'?CHAPTERS[S.chapter]:null,cap=S.mode==='endless'?(cfg.days||120):dayLimit()+10;
@@ -63,7 +63,7 @@ function simRun(cfg,seed,stopDay){
     const day=S.day;endDay();r.fails=S.cnt.brk||0;r.fat=S.fat||0;clock+=864e5;
     if(r.goalDay===null&&(C?C.goal(S):goalMet()))r.goalDay=day;
     const lose=S.mode!=='sandbox'&&((S.money<0&&S.debt>=5)||S.rep<=0||S.drivers===0),fin=hasLimit()&&day>=dayLimit();
-    if(lose||fin||day===stopDay||(S.mode==='endless'&&i===cap-1)){r.money=Math.round(S.money);r.cars=carsN();r.rep=S.rep;r.profit=Math.round(profit());r.poach=S.cnt.poach||0;r.wars=S.cnt.wars||0;r.cs=S.cscore||0;
+    if(lose||fin||day===stopDay||(S.mode==='endless'&&i===cap-1)){r.money=Math.round(S.money);r.cars=carsN();r.rep=S.rep;r.profit=Math.round(profit());r.poach=S.cnt.poach||0;r.tr=TRIAL[S.city]?TRIAL[S.city].v():0;r.wars=S.cnt.wars||0;r.cs=S.cscore||0;
       if(lose)r.why=S.money<0?'банкротство':S.rep<=0?'репутация':'водители';
       else if(fin){r.win=C?!!C.goal(S):goalMet()&&carsN()>=GOAL_CARS&&S.rep>=50;if(!r.win)r.why='не взята цель'}
       else r.why='стоп';r.cars=carsN();r.rep=S.rep;
@@ -79,7 +79,7 @@ function simBatch(cfg){
     winPct:+(100*rs.filter(r=>r.win).length/cfg.seeds).toFixed(1),
     lose:{банкротство:why['банкротство']||0,репутация:why['репутация']||0,водители:why['водители']||0,'не взята цель':why['не взята цель']||0,завис:(why['завис']||0)},
     cashP10:pct(cash,.1),cashP50:pct(cash,.5),cashP90:pct(cash,.9),carsP50:pct(rs.map(r=>r.cars||0),.5),repP50:pct(rs.map(r=>r.rep||0),.5),taxP50:pct(rs.map(r=>r.tax),.5),crisesP50:pct(rs.map(r=>r.crises),.5),goalMedian:pct(gd,.5),goalP30:pct(gd,.3),
-    profitP50:pct(rs.map(r=>r.profit||0),.5),poachP50:pct(rs.map(r=>r.poach||0),.5),warsP50:pct(rs.map(r=>r.wars||0),.5),cscoreP50:pct(rs.map(r=>r.cs||0),.5),gradeP50:cGrade(pct(rs.map(r=>r.cs||0),.5)),fatP50:pct(rs.map(r=>r.fat),.5),failsP50:pct(rs.map(r=>r.fails),.5),goalBy25Pct:+(100*gd.filter(d=>d<25).length/cfg.seeds).toFixed(1),heavyMax:rs.reduce((a,r)=>Math.max(a,r.heavy),0),profits:rs.map(r=>[r.seed,r.profit||0]),stuck,errors}}
+    profitP50:pct(rs.map(r=>r.profit||0),.5),poachP50:pct(rs.map(r=>r.poach||0),.5),warsP50:pct(rs.map(r=>r.wars||0),.5),trialP50:pct(rs.map(r=>r.tr||0),.5),trialP90:pct(rs.map(r=>r.tr||0),.9),cscoreP50:pct(rs.map(r=>r.cs||0),.5),gradeP50:cGrade(pct(rs.map(r=>r.cs||0),.5)),fatP50:pct(rs.map(r=>r.fat),.5),failsP50:pct(rs.map(r=>r.fails),.5),goalBy25Pct:+(100*gd.filter(d=>d<25).length/cfg.seeds).toFixed(1),heavyMax:rs.reduce((a,r)=>Math.max(a,r.heavy),0),profits:rs.map(r=>[r.seed,r.profit||0]),stuck,errors}}
 const simFlat=r=>Object.assign({},r,{lose:Object.entries(r.lose).map(([k,v])=>k+':'+v).join(' '),errors:r.errors.length});
 /* подмена всего на время прогона и возврат в finally */
 function simGuard(fn){
@@ -107,7 +107,7 @@ function simGuard(fn){
   }}
 window.__balanceSim=(o={})=>simGuard(()=>{const {diff='normal',mode='campaign',seeds=100,simple=false}=o;
   if(!['campaign','story','endless'].includes(mode))throw new Error('замер: только campaign, story или endless');
-  const r=simBatch({diff,mode,seeds,simple,strat:o.strat,agg:o.agg,chapter:o.chapter||0,days:o.days});console.table([simFlat(r)]);return r});
+  const r=simBatch({diff,mode,seeds,simple,strat:o.strat,agg:o.agg,chapter:o.chapter||0,days:o.days,city:o.city,hold:o.hold});console.table([simFlat(r)]);return r});
 window.__balanceSim.all=(n=100)=>simGuard(()=>{const rs=['easy','normal','hard'].map(diff=>simBatch({diff,mode:'campaign',seeds:n,simple:false,chapter:0}));console.table(rs.map(simFlat));return rs});
 window.__balanceSim.story=(n=100)=>simGuard(()=>{const rs=CHAPTERS.map((C,i)=>simBatch({diff:'normal',mode:'story',seeds:n,simple:false,chapter:i}));console.table(rs.map(simFlat));return rs});
 window.__balanceSim.free=(hours=24,streak=1)=>simGuard(()=>{
