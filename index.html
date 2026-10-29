@@ -1384,8 +1384,9 @@ const BAL_NEW=6,BAL={
  4:{agg:{mig:{fee:.2,ord:1,poach:1},bee:{fee:.15,ord:.98,poach:.5},shash:{fee:.22,ord:1.12,poach:1}},grossK:.8,beeSkip:['comm','lowprio','backup'],shashR:4.75,shashOrd:.95,shashDrop:.005,aggGap:7,aggIdle:.5,
   warLow:.1,warDays:3,warP:.4,warAt:2,warLen:5,warK:.9,poachFrom:15,lostP:.25},
  5:{cA:4,cC:-1,cD:-4,cMax:10,cOk:2,cEarly:1,cStreak:10,cAmt:{A:1.5,C:.7},cRate:{A:-.05,C:.1},cOver:{D:1.5},cLoans:{A:3,B:2,C:2,D:1},cThird:100000,cHold:10},
- 6:{brRev:5200,lotBack:.5,upgVal:.5,brVal:.7,prestK:6e5,rk:[[0,0,0],[16,0,0],[22,65,0],[32,70,0],[50,75,1],[80,80,2]]}}; // BAL[4] подобран ботом bot-4: «Обычный» ≈60%, агрегаторы 55/54/60%; BAL[5] (кредитный рейтинг) bot-5: «Обычный» ≈60%, «Хардкор» ≈31%
+ 6:{brRev:5200,lotBack:.5,upgVal:.5,brVal:.7,prestK:6e5,rk:[[0,0,0],[16,0,0],[22,65,0],[32,70,0],[50,75,1],[80,80,2]],town:{center:{k:1.1,cap:14},station:{k:1.05,cap:12},airport:{k:1.2,cap:8},sleep:{k:.95,cap:24},univer:{k:1,cap:14},industry:{k:.9,cap:30}},townLead:.05,townFloor:.6,townMin:.6,townMax:1.25}}; // BAL[4] подобран ботом bot-4: «Обычный» ≈60%, агрегаторы 55/54/60%; BAL[5] (кредитный рейтинг) bot-5: «Обычный» ≈60%, «Хардкор» ≈31%
 // BAL[6]: brRev — выручка филиала с машины (было 3300); lotBack — доля цены при продаже стоянки; upgVal/brVal — доля цены улучшений и филиалов в оценке парка; prestK — ₽ оценки на очко престижа; rk — пороги званий
+// BAL[6] город: town — k выручки и cap (заказов на всех) по районам; townLead — надбавка лидера; townFloor — нижний предел давки; townMin/townMax — границы множителя парка
 // BAL[3] подобран ботом bot-3: «Обычный» ≈63%, без смены и ТО ≈50%, смена всегда на максимуме ≈12%
 // balRev: правки баланса из админки действуют только на партии, начатые после них (см. ОНЛАЙН)
 const bal=(k,v)=>{const e=v;for(v=v||(S&&S.bal)||1;v>0;v--)if(BAL[v]&&k in BAL[v])return S&&S.balRev&&(!e||e===S.bal)?netPatch(k,BAL[v][k]):BAL[v][k]};
@@ -1891,7 +1892,7 @@ function blankState(mode){
     rivals:[{name:'Жёлтый ветер',style:'war',cars:10,rep:55},{name:'Шмель',style:'poach',cars:7,rep:60},{name:'Премиум Драйв',style:'prem',cars:5,rep:70}],
     nextRival:rand(6,9),nextInspect:rand(3,6),quest:null,nextQuest:3,queue:[],hist:[[],[],[]],cnt:{},ach:{},morning:[],
     diff:'normal',dlist:[],dseq:0,fuel:1,raid:null,nextRaid:rand(10,16),nextTax:rand(35,50),branches:[],strategy:null,nextMeeting:bal('meet',BAL_NEW),rank:0,lastMonth:-99,chapter:0,
-    alloc:{center:30,sleep:40,air:15,rail:15},dmods:{center:1,sleep:1,air:1,rail:1},dnews:[],night:0,shift2:0,fat:0,weather:[],investors:[],union:false,unionDays:0,nextUnion:0,
+    alloc:{center:30,sleep:40,air:15,rail:15},dmods:{center:1,sleep:1,air:1,rail:1},townAlloc:{},dnews:[],night:0,shift2:0,fat:0,weather:[],investors:[],union:false,unionDays:0,nextUnion:0,
     nextAuction:7,nextContract:rand(9,13),nextAgency:rand(10,15),contracts:[],lines:{},ads:null,school:[],agency:[],stat:[],wk:{rev:0,net:0,breaks:0,fines:0,fails:[]},
     custom:Object.assign({name:'ДСТ-24',color:'yellow',logo:'checker',avatar:0,livery:'none'},G.custom||{}),
     parts:10,crisis:null,nextCrisis:rand(25,40),extraHeads:[[],[],[]],moodMod:[0,0,0],nextCareer:rand(18,24),nextConflict:rand(14,20),lastParty:-99,strike:null,owned:{},dispDay:0,
@@ -2130,7 +2131,8 @@ function endDay(){
   const share=1+Math.max(-.08,Math.min(.08,(S.rep-rivalAvg)/100*.2));
   const nightK=B(3)?1+(S.shift2||0)/100*bal('shiftRev'):1+(S.night||0)/100*.25,distK=distFactor();
   const shB=shashBad();
-  const demand=cityDemand()*(crisisOn('giant')?.85:1)*(crisisOn('cyber')?.75:1)*mood*sea.demand*newsMod('demand')*(hol?hol[0]:1)*share*RANK_BONUS[S.rank||0]*prestRev()*(warOn()?bal('warK'):1)*ownRev()*netRevK();
+  const tk=townK();if(tk!==1)notes.push(`Город: ×${tk.toFixed(2).replace('.',',')} к выручке.`);
+  const demand=cityDemand()*(crisisOn('giant')?.85:1)*(crisisOn('cyber')?.75:1)*mood*sea.demand*newsMod('demand')*(hol?hol[0]:1)*share*RANK_BONUS[S.rank||0]*prestRev()*(warOn()?bal('warK'):1)*ownRev()*netRevK()*tk;
   const base=working.slice(0,regular).reduce((a,c,i)=>a+carRev(c)*drvQ(crewD[i]),0);
   const sat=satK(),mgmt=mgmtCost();
   const revK=B(2)&&camp()&&bal('rev')[S.diff]||1,AG=B(4)?aggDef():null,aggM=AG?AG.ord*(shB?bal('shashOrd'):1)*(S.aggNext===S.day?bal('aggIdle'):1):1;
@@ -2303,7 +2305,7 @@ function endDay(){
 
 /* ================= УТРО: проверки, конкурент, задания ================= */
 function startDay(){
-  ctSync(S);const nn=netDay();
+  ctSync(S);const nn=netDay();townDay();
   S.done=[null,null,null];S.hired=false;rollDistricts();
   // B(2): проверку откладываем, если идёт удар; рейд и профсоюз не стартуют в один день с ней и друг с другом
   let tx=(S.taxAt&&S.taxAt.includes(S.day))||(S.mode==='endless'&&S.day>=S.nextTax);
@@ -4821,18 +4823,95 @@ const mulberry32=a=>()=>{a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t
 function ctUse(seed,day){if(!ctOn){ctOn=true;ctRnd0=Math.random}Math.random=mulberry32((Math.round(+seed)||1)*1000+(+day||1))}
 function ctSync(st){if(st&&st.mode==='contest'&&!st.over&&!st.preview)ctUse(st.seed,st.day);else if(ctOn){ctOn=false;Math.random=ctRnd0}}
 /* ---- город ---- */
+/* ---- общий город ---- */
+// районы те же, что в supabase/schema.sql (set_town); r — прямоугольник на карте 192×128; числа — BAL[6].town
+const TOWN={center:{n:'Центр',r:[0,0,64,64]},station:{n:'Вокзал',r:[64,0,64,64]},airport:{n:'Аэропорт',r:[128,0,64,64]},sleep:{n:'Спальный',r:[0,64,64,64]},univer:{n:'Студгородок',r:[64,64,64,64]},industry:{n:'Промзона',r:[128,64,64,64]}};
+const TOWN_KEYS=Object.keys(TOWN),TOWN_H=48*36e5,tf2=x=>x.toFixed(2).replace('.',',');
+const townOn=()=>!netOff&&online()&&!!netSt.townIn&&!!S&&netLiveGame()&&(camp()||endl())&&Array.isArray(netSt.town)&&Date.now()-(netSt.townAt||0)<TOWN_H;
+const townSum=()=>TOWN_KEYS.reduce((a,d)=>a+(+S.townAlloc[d]||0),0);
+// машин стало меньше — лишнее снимается с районов с конца списка
+function townFix(){const a=S.townAlloc=S.townAlloc||{};let ex=townSum()-totalCars(),ch=false;
+  for(let i=TOWN_KEYS.length-1;i>=0&&ex>0;i--){const d=TOWN_KEYS[i],n=+a[d]||0,c=Math.min(n,ex);if(c){a[d]=n-c;ex-=c;ch=true}}
+  TOWN_KEYS.forEach(d=>{if(!(a[d]>0))delete a[d]});if(ch&&netSt.townIn)townSave();return ch}
+// по каждому району: мои/все машины, лидер ('*' — я, '' — нет), множитель kd
+function townInfo(){const T=bal('town'),o={};
+  TOWN_KEYS.forEach(d=>{const c=T[d]||{k:1,cap:99},mine=+S.townAlloc[d]||0,rv=[];
+    (netSt.town||[]).forEach(r=>{const n=r&&!r.mine&&r.alloc?Math.max(0,+r.alloc[d]||0):0;if(n>0)rv.push([String(r.nick||'?'),n])});
+    rv.sort((a,b)=>b[1]-a[1]);const top=rv.length?rv[0][1]:0,tot=mine+rv.reduce((a,x)=>a+x[1],0);
+    const me=mine>top&&top>0,who=me?'*':top>mine&&(rv.length<2||top>rv[1][1])?rv[0][0]:'';
+    o[d]={n:TOWN[d].n,k:c.k,cap:c.cap,mine,tot,who,me,kd:c.k*Math.max(bal('townFloor'),tot>0?Math.min(1,c.cap/tot):1)*(me?1+bal('townLead'):1)}});
+  return o}
+// множитель выручки парка: машины вне районов работают с k=1
+const townK=()=>{if(!townOn())return 1;townFix();const n=totalCars();if(!n)return 1;const i=townInfo();let s=0,m=0;
+  TOWN_KEYS.forEach(d=>{s+=i[d].mine*i[d].kd;m+=i[d].mine});return netClamp((s+Math.max(0,n-m))/n,bal('townMin'),bal('townMax'))};
+let townTry=0,townT=0;
+async function townLoad(force){if(!online()||netOff||(!force&&Date.now()-townTry<3e5))return false;townTry=Date.now();
+  const r=await rpc('town_state');if(!Array.isArray(r))return false;
+  netSt.town=r.filter(x=>x&&x.alloc&&typeof x.alloc==='object');netSt.townAt=Date.now();netSt.townIn=netSt.town.some(x=>x.mine);netSave();
+  if(S&&!S.preview&&S.townAlloc){townNews();const m=netSt.town.find(x=>x.mine);if(m&&Date.now()-new Date(m.updated_at)>864e5)townSave()}
+  return true}
+// новости: кто стал лидером района
+function townNews(){if(!netLiveGame()||!netSt.townIn)return;const i=townInfo(),p=netSt.townLeads||{},o={};
+  TOWN_KEYS.forEach(d=>{const w=i[d].who,n=i[d].n;o[d]=w;if(!(d in p)||p[d]===w)return;
+    if(w==='*')addLog(`Вы стали лидером района «${n}»: там +${Math.round(bal('townLead')*100)}% к выручке.`);
+    else if(p[d]==='*')addLog(`Вас вытеснили из лидеров района «${n}»${w?`: теперь там ${esc(w)}`:''}.`);
+    else if(w)addLog(`${esc(w)} стал лидером района «${n}».`)});
+  netSt.townLeads=o;netSave();save()}
+// запись распределения на сервер (с задержкой, чтобы не слать на каждый клик)
+const townSave=()=>{clearTimeout(townT);townT=setTimeout(townPush,2000)};
+async function townPush(){if(!online()||netOff||!netSt.townIn||!S||S.preview)return null;
+  const a={};TOWN_KEYS.forEach(d=>{if(S.townAlloc[d]>0)a[d]=S.townAlloc[d]});const c=(COLORS[(S.custom||{}).color]||{}).body;
+  return rpc('set_town',{p_alloc:a,p_color:/^#[0-9a-f]{6}$/i.test(c)?c:null})}
+function townDay(){if(netOff||!online()||!S||S.preview)return;townFix();townLoad(false)}
+async function townJoin(){if(!netLiveGame()||!(camp()||endl()))return'Город работает в кампании и бесконечном режиме';
+  townFix();netSt.townIn=true;const a=await townPush();
+  if(!a||!a.ok){netSt.townIn=false;return a&&a.err?String(a.err).slice(0,80):'Нет связи, попробуйте позже'}
+  await townLoad(true);return''}
+async function townLeave(){const a=await rpc('leave_town');if(!a)return'Нет связи, попробуйте позже';
+  netSt.townIn=false;netSt.town=(netSt.town||[]).filter(x=>!x.mine);netSt.townLeads={};netSave();return''}
+// карта на canvas: пока заглушка, дизайнер дорисует (state — результат townInfo())
+function drawTown(cv,state){const g=cv.getContext('2d');g.fillStyle='#2a2550';g.fillRect(0,0,cv.width,cv.height);
+  TOWN_KEYS.forEach(d=>{const r=TOWN[d].r;g.strokeStyle='#14102e';g.strokeRect(r[0]+.5,r[1]+.5,r[2]-1,r[3]-1)})}
+const cityTabs=t=>`<div class="tabs"><button class="tab" style="min-height:44px${t==='map'?';background:var(--taxi);color:var(--edge)':''}" id="ctTm">Карта</button><button class="tab" style="min-height:44px${t==='pk'?';background:var(--taxi);color:var(--edge)':''}" id="ctTp">Таксопарки</button></div>`;
+const cityTabBind=()=>{$('ctTm').onclick=()=>openCity('map');$('ctTp').onclick=()=>openCity('pk')};
+const openCity=t=>t==='pk'?cityParks():cityMap();
+async function cityMap(){
+  showModal(`<span class="step">ГОРОД</span><h2>Город</h2>${cityTabs('map')}<p class="kind">загрузка…</p><div class="btns"><button class="btn ghost" id="ctBack">Назад</button></div>`);
+  $('ctBack').onclick=()=>openNetModal();cityTabBind();
+  const ok=await townLoad(true);if(!$('ctBack'))return;
+  cityMapView(ok?'':'Нет связи — показаны прошлые данные.')}
+function cityMapView(msg){
+  const live=netLiveGame()&&(camp()||endl()),inn=!!netSt.townIn,i=townInfo(),free=live?totalCars()-townSum():0,k=townOn()?townK():1;
+  const box=$('modal'),y=box.scrollTop,y2=$('modalCard').scrollTop;
+  showModal(`<span class="step">ГОРОД</span><h2>Город</h2>${cityTabs('map')}
+    <p class="note" id="ctMsg">${esc(msg||(live?(inn?'Расставьте машины по районам: где тесно, выручка делится; лидер района получает надбавку.':'Вступите в город, чтобы делить районы с другими таксопарками.'):'Город работает в живой партии: кампания или бесконечный режим.'))}</p>
+    <canvas id="townMap" width="192" height="128" style="width:100%;max-width:384px;image-rendering:pixelated;border:3px solid var(--edge)"></canvas>
+    ${inn&&live?`<p><b>Множитель выручки: ×${tf2(k)}</b><br><span class="sub">Свободных машин: ${free}${townOn()?'':' · данные города устарели'}</span></p>`:''}
+    ${TOWN_KEYS.map(d=>{const x=i[d],full=x.tot>x.cap;return`<div class="card2"><b>${esc(x.n)}</b>
+      <span class="sub">выручка ×${tf2(x.k)} · заказов на ${x.cap} маш. · занято ${x.tot}/${x.cap}${full?' (тесно: ×'+tf2(x.kd)+')':''}</span>
+      <span class="sub">Лидер: ${x.who==='*'?'вы':x.who?esc(x.who):'—'}</span>
+      ${live&&inn?`<div class="btns"><button class="buy tap" style="flex:0 0 56px;min-height:48px" data-td="${d}" data-dx="-1" aria-label="Убрать машину из района ${esc(x.n)}"${x.mine?'':' disabled'}>−</button><b style="flex:1;text-align:center">Мои: ${x.mine}</b><button class="buy tap" style="flex:0 0 56px;min-height:48px" data-td="${d}" data-dx="1" aria-label="Добавить машину в район ${esc(x.n)}"${free>0?'':' disabled'}>+</button></div>`:''}</div>`}).join('')}
+    <div class="btns">${live?`<button class="buy tap" id="ctJoin">${inn?'Выйти из города':'Вступить в город'}</button>`:''}<button class="btn ghost" id="ctBack">Назад</button></div>`);
+  box.scrollTop=y;$('modalCard').scrollTop=y2;
+  drawTown($('townMap'),i);cityTabBind();$('ctBack').onclick=()=>openNetModal();
+  const m=t=>{const e=$('ctMsg');if(e)e.textContent=t};
+  document.querySelectorAll('[data-td]').forEach(b=>b.onclick=()=>{const d=b.dataset.td,a=S.townAlloc,dx=+b.dataset.dx;
+    if(dx>0&&totalCars()-townSum()<=0)return;a[d]=Math.max(0,(+a[d]||0)+dx);townFix();save();townSave();cityMapView()});
+  if($('ctJoin'))$('ctJoin').onclick=async()=>{$('ctJoin').disabled=true;m('Связываюсь…');
+    const e=inn?await townLeave():await townJoin();if(!$('ctBack'))return;cityMapView(e||(inn?'Вы вышли из города':'Вы в городе'))}}
+
 const cityLive=()=>netLiveGame();
-async function openCity(){
-  showModal(`<span class="step">ГОРОД</span><h2>Таксопарки города</h2><p class="kind">загрузка…</p><div class="btns"><button class="btn ghost" id="ctBack">Назад</button></div>`);
-  $('ctBack').onclick=()=>openNetModal();
+async function cityParks(){
+  showModal(`<span class="step">ГОРОД</span><h2>Город</h2>${cityTabs('pk')}<p class="kind">загрузка…</p><div class="btns"><button class="btn ghost" id="ctBack">Назад</button></div>`);
+  $('ctBack').onclick=()=>openNetModal();cityTabBind();
   const l=await rpc('parks');if(!$('ctBack'))return;
   const rows=Array.isArray(l)?l.filter(x=>x&&x.nick):null;
   const MN={campaign:'кампания',endless:'бесконечный',story:'сюжет',daily:'испытание',contest:'соревнование',sandbox:'песочница'};
   const live=cityLive(),can5=live&&S.money>=5000;
-  showModal(`<span class="step">ГОРОД</span><h2>Таксопарки города</h2><p class="note" id="ctMsg">${live?'Переманить можно раз в сутки. Подарок — 5 000 ₽ из вашей кассы.':'Подарки и переманивание — только в живой партии (не песочница, не испытание).'}</p>
+  showModal(`<span class="step">ГОРОД</span><h2>Город</h2>${cityTabs('pk')}<p class="note" id="ctMsg">${live?'Переманить можно раз в сутки. Подарок — 5 000 ₽ из вашей кассы.':'Подарки и переманивание — только в живой партии (не песочница, не испытание).'}</p>
     ${!rows?'<p class="kind">нет связи</p>':!rows.length?'<p class="kind">Пока пусто.</p>':`<div class="tablewrap"><table><thead><tr><th>Игрок</th><th>День</th><th>Касса</th><th>Машин</th></tr></thead><tbody>${rows.map((r,i)=>`<tr${r.nick===netSt.nick?' style="outline:3px solid var(--taxi)"':''}><td>${esc(r.nick)}<br><span class="sub">${esc(MN[r.mode]||String(r.mode||''))}</span>${r.nick===netSt.nick?'':`<br><button class="buy sm" data-po="${i}"${live?'':' disabled'}>Переманить водителя</button> <button class="buy sm alt" data-gf="${i}"${can5?'':' disabled'}>Подарок 5 000 ₽</button>`}</td><td>${+r.day||0}</td><td>${rub(+r.money||0)}</td><td>${+r.cars||0}</td></tr>`).join('')}</tbody></table></div>`}
     <div class="btns"><button class="btn ghost" id="ctBack">Назад</button></div>`);
-  $('ctBack').onclick=()=>openNetModal();
+  $('ctBack').onclick=()=>openNetModal();cityTabBind();
   const msg=t=>{const m=$('ctMsg');if(m)m.textContent=t};
   document.querySelectorAll('[data-po]').forEach(b=>b.onclick=async()=>{const r=rows[+b.dataset.po];b.disabled=true;msg('Связываюсь…');
     const a=await rpc('poach',{p_nick:r.nick});
@@ -4853,7 +4932,7 @@ else{render();if(S.over){hasLimit()&&S.day>dayLimit()?finale():gameOver()}else i
 if(document.fonts&&document.fonts.ready)document.fonts.ready.then(draw);
 fitScene();draw();if(!still)requestAnimationFrame(loop);else setInterval(()=>paused||draw(),1000);
 document.addEventListener('pointerdown',()=>ensureAudio(),{once:true});
-if(!(S&&S.preview))setTimeout(checkLogin,400);else checkLoginQuiet();
+if(!(S&&S.preview)){setTimeout(checkLogin,400);setTimeout(townDay,1500)}else checkLoginQuiet();
 function checkLoginQuiet(){const k=todayKey();G.login=G.login||{};if(G.login.last===k)return;const y=new Date();y.setDate(y.getDate()-1);const yk=y.getFullYear()+'-'+(y.getMonth()+1)+'-'+y.getDate();const streak=G.login.last===yk?(G.login.streak||0)+1:1;G.login={last:k,streak};G.loginPending={streak};saveG()}
 </script>
 
