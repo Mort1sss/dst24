@@ -388,6 +388,9 @@ create table if not exists public.town(
   win_n int not null default 0
 );
 alter table public.town enable row level security;
+alter table public.town drop constraint if exists town_sane;
+alter table public.town add constraint town_sane check ((color is null or color ~ '^#[0-9a-fA-F]{6}$')
+  and jsonb_typeof(alloc) = 'object' and octet_length(alloc::text) <= 512) not valid;
 revoke all on public.town from anon, authenticated;
 grant select, insert, update, delete on public.town to authenticated;  -- права урезает RLS: только админ
 drop policy if exists town_admin on public.town;
@@ -409,8 +412,9 @@ begin
     s := s + v;
     if v > 0 then a := a || jsonb_build_object(k, v::int); end if;
   end loop;
-  select cars into lim from public.saves where user_id = u;
-  if s > coalesce(lim, 50) then return jsonb_build_object('ok', false, 'err', 'Машин в районах больше, чем в парке'); end if;
+  -- машин не больше, чем правдоподобно для дня партии (saves игрок пишет сам)
+  select least(cars, 10 + 3*coalesce(day,0), 300) into lim from public.saves where user_id = u;
+  if s > coalesce(lim, 10) then return jsonb_build_object('ok', false, 'err', 'Машин в районах больше, чем в парке'); end if;
   select win_at, win_n into w, n from public.town where user_id = u;
   if found and w >= now() - interval '1 hour' and n >= 60 then return jsonb_build_object('ok', false, 'err', 'Слишком часто, попробуйте позже'); end if;
   insert into public.town(user_id, alloc, color, updated_at, win_at, win_n) values (u, a, p_color, now(), now(), 1)
@@ -436,7 +440,8 @@ create function public.leave_town() returns jsonb
 language plpgsql security definer set search_path = public as $$
 declare u uuid := public._uid();
 begin
-  delete from public.town where user_id = u;
+  -- строку не удаляем, чтобы не сбрасывать лимит вызовов; через 7 дней она и так не видна в town_state
+  update public.town set alloc = '{}'::jsonb, updated_at = now() - interval '8 days' where user_id = u;
   return jsonb_build_object('ok', true);
 end $$;
 
