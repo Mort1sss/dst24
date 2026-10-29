@@ -185,6 +185,8 @@ input[type=text]{font:inherit;font-size:15px;background:var(--edge);color:var(--
 label.chk{display:flex;gap:6px;align-items:center;font-size:15px;cursor:pointer}
 .row2{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
 .count{font-family:var(--f-display);font-size:11px;min-width:3ch;text-align:center}
+.netdot{display:inline-block;width:12px;height:12px;background:var(--muted);border:2px solid var(--edge);margin-right:6px;vertical-align:1px}.netdot.on{background:var(--good,#5c5)}
+.netform{display:flex;flex-direction:column;gap:8px;margin:8px 0}.netform input{font:inherit;font-size:15px;background:var(--edge);color:var(--ink);border:3px solid var(--edge);padding:8px;min-width:0;width:100%}
 input[type=range]{width:100%;accent-color:var(--taxi)}
 
 .achs{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px}
@@ -1928,7 +1930,7 @@ function newGame(mode,heads,opts={}){
 }
 function recordResult(st){if(!S||S.preview||S.mode==='sandbox')return;
   const r={date:new Date().toLocaleDateString('ru-RU'),mode:S.mode,diff:S.diff||'normal',days:Math.max(0,S.day-1),cars:totalCars(),money:Math.round(S.money),rank:S.rank||0,st,bal:S.bal||1};if(S.stars)r.stars=S.stars;
-  G.board=(G.board||[]).concat([r]).sort((a,b)=>(b.cars*20000+b.money)-(a.cars*20000+a.money)).slice(0,10);saveG()}
+  G.board=(G.board||[]).concat([r]).sort((a,b)=>(b.cars*20000+b.money)-(a.cars*20000+a.money)).slice(0,10);saveG();netSubmit(r,S.mode==='daily'?dailyScore():r.cars*20000+r.money)}
 function addCar(m,kmv){const M=MODELS[m],c={m,b:0,id:++S.seq,km:kmv!=null?kmv:(M.km0?M.km0+rand(-15000,15000):rand(0,40)),lease:M.lease?LEASE_DAYS:0};if(B(3))c.to=c.km+bal('toKm');S.fleet.push(c)}
 function removeCar(){for(const k of MODEL_KEYS){const i=S.fleet.findIndex(c=>c.m===k&&!(c.lease>0));if(i>-1){S.fleet.splice(i,1);return}}if(S.fleet.length)S.fleet.shift()}
 function breakCars(n){shuffle(S.fleet.filter(c=>!c.b&&!c.svc)).slice(0,n).forEach(c=>c.b=1)}
@@ -2274,7 +2276,7 @@ function endDay(){
   addLog(`Итог дня: ${net>=0?'+':''}${rub(net)}.`);
   const finished=hasLimit()&&S.day>=dayLimit();S.day++;
   if(S.mode==='endless'){const R=G.rec;R.days=Math.max(R.days,S.day-1);R.cars=Math.max(R.cars,carsN());R.money=Math.max(R.money,S.money);R.goals=Math.max(R.goals,S.goal);saveG()}
-  save();
+  save();cloudPush();
   if(S.money<0){S.debt=(S.debt||0)+1;if(S.debt<5)notes.unshift(`<b class="neg">Касса в минусе! Если за ${5-S.debt} дн. не выйти в плюс, парк закроют за долги. Можно взять кредит во вкладке «Деньги» → «Финансы».</b>`)}else S.debt=0;
   const lose=S.mode!=='sandbox'&&((S.money<0&&S.debt>=5)||S.rep<=0||S.drivers===0);
   sfx(net>=0?'coin':'bad');
@@ -3081,8 +3083,8 @@ function finale(){
   if(S.mode==='daily'){const sc=dailyScore(),first=!S.over;if(first){recordResult('испытание дня');if(!G.daily||G.daily.key!==S.dailyKey||sc>G.daily.best)G.daily={key:S.dailyKey,best:sc};saveG()}
     S.over=true;save();render();
     showModal(`<span class="step">ИСПЫТАНИЕ ДНЯ · ${S.dailyKey}</span><h2>${sc.toLocaleString('ru-RU')} очков</h2><p>«${DAILY_SC[S.dailyIdx].n}». Касса ${rub(S.money)}, машин ${totalCars()}, репутация ${S.rep}.</p>
-      <p class="note">Лучший результат сегодня: ${G.daily.best.toLocaleString('ru-RU')}. Отправьте друзьям — у них сегодня такое же испытание.</p><button class="btn" id="again">В меню</button>`);
-    $('again').onclick=pickMode;return}
+      <p class="note">Лучший результат сегодня: ${G.daily.best.toLocaleString('ru-RU')}. Отправьте друзьям — у них сегодня такое же испытание.</p><p class="note" id="dyPlace"></p><button class="btn" id="again">В меню</button>`);
+    $('again').onclick=pickMode;netPlace();return}
   const pg=B(2)&&S.diff!=='easy',ok=[goalMet(),carsN()>=GOAL_CARS,S.rep>=50],win=ok.every(Boolean),stars=win&&B(2)?S.stars||starsOf():0;
   if(!S.over){S.stars=stars;recordResult('финиш')}
   S.over=true;save();render();
@@ -3535,14 +3537,15 @@ function renderMgmt(){
     const R=G.rec,got=ACH.filter(a=>S.ach[a[0]]).length;
     B.innerHTML=`<p class="sub">В этой игре: ${got} из ${ACH.length}. За всё время: ${ACH.filter(a=>G.ach[a[0]]).length}.</p>
       <div class="achs">${ACH.map(([id,n,desc])=>`<div class="ach ${S.ach[id]?'got':''}"><b>${S.ach[id]?'★ ':''}${n}</b><span>${desc}${unlockOf(id)?` · <em class="rew">Награда: ${unlockOf(id)}</em>`:''}${S.ach[id]?` · день ${S.ach[id]}`:G.ach[id]?' · было в прошлых играх':''}</span></div>`).join('')}</div>
-      <div class="card2"><h3>Мои лучшие результаты</h3>
-        ${(G.board||[]).length?`<div class="tablewrap"><table><thead><tr><th>#</th><th>Дата</th><th>Режим</th><th>Дней</th><th>Машин</th><th>Касса</th><th>Итог</th></tr></thead><tbody>
+      <div class="card2"><h3>${NET.url?'Рекорды':'Мои лучшие результаты'}</h3>${NET.url?netBoardHead():''}
+        ${netView==='all'&&NET.url?netBoardRows():(G.board||[]).length?`<div class="tablewrap"><table><thead><tr><th>#</th><th>Дата</th><th>Режим</th><th>Дней</th><th>Машин</th><th>Касса</th><th>Итог</th></tr></thead><tbody>
         ${G.board.map((r,i)=>`<tr><td>${i+1}</td><td>${r.date}</td><td>${{campaign:'Кампания',endless:'Бесконечный',story:'Сюжет',daily:'Испытание дня'}[r.mode]||r.mode} · ${(DIFF[r.diff]||DIFF.normal).n}</td><td>${r.days}</td><td>${r.cars}</td><td>${rub(r.money)}</td><td>${r.st}${r.stars?' '+'★'.repeat(r.stars):''}</td></tr>`).join('')}</tbody></table></div>`:'<p class="kind">Пока пусто. Результат записывается, когда игра заканчивается.</p>'}
-        <p class="sub">Таблица хранится на этом устройстве. Общий рейтинг для всех игроков требует своего сервера.</p></div>
+        ${NET.url?'':'<p class="sub">Таблица хранится на этом устройстве. Общий рейтинг для всех игроков требует своего сервера.</p>'}</div>
       <div class="card2"><h3>Рекорды бесконечного режима</h3><div class="specs">
         <div class="spec"><span>Дней продержались</span><b>${R.days}</b></div><div class="spec"><span>Машин в парке</span><b>${R.cars}</b></div>
         <div class="spec"><span>Денег в кассе</span><b>${rub(R.money)}</b></div><div class="spec"><span>Целей выполнено</span><b>${R.goals}</b></div></div></div>`;
   }
+  if(uiTab==='ach'&&NET.url)netBoardBind();
   if(simpleOn()&&TAB_HINTS[uiTab])B.insertAdjacentHTML('afterbegin',`<p class="hintbox">${TAB_HINTS[uiTab]}</p>`);
   document.querySelectorAll('canvas.mini').forEach(drawMini);
 }
@@ -3614,6 +3617,7 @@ function openMenu(){const inS=S&&!S.preview;
     <button class="mode" id="mnHelp"><b>КАК ИГРАТЬ</b><span>Короткое обучение</span></button>
     ${inS?'<button class="mode" id="mnPhoto"><b>ФОТО ПАРКА</b><span>Кадр вашего двора</span></button>':''}
     <button class="mode" id="mnSave"><b>СОХРАНЕНИЕ</b><span>Код для переноса прогресса</span></button>
+    ${NET.url?`<button class="mode" id="mnNet"><b>ОНЛАЙН</b><span>${online()?esc(netSt.nick||'На связи'):'Вход, облако, рейтинг'}</span></button>`:''}
     ${inS?'<button class="mode" id="mnStyle"><b>ВИД И УДОБСТВО</b><span>Крупный текст, режим новичка</span></button>':''}
     ${installEvt?'<button class="mode" id="mnInst"><b>УСТАНОВИТЬ</b><span>Как приложение</span></button>':''}
     <button class="mode" id="mnNew"><b>НОВАЯ ИГРА</b><span>Начать заново</span></button>
@@ -3623,6 +3627,7 @@ function openMenu(){const inS=S&&!S.preview;
   $('mnHelp').onclick=()=>tutorial(0);
   if($('mnPhoto'))$('mnPhoto').onclick=()=>$('photoBtn').click();
   $('mnSave').onclick=()=>$('saveBtn').click();
+  if($('mnNet'))$('mnNet').onclick=()=>openNetModal();
   if($('mnStyle'))$('mnStyle').onclick=()=>{hideModal();uiTab='style';renderMgmt();drawFaces();document.querySelector('.mgmt').scrollIntoView({behavior:'smooth',block:'start'})};
   if($('mnInst'))$('mnInst').onclick=()=>{hideModal();$('installBtn').click()};
   $('mnNew').onclick=()=>$('restart').click();
@@ -4604,6 +4609,126 @@ window.__balanceSim.free=(hours=24,streak=1)=>simGuard(()=>{
   const off=offlineIncome(),out={SIM_V,hours,streak,avgNet,offline:off||0,offlineShare:avgNet>0?+((off||0)/avgNet).toFixed(2):0,login:bal('loginDay')*Math.min(streak,7)+(streak%7===0?bal('loginBonus'):0),loginParts:streak%7===0?bal('loginParts'):0,loginLoy:streak%7===0?bal('loginLoy'):0,moneyBefore:Math.round(m0)};
   console.table([out]);return out});
 })();
+
+/* ================= ОНЛАЙН ================= */
+// Надстройка: без NET.url не делает ни одного запроса, все ошибки сети гасятся.
+const NET={url:'',key:'',mail:'mort1sss.github.io'};
+const NKEY='dst24-net-v1';
+let netSt={};try{netSt=JSON.parse(localStorage.getItem(NKEY))||{}}catch(e){}
+const netSave=()=>{try{localStorage.setItem(NKEY,JSON.stringify(netSt))}catch(e){}};
+const online=()=>!!NET.url&&!!netSt.tok;
+const NET_ERR={'invalid login credentials':'Неверный логин или пароль','user already registered':'Логин занят','email_exists':'Логин занят','weak_password':'Пароль слишком простой','over_request_rate_limit':'Слишком часто, подождите минуту','over_email_send_rate_limit':'Слишком часто, подождите минуту'};
+const netTr=m=>{m=String(m||'').toLowerCase();for(const k in NET_ERR)if(m.includes(k))return NET_ERR[k];return m.includes('password')&&m.includes('6')?'Пароль не короче 6 символов':'Не получилось. Попробуйте ещё раз'};
+// низкоуровневый запрос: {ok,st,data}; при сбое сети {ok:false,st:0}
+async function netReq(path,o={},retry=true){
+  if(!NET.url)return{ok:false,st:0};
+  const ac=new AbortController(),tm=setTimeout(()=>ac.abort(),8000);
+  try{
+    const h={apikey:NET.key,Authorization:'Bearer '+((o.auth!==false&&netSt.tok)||NET.key),'Content-Type':'application/json'};if(o.prefer)h.Prefer=o.prefer;
+    const r=await fetch(NET.url.replace(/\/$/,'')+path,{method:o.method||'GET',headers:h,body:o.body!=null?JSON.stringify(o.body):undefined,signal:ac.signal});
+    let d=null;try{d=await r.json()}catch(e){}
+    if(r.status===401&&retry&&o.auth!==false&&netSt.ref&&await netRefresh())return netReq(path,o,false);
+    return{ok:r.ok,st:r.status,data:d}}
+  catch(e){return{ok:false,st:0}}finally{clearTimeout(tm)}}
+let netRef=null;
+function netRefresh(){return netRef||(netRef=(async()=>{const r=await netReq('/auth/v1/token?grant_type=refresh_token',{method:'POST',body:{refresh_token:netSt.ref},auth:false},false);
+  if(r.ok&&r.data&&r.data.access_token){netTokens(r.data);return true}
+  if(r.st>=400&&r.st<500){netSt.tok=netSt.ref=null;netSave()}return false})().finally(()=>{netRef=null}))}
+const netTokens=d=>{netSt.tok=d.access_token;netSt.ref=d.refresh_token;netSt.exp=Date.now()+(d.expires_in||3600)*1000;if(d.user)netSt.uid=d.user.id;netSave()};
+const api=async(path,o)=>{const r=await netReq(path,o);return r.ok?(r.data==null?{}:r.data):null};
+const rpc=(name,args)=>api('/rest/v1/rpc/'+name,{method:'POST',body:args||{}});
+const netMail=l=>l+'@'+NET.mail;
+const netLogin=l=>String(l||'').trim().toLowerCase();
+async function netAuth(path,body,nick){
+  const r=await netReq(path,{method:'POST',body,auth:false});
+  if(!r.ok||!r.data||!r.data.access_token){if(!r.st)return'Нет связи с сервером';const d=r.data||{};return netTr(d.msg||d.error_description||d.message||d.error_code||d.error)}
+  netTokens(r.data);netSt.nick=nick||(r.data.user&&r.data.user.user_metadata&&r.data.user.user_metadata.nick)||netSt.nick||'';netSave();
+  rpc('touch');return''}
+async function signUp(login,pass,nick){login=netLogin(login);nick=String(nick||'').trim();
+  if(!/^[a-z0-9_]{3,20}$/.test(login))return'Логин: 3–20 символов, латиница, цифры и _';
+  if(pass.length<6)return'Пароль не короче 6 символов';
+  if(nick.length<2||nick.length>16)return'Ник: от 2 до 16 символов';
+  const e=await netAuth('/auth/v1/signup',{email:netMail(login),password:pass,data:{nick}},nick);
+  if(e||netSt.tok)return e;
+  return netSignIn(login,pass)}
+const netSignIn=async(login,pass)=>{const e=await netAuth('/auth/v1/token?grant_type=password',{email:netMail(login),password:pass});
+  if(!e&&!netSt.nick){const p=await api('/rest/v1/profiles?select=nick&id=eq.'+netSt.uid);if(p&&p[0]){netSt.nick=p[0].nick;netSave()}}return e};
+const signIn=(login,pass)=>{login=netLogin(login);if(!/^[a-z0-9_]{3,20}$/.test(login)||!pass)return Promise.resolve('Неверный логин или пароль');return netSignIn(login,pass)};
+async function signOut(){if(netSt.tok)netReq('/auth/v1/logout',{method:'POST'},false);netSt={};netSave();netLB={}}
+/* ---- облачные сохранения ---- */
+let netHold=false,netPushT=0;
+const cloudOk=()=>online()&&S&&!S.preview&&S.mode!=='sandbox'&&!netHold;
+async function cloudPush(force){
+  if(!cloudOk()||(!force&&Date.now()-netPushT<30000))return;netPushT=Date.now();
+  await api('/rest/v1/saves?on_conflict=user_id',{method:'POST',prefer:'resolution=merge-duplicates,return=minimal',body:{data:S,mode:S.mode,day:S.day,money:Math.round(S.money),cars:totalCars(),stars:S.stars||0,bal:S.bal||1,updated_at:new Date().toISOString()}})}
+const cloudInfo=r=>`${{campaign:'кампания',endless:'бесконечный',story:'сюжет',daily:'испытание дня'}[r.mode]||esc(r.mode)}, день ${r.day}, касса ${rub(r.money)}`;
+async function cloudPull(){
+  if(!online())return;
+  const a=await api('/rest/v1/saves?select=data,mode,day,money&limit=1');if(!a)return;
+  const c=a[0],mine=S&&!S.preview&&S.mode!=='sandbox';
+  if(!c||!c.data||!c.data.fleet){if(mine)cloudPush(true);return}
+  const use=()=>{S=Object.assign(fixState(c.data),{preview:false});movers=[];save();hideModal();render();toast('Загружено из облака: день '+S.day);
+    if(S.over){hasLimit()&&S.day>dayLimit()?finale():gameOver()}else if(S.morning&&S.morning.length)runMorning()};
+  if(!mine){if(S&&S.mode==='sandbox')return;use();return}
+  if(c.mode===S.mode&&c.day===S.day&&Math.round(c.money)===Math.round(S.money))return;
+  netHold=true;
+  showModal(`<span class="step">ОБЛАКО</span><h2>Какую партию оставить?</h2><p>В облаке: ${cloudInfo(c)}.</p><p>На этом устройстве: ${cloudInfo({mode:S.mode,day:S.day,money:S.money})}.</p><p class="note">Вторая партия будет заменена.</p>
+    <div class="btns"><button class="buy" id="cvCloud">Из облака</button><button class="buy alt" id="cvHere">С этого устройства</button></div>`);
+  $('cvCloud').onclick=()=>{netHold=false;use()};
+  $('cvHere').onclick=()=>{netHold=false;hideModal();cloudPush(true)}}
+document.addEventListener('visibilitychange',()=>{if(document.hidden)cloudPush(true)});
+/* ---- рекорды ---- */
+let netLB={},netView='mine',netLBMode='campaign';
+let netSubP=null;
+function netSubmit(r,sc){if(!online())return;netSubP=rpc('submit_score',{p_mode:r.mode,p_diff:r.diff,p_day_key:r.mode==='daily'?S.dailyKey:'',p_score:Math.max(0,Math.round(sc)),p_stars:r.stars||0,p_days:r.days,p_cars:r.cars,p_money:r.money,p_bal:r.bal})}
+async function netBoardLoad(mode,key){
+  const k=mode+'|'+(key||'');netLB[k]='load';
+  const q=key?'&day_key=eq.'+encodeURIComponent(key):'';
+  const rows=await api('/rest/v1/leaderboard?select=nick,mode,diff,score,stars,days,cars,money,created_at&mode=eq.'+mode+q+'&order=score.desc&limit='+(key?200:60));
+  if(rows){const seen={};netLB[k]=rows.filter(x=>seen[x.nick]?0:(seen[x.nick]=1)).slice(0,key?200:20)}else netLB[k]='err';
+  return netLB[k]}
+async function netPlace(){
+  const key=S.dailyKey,mine=netSt.nick,el=()=>$('dyPlace');
+  if(!online()||!key)return;
+  try{await netSubP}catch(e){}
+  const rows=await netBoardLoad('daily',key);if(!el())return;
+  if(!Array.isArray(rows)){el().textContent='';return}
+  const i=rows.findIndex(x=>x.nick===mine);el().textContent=i<0?'':`Сегодня: место ${i+1} из ${rows.length}`}
+const NET_MODES=[['campaign','Кампания'],['endless','Бесконечный'],['story','Сюжет'],['daily','Испытание дня']];
+const netBoardHead=()=>`<div class="tabs" style="margin-bottom:8px"><button class="tab${netView==='mine'?' on':''}" data-nv="mine">Мои</button><button class="tab${netView==='all'?' on':''}" data-nv="all">Все игроки</button></div>${netView==='all'?`<div class="tabs" style="margin-bottom:8px">${NET_MODES.map(([k,l])=>`<button class="tab${netLBMode===k?' on':''}" data-nm="${k}">${l}</button>`).join('')}</div>`:''}`;
+function netBoardRows(){
+  if(!online())return'<p class="kind">Войдите через «Меню → Онлайн», чтобы видеть общий рейтинг.</p>';
+  const key=netLBMode==='daily'?todayKey():'',v=netLB[netLBMode+'|'+key];
+  if(!v||v==='load')return'<p class="kind">загрузка…</p>';
+  if(v==='err')return'<p class="kind">нет связи</p>';
+  if(!v.length)return'<p class="kind">Пока пусто.</p>';
+  return`<div class="tablewrap"><table><thead><tr><th>#</th><th>Игрок</th><th>Дней</th><th>Машин</th><th>Касса</th><th>Очки</th></tr></thead><tbody>${v.map((r,i)=>`<tr${r.nick===netSt.nick?' style="outline:3px solid var(--taxi)"':''}><td>${i+1}</td><td>${esc(r.nick)}</td><td>${r.days}</td><td>${r.cars}</td><td>${rub(r.money)}</td><td>${Number(r.score).toLocaleString('ru-RU')}${r.stars?' '+'★'.repeat(r.stars):''}</td></tr>`).join('')}</tbody></table></div>`}
+function netBoardBind(){
+  const B=$('mbody');if(!B)return;
+  const load=()=>{const key=netLBMode==='daily'?todayKey():'';if(online()&&netView==='all'){netBoardLoad(netLBMode,key).then(()=>{if(uiTab==='ach')renderMgmt()});}};
+  B.querySelectorAll('[data-nv]').forEach(b=>b.onclick=()=>{netView=b.dataset.nv;if(netView==='all')load();renderMgmt()});
+  B.querySelectorAll('[data-nm]').forEach(b=>b.onclick=()=>{netLBMode=b.dataset.nm;load();renderMgmt()})}
+/* ---- окно «Онлайн» ---- */
+const netDot=()=>`<span class="netdot ${online()?'on':''}"></span>`;
+function openNetModal(msg){
+  if(!NET.url){showModal(`<span class="step">ОНЛАЙН</span><h2>Онлайн не настроен</h2><p class="note">Игра работает без сети.</p><div class="btns"><button class="btn ghost" id="nvClose">Закрыть</button></div>`);$('nvClose').onclick=hideModal;return}
+  if(online()){
+    showModal(`<span class="step">ОНЛАЙН</span><h2>${netDot()} На связи</h2><p>Вы вошли как <b>${esc(netSt.nick||'игрок')}</b>. Партия копируется в облако после каждого дня, результаты уходят в общую таблицу.</p><p class="note" id="nvMsg">${msg?esc(msg):''}</p>
+      <div class="btns"><button class="buy" id="nvSync">Синхронизировать</button><button class="buy alt" id="nvOut">Выйти</button><button class="btn ghost" id="nvClose">Закрыть</button></div>`);
+    $('nvSync').onclick=async()=>{$('nvMsg').textContent='Связываюсь…';netPushT=0;await cloudPull();if($('nvMsg'))$('nvMsg').textContent='Готово'};
+    $('nvOut').onclick=async()=>{await signOut();openNetModal('Вы вышли.')};
+  }else{
+    showModal(`<span class="step">ОНЛАЙН</span><h2>${netDot()} Вход в диспетчерскую</h2><p class="note">Облачные сохранения и общий рейтинг. Без входа игра работает как раньше.</p>
+      <div class="netform"><input type="text" id="nvLogin" placeholder="Логин (латиница)" autocomplete="username" autocapitalize="none" maxlength="20" aria-label="Логин"><input type="password" id="nvPass" placeholder="Пароль" autocomplete="current-password" maxlength="72" aria-label="Пароль"><input type="text" id="nvNick" placeholder="Ник (только для регистрации)" maxlength="16" aria-label="Ник"></div>
+      <p class="neg" id="nvMsg">${msg?esc(msg):''}</p>
+      <div class="btns"><button class="buy" id="nvIn">Войти</button><button class="buy alt" id="nvUp">Регистрация</button><button class="btn ghost" id="nvClose">Закрыть</button></div>`);
+    const go=up=>async()=>{const m=$('nvMsg'),b=[$('nvIn'),$('nvUp')];m.className='note';m.textContent='Связываюсь…';b.forEach(x=>x.disabled=true);
+      const e=await(up?signUp($('nvLogin').value,$('nvPass').value,$('nvNick').value):signIn($('nvLogin').value,$('nvPass').value));
+      if(!$('nvMsg'))return;if(e){m.className='neg';m.textContent=e;b.forEach(x=>x.disabled=false);return}
+      toast('Вы на связи: '+(netSt.nick||''));sfx('coin');openNetModal();cloudPull();render()};
+    $('nvIn').onclick=go(0);$('nvUp').onclick=go(1)}
+  $('nvClose').onclick=hideModal}
+if(NET.url&&netSt.tok)setTimeout(()=>{rpc('touch');cloudPull()},1500);
 
 /* ================= СТАРТ ================= */
 try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist()}catch(e){}
