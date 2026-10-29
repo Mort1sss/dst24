@@ -38,11 +38,11 @@
 | Версии баланса | `data.js` | раздел `версия баланса`: `BAL`, `bal(k)`, `B(n)`, `camp()`, `endl()`, `profit()`, `goalMet()`, `starsOf()`, `carRevM` |
 | Удары и налоги | `data.js`, `day.js` | `isTaxDay`, `taxDueIn`, `heavyDays`, `heavyGate`, `ultBlocked`; кризис — в `endDay`, рейд/профсоюз/проверка — в `startDay` |
 | Состояние | `state.js` | `blankState`, `fixState`, `save`, `load`, `newGame`, `recordResult` |
-| День | `day.js` | `nextEvent`, `apply`, `choose`, `autoResolve`, `endDay`, `startDay`, `runMorning`, `inspection` |
-| Покупки | `day.js` | `priceOf`, `buy`, `sellCar`, `hire`, `buyLot`, `takeLoan`, `carFail`, `mgmtCost`, `satK`, `inf` |
+| День | `day.js` | `nextEvent`, `apply`, `choose`, `endDay`, `startDay`, `runMorning`, `inspection`; `autoResolve` — в `minigames.js` |
+| Покупки | `day.js` | `priceOf`, `buy`, `sellCar`, `hire`, `buyLot`, `takeLoan`; `mgmtCost`, `satK`, `inf` — в `data.js`, `carFail` — в `state.js` |
 | Забастовка | `day.js` | `strikeOn`, `strikeBegins`, `strikeEnds` |
 | Утро и события | `minigames.js` | `meeting`, `taxAudit`, `raidEvent`, `unionEvent`, `newspaper` |
-| Награды | `minigames.js` | `offlineIncome`, `loginPay`, `checkLogin`, `checkLoginQuiet` |
+| Награды | `minigames.js` | `offlineIncome`, `loginPay`, `checkLogin`; `checkLoginQuiet` — в `main.js` |
 | Мини-игры | `minigames.js` | `mgTiming`, `lgRace`, `lgPark`, `dispatcher`, `TOPCAR`, `mgRAF`, `mgStop` |
 | Финал и интерфейс | `ui.js` | `finale`, `gameOver`, `render`, `renderHud`, `renderMgmt`, `icon16`, `ICON16` |
 | Двор и графика | `art.js` | `draw`, `drawScene`, `drawCar`, `CARS2`, `syncMovers`, `stepParts`, `lightPass`, `post` (WebGL), `fitScene` |
