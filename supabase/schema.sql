@@ -35,7 +35,7 @@ alter table public.saves add constraint saves_sane check (
 alter table public.saves add column if not exists meta jsonb;
 alter table public.saves drop constraint if exists saves_meta_sane;
 alter table public.saves add constraint saves_meta_sane check (
-  meta is null or (jsonb_typeof(meta) = 'object' and pg_column_size(meta) <= 65536)) not valid;
+  meta is null or (jsonb_typeof(meta) = 'object' and octet_length(meta::text) <= 65536)) not valid;
 
 create or replace function public.saves_touch() returns trigger
 language plpgsql as $$ begin new.updated_at := now(); return new; end $$;
@@ -283,26 +283,35 @@ begin
 end $$;
 
 /* ---- холдинги ---- */
--- франшиза учитывается, только если val — число 0…5e7; их не больше, чем дней с регистрации + 1
+-- франшиза учитывается, только если val — число 0…5e7; без повторов id; не больше, чем дней с регистрации + 1, и не больше 30
 create or replace function public._hold_stats(m jsonb, since timestamptz) returns table(fr_count int, hold_val bigint)
 language sql stable set search_path = public as $$
   select count(*)::int, coalesce(sum(v), 0)::bigint from (
-    select (f->>'val')::numeric v, row_number() over () rn
-    from jsonb_array_elements(case when jsonb_typeof(m->'hold'->'fr') = 'array' then m->'hold'->'fr' else '[]'::jsonb end) f
-    where jsonb_typeof(f) = 'object' and jsonb_typeof(f->'val') = 'number'
-      and (f->>'val')::numeric between 0 and 5e7) t
-  where rn <= greatest(0, floor(extract(epoch from now() - coalesce(since, now())) / 86400)) + 1 $$;
+    select v, row_number() over (order by k) rn from (
+      select distinct on (coalesce(f->>'id', f::text)) coalesce(f->>'id', f::text) k,
+        case when jsonb_typeof(f->'val') = 'number' then (f->>'val')::numeric end v
+      from jsonb_array_elements(case when jsonb_typeof(m->'hold'->'fr') = 'array' then m->'hold'->'fr' else '[]'::jsonb end) f
+      where jsonb_typeof(f) = 'object'
+      order by coalesce(f->>'id', f::text)) d
+    where v between 0 and 5e7) t
+  where rn <= least(30, greatest(0, floor(extract(epoch from now() - coalesce(since, now())) / 86400)) + 1) $$;
+
+-- медали: только настоящие города и значения 1…3
+create or replace function public._hold_medals(m jsonb, lvl text) returns int
+language sql immutable set search_path = public as $$
+  select count(*)::int from jsonb_each_text(case when jsonb_typeof(m->'hold'->'medals') = 'object' then m->'hold'->'medals' else '{}'::jsonb end) e
+  where e.value = lvl and e.key = any(array['home','capital','resort','north','port','science']) $$;
 
 drop function if exists public.holdings();
 create or replace function public.holdings() returns table(nick text, fr_count int, hold_val bigint,
   golds int, silvers int, bronzes int, updated_at timestamptz)
 language plpgsql security definer set search_path = public as $$
-declare u uuid := public._uid();
 begin
+  perform public._uid();  -- только вошедшим и не забаненным
   return query select p.nick, h.fr_count, h.hold_val,
-      (select count(*)::int from jsonb_each_text(case when jsonb_typeof(s.meta->'hold'->'medals') = 'object' then s.meta->'hold'->'medals' else '{}'::jsonb end) e where e.value = '1'),
-      (select count(*)::int from jsonb_each_text(case when jsonb_typeof(s.meta->'hold'->'medals') = 'object' then s.meta->'hold'->'medals' else '{}'::jsonb end) e where e.value = '2'),
-      (select count(*)::int from jsonb_each_text(case when jsonb_typeof(s.meta->'hold'->'medals') = 'object' then s.meta->'hold'->'medals' else '{}'::jsonb end) e where e.value = '3'),
+      public._hold_medals(s.meta, '1'),
+      public._hold_medals(s.meta, '2'),
+      public._hold_medals(s.meta, '3'),
       s.updated_at
     from public.saves s join public.profiles p on p.id = s.user_id
     cross join lateral public._hold_stats(s.meta, p.created_at) h
