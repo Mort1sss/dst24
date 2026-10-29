@@ -238,7 +238,7 @@ function endDay(){
   S.loans=S.loans.filter(l=>l.left>0);
   // водители
   const leaveMul=(ownHas('gym')?.97:1)*(hasHead('marina')?.6:1)*(S.upg.call?.8:1)*(stratOn('people')?.6:1)*(1+load01(0));
-  const dev=devR,leaveP=(.003+dev.o*.19+newsMod('leave')+Math.max(0,S.fuel-1)*.04*(S.upg.gas?.3:1)+(crisisOn('fuel')?.02:0))*leaveMul;
+  const dev=devR,leaveP=(.003+dev.o*.19+newsMod('leave')+Math.max(0,fuelNow()-1)*.04*(S.upg.gas?.3:1)+(crisisOn('fuel')?.02:0))*leaveMul;
   let gone=0;for(let i=0;i<S.drivers;i++)if(Math.random()<leaveP)gone++;
   const idle=Math.max(0,S.drivers-gone-carsN());let idleGone=0;for(let i=0;i<idle;i++)if(Math.random()<.35*leaveMul)idleGone++;
   if(gone)notes.push(`${gone} вод. ушли: ${dev.o>0?'аренда слишком высокая':'нашли другую работу'}.`);

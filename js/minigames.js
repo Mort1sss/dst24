@@ -507,8 +507,8 @@ function sellFranchise(){const nw=B(7),pts=prestPts(),h=holdG(),op=Object.entrie
     <p><b class="neg">Вы потеряете:</b> текущую партию — она закончится, парк, деньги, филиалы и кредиты не переносятся.</p>
     <div class="btns"><button class="btn" id="frYes">Продать и открыть франшизу</button><button class="btn ghost" id="frNo">Не сейчас</button></div>`);
   $('frNo').onclick=hideModal;
-  $('frYes').onclick=()=>{const v=valuation();if(!nw){G.prestige=prestige()+pts;G.franchises=(G.franchises||0)+1}
-    h.fr.push({id:holdId(),city:S.city||'home',val:nw?v:0,day:S.day,at:Date.now()});h.earned+=pts;h.at=Date.now();
+  $('frYes').onclick=()=>{if(S.over)return;if(h.fr.some(f=>f.gid&&f.gid===S.gid))return toast('Этот парк уже продан');const v=valuation();if(!nw){G.prestige=prestige()+pts;G.franchises=(G.franchises||0)+1}
+    h.fr.push({id:holdId(),city:S.city||'home',val:nw?v:0,day:S.day,at:Date.now(),pts,gid:S.gid||''});h.earned+=pts;h.at=Date.now();
     recordResult('франшиза');S.cnt.franchise=1;S.ach.franchise=S.day;G.ach.franchise=true;S.over=true;saveG();save();render();sfx('win');
     showModal(`<h2>Франшиза открыта!</h2><p>Очков холдинга свободно: ${holdFree()}${nw?'':`, престиж: ${G.prestige}`}. Выберите новый город в бесконечном режиме.</p><div class="btns"><button class="btn" id="frGo">К выбору режима</button><button class="btn ghost" id="frHold">Открыть холдинг</button></div>`);$('frGo').onclick=pickMode;$('frHold').onclick=()=>openHolding()};
 }

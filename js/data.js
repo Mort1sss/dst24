@@ -27,7 +27,7 @@ const MARKET={'Эконом':3200,'Комфорт':4200,'Комфорт+':5800,'
 const CLASSES=Object.keys(MARKET);
 const carRevM=(m,up,tm)=>{const M=MODELS[m],cls=up||M.cls;let v=S.rents[cls]*M.mult*3200/MARKET[M.cls]*(1+(tm||0));
   if(S.lines){if(S.lines.delivery&&cls==='Эконом')v*=1.06;if(S.lines.transfer&&(cls==='Минивэн'||cls==='Комфорт+'))v*=1.15;if(S.lines.kids)v*=1.03}
-  if(M.ev)v*=(S.upg&&S.upg.charger?1:.7)*(1+((S.fuel||1)-1)*.6);
+  if(M.ev)v*=(S.upg&&S.upg.charger?1:.7)*(1+(fuelNow()-1)*.6);
   if(stratOn('prem'))v*=cls==='Эконом'?.95:1.15;
   if(stratOn('people'))v*=.96;
   return v};
@@ -816,9 +816,10 @@ const UPGRADES={
 };
 const UPG_KEYS=Object.keys(UPGRADES);
 /* ---- бензин: пояснения ---- */
-const fuelP=()=>Math.max(0,S.fuel-1)*.04*(S.upg.gas?.3:1)*100;
+const fuelNow=()=>(S.fuel||1)*(cityDef().fuel||1);
+const fuelP=()=>Math.max(0,fuelNow()-1)*.04*(S.upg.gas?.3:1)*100;
 const pct1=v=>v.toFixed(1).replace('.',',')+'%';
-const fuelInfo=()=>`Бензин ${(58*S.fuel).toFixed(1).replace('.',',')} ₽/л (обычно 58). Чем дороже, тем чаще водители уходят: сейчас +${pct1(fuelP())} в день на каждого. ${S.upg.gas?'Своя АЗС уже гасит 70% этого эффекта.':'Своя АЗС снижает эффект на 70%.'} Электромобили на дорогом бензине зарабатывают больше.`;
+const fuelInfo=()=>`Бензин ${(58*fuelNow()).toFixed(1).replace('.',',')} ₽/л (обычно 58). Чем дороже, тем чаще водители уходят: сейчас +${pct1(fuelP())} в день на каждого. ${S.upg.gas?'Своя АЗС уже гасит 70% этого эффекта.':'Своя АЗС снижает эффект на 70%.'} Электромобили на дорогом бензине зарабатывают больше.`;
 const evCars=()=>S.fleet.filter(c=>MODELS[c.m].ev);
 const evLoss=()=>S.upg.charger?0:Math.round(evCars().reduce((a,c)=>a+carRev(c),0)*3/7/100)*100;
 const upgExtra=k=>{if(k==='gas'){const g=carsN()*150,pr=upgPrice('gas');return S.upg.gas?`<div class="spec"><span>Приносит сейчас</span><b>≈${rub(g)}/день</b></div><div class="kind">Бензин злит водителей на 70% меньше: сейчас +${pct1(fuelP())} к уходу в день.</div>`:`<div class="spec"><span>Даст при вашем парке</span><b>≈${rub(g)}/день</b></div><div class="spec"><span>Окупится</span><b>${g?`≈${Math.ceil(pr/g)} дн.`:'нет машин'}</b></div><div class="kind">Плюс защита от дорогого бензина (−70% к уходам) и лояльность.</div>`}

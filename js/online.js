@@ -43,28 +43,34 @@ async function signUp(login,pass,nick){login=netLogin(login);nick=String(nick||'
 const netSignIn=async(login,pass)=>{const e=await netAuth('/auth/v1/token?grant_type=password',{email:netMail(login),password:pass});
   if(!e&&!netSt.nick){const p=await api('/rest/v1/profiles?select=nick&id=eq.'+netSt.uid);if(p&&p[0]){netSt.nick=p[0].nick;netSave()}}return e};
 const signIn=(login,pass)=>{login=netLogin(login);if(!/^[a-z0-9_]{3,20}$/.test(login)||!pass)return Promise.resolve('Неверный логин или пароль');return netSignIn(login,pass)};
-async function signOut(){if(netSt.tok)netReq('/auth/v1/logout',{method:'POST'},false);netSt={};netSave();netLB={}}
+async function signOut(){netMetaPulled=false;if(netSt.tok)netReq('/auth/v1/logout',{method:'POST'},false);netSt={};netSave();netLB={}}
 /* ---- облачные сохранения ---- */
 let netHold=false,netPushT=0;
 const cloudOk=()=>online()&&!netOff&&S&&!S.preview&&S.mode!=='sandbox'&&!netHold;
 const livOpen=()=>Object.entries(UNLOCK.livery||{}).filter(([,a])=>G.ach&&G.ach[a]).map(([k])=>k);
+let netMetaPulled=false; // пока облако не прочитано, мету в полное сохранение не кладём
+const netMeta=()=>({hold:holdG(),ach:Object.keys(G.ach||{}),liv:livOpen(),at:Date.now()});
+// отдельный PATCH только меты: партию в облаке не трогает
+function metaPush(){if(!online()||netOff||!netSt.uid)return;api('/rest/v1/saves?user_id=eq.'+netSt.uid,{method:'PATCH',prefer:'return=minimal',body:{meta:netMeta()}})}
+// устойчивая подпись: порядок ключей и франшиз не важен
+const metaSig=()=>{const h=holdG();return JSON.stringify([h.earned,h.base,h.at,h.treeAt,h.tree,h.fr.map(f=>f.id).sort(),Object.keys(h.medals).sort().map(k=>k+h.medals[k]),Object.keys(G.ach||{}).sort()])};
 function metaMerge(m){ // мета всегда объединяется, независимо от выбора партии
   if(!m||typeof m!=='object')return;try{
-    const h0=JSON.stringify(G.hold),a0=Object.keys(G.ach||{}).length;
+    const h0=metaSig();
     G.hold=holdMerge(holdG(),m.hold);G.ach=G.ach||{};
     (Array.isArray(m.ach)?m.ach:[]).slice(0,500).forEach(k=>{if(typeof k==='string'&&k.length<40)G.ach[k]=true});
     (Array.isArray(m.liv)?m.liv:[]).slice(0,100).forEach(k=>{const a=UNLOCK.livery&&UNLOCK.livery[String(k)];if(a)G.ach[a]=true});
-    if(JSON.stringify(G.hold)!==h0||Object.keys(G.ach).length!==a0){saveG();cloudPush(true)}}catch(e){}}
+    if(metaSig()!==h0){saveG();metaPush()}}catch(e){}}
 async function cloudPush(force,keep){
   if(!cloudOk()||(!force&&Date.now()-netPushT<30000))return;netPushT=Date.now();
-  const body={data:S,meta:{hold:holdG(),ach:Object.keys(G.ach||{}),liv:livOpen(),at:Date.now()},mode:S.mode,day:S.day,money:Math.round(S.money),cars:totalCars(),stars:S.stars||0,bal:S.bal||1,updated_at:new Date().toISOString()};
+  const body={data:S,mode:S.mode,day:S.day,money:Math.round(S.money),cars:totalCars(),stars:S.stars||0,bal:S.bal||1,updated_at:new Date().toISOString()};if(netMetaPulled)body.meta=netMeta();
   await api('/rest/v1/saves?on_conflict=user_id',{method:'POST',prefer:'resolution=merge-duplicates,return=minimal',body,keep:!!keep&&JSON.stringify(body).length<60000})}
 const cloudInfo=r=>`${{campaign:'кампания',endless:'бесконечный',story:'сюжет',daily:'испытание дня',contest:'соревнование'}[r.mode]||esc(r.mode)}, день ${esc(r.day)}, касса ${rub(r.money)}${r.at?`, сохранено ${esc(new Date(r.at).toLocaleString('ru-RU',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}))}`:''}`;
 const netBusy=()=>!$('modal').hidden||!!(S&&S.morning&&S.morning.length);
 async function cloudPull(tries=0){
   if(!online()||netOff)return;
   const a=await api('/rest/v1/saves?select=data,meta,mode,day,money,updated_at&limit=1');if(!a)return;
-  const c=a[0],mine=S&&!S.preview&&S.mode!=='sandbox';if(c)metaMerge(c.meta);
+  const c=a[0],mine=S&&!S.preview&&S.mode!=='sandbox';if(c)metaMerge(c.meta);netMetaPulled=true;
   if(!c||!c.data||!c.data.fleet){if(mine)cloudPush(true);return}
   const use=()=>{S=Object.assign(fixState(c.data),{preview:false});ctSync(S);movers=[];save();hideModal();render();toast('Загружено из облака: день '+S.day);
     if(S.over){hasLimit()&&S.day>dayLimit()?finale():gameOver()}else if(S.morning&&S.morning.length)runMorning()};

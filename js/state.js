@@ -121,34 +121,39 @@ function checkAch(){
 /* ================= ХОЛДИНГ ================= */
 /* ---- очки, дерево, франшизы, медали (G.hold; контракт — .omc/plans/holding.md) ---- */
 const HOLD_BR=['fin','ppl','car'],HOLD_MED=['','бронза','серебро','золото'];
-const holdSpent=t=>HOLD_BR.reduce((a,b)=>a+bal('tree',7).cost.slice(0,Math.max(0,Math.min(4,t[b]|0))).reduce((x,y)=>x+y,0),0);
+// цены ступеней — из BAL[7] без правки из админки; мусор → [1,2,3,4]
+const holdCost=()=>{const c=BAL[7]&&BAL[7].tree&&BAL[7].tree.cost;return Array.isArray(c)&&c.length===4&&c.every(x=>x>0&&isFinite(x))?c:[1,2,3,4]};
+const holdSpent=t=>HOLD_BR.reduce((a,b)=>a+holdCost().slice(0,Math.max(0,Math.min(4,t[b]|0))).reduce((x,y)=>x+y,0),0);
 // чистая нормализация: любой мусор → корректный холдинг; потраченное не больше earned
 function holdNorm(h){h=h&&typeof h==='object'?h:{};const n=x=>Math.max(0,Math.floor(+x)||0),t=h.tree&&typeof h.tree==='object'?h.tree:{},md=h.medals&&typeof h.medals==='object'?h.medals:{};
-  const o={v:1,earned:n(h.earned),tree:{},resetAt:n(h.resetAt),fr:[],medals:{},at:n(h.at)},seen=new Set();
+  const o={v:1,earned:n(h.earned),base:0,tree:{},treeAt:n(h.treeAt!=null?h.treeAt:h.at),resetAt:n(h.resetAt),fr:[],medals:{},at:n(h.at)},seen=new Set();
   HOLD_BR.forEach(k=>o.tree[k]=Math.min(4,n(t[k])));
-  (Array.isArray(h.fr)?h.fr:[]).forEach(f=>{if(!f||typeof f.id!=='string'||!f.id||f.id.length>40||seen.has(f.id)||o.fr.length>=500)return;seen.add(f.id);o.fr.push({id:f.id,city:CITIES[f.city]?f.city:'home',val:n(f.val),day:n(f.day),at:n(f.at)})});
+  (Array.isArray(h.fr)?h.fr:[]).forEach(f=>{if(!f||typeof f.id!=='string'||!f.id||f.id.length>40||seen.has(f.id)||o.fr.length>=500)return;seen.add(f.id);o.fr.push({id:f.id,city:CITIES[f.city]?f.city:'home',val:n(f.val),day:n(f.day),at:n(f.at),pts:Math.min(1000,n(f.pts)),gid:typeof f.gid==='string'?f.gid.slice(0,40):''})});
   Object.keys(CITIES).forEach(k=>{const m=Math.min(3,n(md[k]));if(m)o.medals[k]=m});
+  // base — очки из переноса престижа; без него (старый формат) = earned − очки франшиз − золото
+  o.base=h.base!=null?n(h.base):Math.max(0,o.earned-o.fr.reduce((a,f)=>a+f.pts,0)-Object.values(o.medals).filter(m=>m>=3).length*bal('goldPts',7));
   while(holdSpent(o.tree)>o.earned){const k=HOLD_BR.reduce((a,b)=>o.tree[b]>o.tree[a]?b:a);o.tree[k]--}
   return o}
 // G.hold с защитой от отсутствия; один раз переводит старый престиж в очки и старые франшизы в записи без оценки
 function holdG(){G.hold=Object.assign(G.hold&&typeof G.hold==='object'?G.hold:{},holdNorm(G.hold));const h=G.hold;
-  if(!G.holdMig){G.holdMig=1;h.earned+=Math.max(0,G.prestige|0);for(let i=0;i<Math.min(500,Math.max(0,G.franchises|0));i++)h.fr.push({id:'old'+i,city:'home',val:0,day:0,at:0});saveG()}
+  if(!G.holdMig){G.holdMig=1;const pr=Math.max(0,G.prestige|0);h.earned+=pr;h.base+=pr;for(let i=0;i<Math.min(500,Math.max(0,G.franchises|0));i++)h.fr.push({id:'old'+i,city:'home',val:0,day:0,at:0});saveG()}
   return h}
 const holdFree=()=>{const h=holdG();return h.earned-holdSpent(h.tree)};
 const holdSnap=()=>{const t=holdG().tree;return{fin:t.fin,ppl:t.ppl,car:t.car}};
 function holdBuy(b){if(!HOLD_BR.includes(b))return false;const h=holdG(),l=h.tree[b];if(l>=4)return false;
-  if(holdFree()<bal('tree',7).cost[l]){toast('Не хватает очков холдинга');return false}
-  h.tree[b]++;h.at=Date.now();saveG();toast('Ступень куплена');return true}
+  if(holdFree()<holdCost()[l]){toast('Не хватает очков холдинга');return false}
+  h.tree[b]++;h.at=h.treeAt=Date.now();saveG();toast('Ступень куплена');return true}
 // сброс бесплатный раз в сутки по Москве; идущая партия не меняется (бонусы сняты в S.hold при её старте), поэтому можно в любой момент
 const mskDay=t=>Math.floor((t+3*36e5)/864e5);
 function holdReset(){const h=holdG();if(!HOLD_BR.some(b=>h.tree[b]))return false;
   if(h.resetAt&&mskDay(h.resetAt)===mskDay(Date.now())){toast('Сбросить дерево можно раз в сутки (по Москве)');return false}
-  HOLD_BR.forEach(b=>h.tree[b]=0);h.resetAt=h.at=Date.now();saveG();toast('Дерево сброшено, очки вернулись');return true}
+  HOLD_BR.forEach(b=>h.tree[b]=0);h.resetAt=h.at=h.treeAt=Date.now();saveG();toast('Дерево сброшено, очки вернулись');return true}
 // слияние облака: earned — максимум; франшизы по id; медали — максимум; дерево — с более нового устройства (at), потраченное ≤ earned
 function holdMerge(local,remote){const a=holdNorm(local),b=holdNorm(remote),fr=new Map(),md={};
-  [...a.fr,...b.fr].forEach(f=>{if(!fr.has(f.id))fr.set(f.id,f)});
+  const gids=new Set();[...a.fr,...b.fr].forEach(f=>{if(fr.has(f.id)||(f.gid&&gids.has(f.gid)))return;if(f.gid)gids.add(f.gid);fr.set(f.id,f)});
   Object.keys(CITIES).forEach(k=>{const m=Math.max(a.medals[k]||0,b.medals[k]||0);if(m)md[k]=m});
-  return holdNorm({v:1,earned:Math.max(a.earned,b.earned),tree:(b.at>a.at?b:a).tree,resetAt:Math.max(a.resetAt,b.resetAt),fr:[...fr.values()],medals:md,at:Math.max(a.at,b.at)})}
+  const base=Math.max(a.base,b.base),fp=[...fr.values()].reduce((s,f)=>s+f.pts,0),gp=Object.values(md).filter(m=>m>=3).length*bal('goldPts',7);
+  return holdNorm({v:1,earned:base+fp+gp,base,tree:(b.treeAt>a.treeAt?b:a).tree,treeAt:Math.max(a.treeAt,b.treeAt),resetAt:Math.max(a.resetAt,b.resetAt),fr:[...fr.values()],medals:md,at:Math.max(a.at,b.at)})}
 const holdId=()=>{try{return Array.from(crypto.getRandomValues(new Uint8Array(8)),x=>x.toString(36).padStart(2,'0')).join('')}catch(e){return'f'+Date.now().toString(36)}};
 // отчисления: royK оценки каждой франшизы, всего не больше royCap (оба ×1,5 с «Финансы IV»)
 function holdRoyalty(){const s=holdG().fr.reduce((a,f)=>a+f.val*bal('royK',7),0);if(s<=0)return 0;
@@ -163,7 +168,7 @@ function holdMedal(city,lvl){const h=holdG();if(!CITIES[city]||!(lvl>(h.medals[c
 function holdTrials(){if(!S||S.mode!=='endless'||!B(7)||S.preview||S.over)return;const c=S.city||'home',T=TRIAL[c],th=bal('trials',7)[c];if(!T||!th)return;
   const v=T.v();for(let l=3;l>0;l--)if(v>=th[l-1]){holdMedal(c,l);break}}
 // счётчики испытаний в конце дня: лето (июнь–август), прибавка от ночных смен, дни без забастовки при 20+ машинах
-function holdDay(rev,nk){const c=S.cnt,m=dateOf(S.day).getMonth();if(m>=5&&m<=7)c.sum=(c.sum||0)+rev;if(nk>1)c.night=(c.night||0)+Math.round(rev*(1-1/nk));
+function holdDay(rev,nk){const c=S.cnt,m=dateOf(S.day).getMonth();if(m>=5&&m<=7){if(m===5&&dateOf(S.day).getDate()===1)c.sum=0;c.sum=(c.sum||0)+rev}if(nk>1)c.night=(c.night||0)+Math.round(rev*(1-1/nk));
   c.calm=strikeOn()||carsN()<20?0:(c.calm||0)+1;holdTrials()}
 
 /* ================= НОВАЯ ИГРА ================= */
@@ -197,7 +202,6 @@ function newGame(mode,heads,opts={}){
   if(mode==='endless'&&(B(7)?hq('ppl',2):prestige()>=5))S.staff=S.staff.map(x=>x+bal('tree',7).ppl.staff);
   if(mode==='endless'&&(B(7)?hq('ppl',4):prestige()>=10))S.rank=1;
   if(hq('car',4)){addCar(bal('tree',7).car.gift,0);S.fleet[S.fleet.length-1].lease=0}
-  if(cityDef().fuel)S.fuel=cityDef().fuel;
   const roy=mode==='endless'&&B(7)?holdRoyalty():0;
   if(mode==='story')CHAPTERS[S.chapter].setup(S);
   if(mode==='daily'){S.dailyKey=todayKey();S.dailyIdx=dailyIdx();DAILY_SC[S.dailyIdx].setup(S)}

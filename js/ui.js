@@ -239,7 +239,7 @@ function render(prev){
   if(S.crisis)tick.unshift(card('down','crisis',`Кризис: ${CRISES[S.crisis.id].n}`,CRISES[S.crisis.id].d,S.crisis.days,0,' crisis'));
   (S.dnews||[]).forEach(e=>tick.push(card(e.m>1?'up':'down','pin',`${DISTRICTS.find(D=>D.k===e.d).n}: ${e.t}`,`спрос ×${e.m}`)));
   if(S.union)tick.push(card('down','warn','Профсоюз водителей'));
-  if(Math.abs(S.fuel-1)>.06)tick.push(card(S.fuel>1.05?'down':S.fuel<.95?'up':'','fuel',`Бензин ${(58*S.fuel).toFixed(1).replace('.',',')} ₽/л`,`уходы водителей +${pct1(fuelP())}/день`,0,0,'',fuelInfo()));
+  if(Math.abs(fuelNow()-1)>.06)tick.push(card(fuelNow()>1.05?'down':fuelNow()<.95?'up':'','fuel',`Бензин ${(58*fuelNow()).toFixed(1).replace('.',',')} ₽/л`,`уходы водителей +${pct1(fuelP())}/день`,0,0,'',fuelInfo()));
   {const top=[...S.rivals].sort((a,b)=>b.cars-a.cars)[0];if(top&&top.cars>totalCars())tick.push(card('down','rival',`«${esc(top.name)}» больше вас`,`${top.cars} маш.`))}
   $('ticker').innerHTML=`<span class="lab">${icon16('city',16)}Город</span><div class="wxs">${[0,1,2].map(i=>wx(S.weather[i],i)).join('')}</div>${tick.length?`<div class="tk">${tick.join('')}</div>`:''}`;
   let tasks='';
