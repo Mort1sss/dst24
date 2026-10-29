@@ -853,7 +853,7 @@ const BAL_NEW=7,BAL={
   warLow:.1,warDays:3,warP:.4,warAt:2,warLen:5,warK:.9,poachFrom:15,lostP:.25},
  5:{cA:4,cC:-1,cD:-4,cMax:10,cOk:2,cEarly:1,cStreak:10,cAmt:{A:1.5,C:.7},cRate:{A:-.05,C:.1},cOver:{D:1.5},cLoans:{A:3,B:2,C:2,D:1},cThird:100000,cHold:10},
  6:{brRev:5200,lotBack:.5,upgVal:.5,brVal:.7,prestK:6e5,rk:[[0,0,0],[16,0,0],[22,65,0],[32,70,0],[50,75,1],[80,80,2]],town:{center:{k:1.1,cap:14},station:{k:1.05,cap:12},airport:{k:1.2,cap:8},sleep:{k:.95,cap:24},univer:{k:1,cap:14},industry:{k:.9,cap:30}},townLead:.05,townFloor:.6,townMin:.6,townMax:1.25},
- 7:{tree:{cost:[1,2,3,4],fin:{cap:.2,loan:.03,tax:.1},ppl:{loy:10,staff:1,fat:.2},car:{price:.05,fail:.1,svc:.25,gift:'monjaro'}},royK:.01,royCap:150000,royFin4:1.5,
+ 7:{tree:{cost:[1,2,3,4],fin:{cap:.25,loan:.03,tax:.1},ppl:{loy:10,staff:1,fat:.2},car:{price:.08,fail:.05,svc:.15,gift:'monjaro'}},royK:.01,royCap:150000,royFin4:1.5,
   trials:{home:[2e6,4e6,7e6],capital:[30,45,60],resort:[1e6,2e6,3.5e6],north:[40,70,100],port:[800000,1800000,3500000],science:[10,18,25]},goldPts:2}}; // BAL[4] подобран ботом bot-4: «Обычный» ≈60%, агрегаторы 55/54/60%; BAL[5] (кредитный рейтинг) bot-5: «Обычный» ≈60%, «Хардкор» ≈31%
 // BAL[6]: brRev — выручка филиала с машины (было 3300); lotBack — доля цены при продаже стоянки; upgVal/brVal — доля цены улучшений и филиалов в оценке парка; prestK — ₽ оценки на очко престижа; rk — пороги званий
 // BAL[6] город: town — k выручки и cap (заказов на всех) по районам; townLead — надбавка лидера; townFloor — нижний предел давки; townMin/townMax — границы множителя парка
