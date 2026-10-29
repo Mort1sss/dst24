@@ -2131,7 +2131,7 @@ function endDay(){
   const share=1+Math.max(-.08,Math.min(.08,(S.rep-rivalAvg)/100*.2));
   const nightK=B(3)?1+(S.shift2||0)/100*bal('shiftRev'):1+(S.night||0)/100*.25,distK=distFactor();
   const shB=shashBad();
-  const tk=townK();if(tk!==1)notes.push(`Город: ×${tk.toFixed(2).replace('.',',')} к выручке.`);
+  const tk=townK();if(tk!==1)notes.push(`Город: ×${tf2(tk)} к выручке.`);
   const demand=cityDemand()*(crisisOn('giant')?.85:1)*(crisisOn('cyber')?.75:1)*mood*sea.demand*newsMod('demand')*(hol?hol[0]:1)*share*RANK_BONUS[S.rank||0]*prestRev()*(warOn()?bal('warK'):1)*ownRev()*netRevK()*tk;
   const base=working.slice(0,regular).reduce((a,c,i)=>a+carRev(c)*drvQ(crewD[i]),0);
   const sat=satK(),mgmt=mgmtCost();
@@ -4828,17 +4828,19 @@ function ctSync(st){if(st&&st.mode==='contest'&&!st.over&&!st.preview)ctUse(st.s
 const TOWN={center:{n:'Центр',r:[0,0,64,64]},station:{n:'Вокзал',r:[64,0,64,64]},airport:{n:'Аэропорт',r:[128,0,64,64]},sleep:{n:'Спальный',r:[0,64,64,64]},univer:{n:'Студгородок',r:[64,64,64,64]},industry:{n:'Промзона',r:[128,64,64,64]}};
 const TOWN_KEYS=Object.keys(TOWN),TOWN_H=48*36e5,tf2=x=>x.toFixed(2).replace('.',',');
 const townOn=()=>!netOff&&online()&&!!netSt.townIn&&!!S&&netLiveGame()&&(camp()||endl())&&Array.isArray(netSt.town)&&Date.now()-(netSt.townAt||0)<TOWN_H;
+const townGame=()=>netLiveGame()&&(camp()||endl());
+const townCap=()=>Math.min(totalCars(),10+3*S.day,300); // не больше, чем допустит сервер и сохранение
 const townSum=()=>TOWN_KEYS.reduce((a,d)=>a+(+S.townAlloc[d]||0),0);
 // машин стало меньше — лишнее снимается с районов с конца списка
-function townFix(){const a=S.townAlloc=S.townAlloc||{};let ex=townSum()-totalCars(),ch=false;
+function townFix(){const a=S.townAlloc=S.townAlloc||{};let ex=townSum()-townCap(),ch=false;
   for(let i=TOWN_KEYS.length-1;i>=0&&ex>0;i--){const d=TOWN_KEYS[i],n=+a[d]||0,c=Math.min(n,ex);if(c){a[d]=n-c;ex-=c;ch=true}}
   TOWN_KEYS.forEach(d=>{if(!(a[d]>0))delete a[d]});if(ch&&netSt.townIn)townSave();return ch}
 // по каждому району: мои/все машины, лидер ('*' — я, '' — нет), множитель kd
-function townInfo(){const T=bal('town'),o={};
+function townInfo(){const T=bal('town')||BAL[6].town,o={};
   TOWN_KEYS.forEach(d=>{const c=T[d]||{k:1,cap:99},mine=+S.townAlloc[d]||0,rv=[];
     (netSt.town||[]).forEach(r=>{const n=r&&!r.mine&&r.alloc?Math.max(0,+r.alloc[d]||0):0;if(n>0)rv.push([String(r.nick||'?'),n])});
     rv.sort((a,b)=>b[1]-a[1]);const top=rv.length?rv[0][1]:0,tot=mine+rv.reduce((a,x)=>a+x[1],0);
-    const me=mine>top&&top>0,who=me?'*':top>mine&&(rv.length<2||top>rv[1][1])?rv[0][0]:'';
+    const me=mine>top&&top>0,who=me?'*':top>mine&&(mine>0||rv.length>1)&&(rv.length<2||top>rv[1][1])?rv[0][0]:'';
     o[d]={n:TOWN[d].n,k:c.k,cap:c.cap,mine,tot,who,me,kd:c.k*Math.max(bal('townFloor'),tot>0?Math.min(1,c.cap/tot):1)*(me?1+bal('townLead'):1)}});
   return o}
 // множитель выручки парка: машины вне районов работают с k=1
@@ -4846,12 +4848,14 @@ const townK=()=>{if(!townOn())return 1;townFix();const n=totalCars();if(!n)retur
   TOWN_KEYS.forEach(d=>{s+=i[d].mine*i[d].kd;m+=i[d].mine});return netClamp((s+Math.max(0,n-m))/n,bal('townMin'),bal('townMax'))};
 let townTry=0,townT=0;
 async function townLoad(force){if(!online()||netOff||(!force&&Date.now()-townTry<3e5))return false;townTry=Date.now();
-  const r=await rpc('town_state');if(!Array.isArray(r))return false;
+  const r=await rpc('town_state');if(!Array.isArray(r))return false;const was=!!netSt.townIn;
   netSt.town=r.filter(x=>x&&x.alloc&&typeof x.alloc==='object');netSt.townAt=Date.now();netSt.townIn=netSt.town.some(x=>x.mine);netSave();
-  if(S&&!S.preview&&S.townAlloc){townNews();const m=netSt.town.find(x=>x.mine);if(m&&Date.now()-new Date(m.updated_at)>864e5)townSave()}
+  if(was&&!netSt.townIn){netSt.townLeads={};netSave();toast('Вы выбыли из города: 7 дней без ходов')}
+  if(S&&!S.preview&&townGame()){townNews();const m=netSt.town.find(x=>x.mine);
+    if(m&&(Date.now()-new Date(m.updated_at)>864e5||TOWN_KEYS.some(d=>(+m.alloc[d]||0)!==(+S.townAlloc[d]||0))))townSave()}
   return true}
 // новости: кто стал лидером района
-function townNews(){if(!netLiveGame()||!netSt.townIn)return;const i=townInfo(),p=netSt.townLeads||{},o={};
+function townNews(){if(!townGame()||!netSt.townIn)return;const i=townInfo(),p=netSt.townLeads||{},o={};
   TOWN_KEYS.forEach(d=>{const w=i[d].who,n=i[d].n;o[d]=w;if(!(d in p)||p[d]===w)return;
     if(w==='*')addLog(`Вы стали лидером района «${n}»: там +${Math.round(bal('townLead')*100)}% к выручке.`);
     else if(p[d]==='*')addLog(`Вас вытеснили из лидеров района «${n}»${w?`: теперь там ${esc(w)}`:''}.`);
@@ -4859,16 +4863,20 @@ function townNews(){if(!netLiveGame()||!netSt.townIn)return;const i=townInfo(),p
   netSt.townLeads=o;netSave();save()}
 // запись распределения на сервер (с задержкой, чтобы не слать на каждый клик)
 const townSave=()=>{clearTimeout(townT);townT=setTimeout(townPush,2000)};
-async function townPush(){if(!online()||netOff||!netSt.townIn||!S||S.preview)return null;
+async function townPush(){if(!online()||netOff||!netSt.townIn||!S||S.preview||!townGame())return null;
   const a={};TOWN_KEYS.forEach(d=>{if(S.townAlloc[d]>0)a[d]=S.townAlloc[d]});const c=(COLORS[(S.custom||{}).color]||{}).body;
-  return rpc('set_town',{p_alloc:a,p_color:/^#[0-9a-f]{6}$/i.test(c)?c:null})}
-function townDay(){if(netOff||!online()||!S||S.preview)return;townFix();townLoad(false)}
-async function townJoin(){if(!netLiveGame()||!(camp()||endl()))return'Город работает в кампании и бесконечном режиме';
+  await cloudPush(true); // сервер сверяет число машин с облачным сохранением
+  const r=await rpc('set_town',{p_alloc:a,p_color:/^#[0-9a-f]{6}$/i.test(c)?c:null});
+  if(r&&r.ok===false){toast(String(r.err||'Город не принял расстановку').slice(0,80));const m=(netSt.town||[]).find(x=>x.mine);
+    if(m){S.townAlloc={};TOWN_KEYS.forEach(d=>{const n=+m.alloc[d]||0;if(n>0)S.townAlloc[d]=n});townFix();save();if($('townMap')&&!$('modal').hidden)cityMapView()}}
+  return r}
+function townDay(){if(netOff||!online()||!S||S.preview||!townGame())return;townFix();townLoad(false)}
+async function townJoin(){if(!townGame())return'Город работает в кампании и бесконечном режиме';
   townFix();netSt.townIn=true;const a=await townPush();
   if(!a||!a.ok){netSt.townIn=false;return a&&a.err?String(a.err).slice(0,80):'Нет связи, попробуйте позже'}
   await townLoad(true);return''}
-async function townLeave(){const a=await rpc('leave_town');if(!a)return'Нет связи, попробуйте позже';
-  netSt.townIn=false;netSt.town=(netSt.town||[]).filter(x=>!x.mine);netSt.townLeads={};netSave();return''}
+async function townLeave(){clearTimeout(townT);netSt.townIn=false;const a=await rpc('leave_town');if(!a){netSt.townIn=true;return'Нет связи, попробуйте позже'}
+  netSt.town=(netSt.town||[]).filter(x=>!x.mine);netSt.townLeads={};netSave();return''}
 // карта на canvas 192×128 (state — результат townInfo()); районы рисуются в рамке r, мелкими пикселями
 let townSel='';
 const TFONT={0:'111101101101111',1:'010110010010111',2:'111001111100111',3:'111001111001111',4:'101101111001001',5:'111100111001111',6:'111100111101111',7:'111001001010010',8:'111101111101111',9:'111101111001111','/':'001001010100100'};
@@ -4920,7 +4928,7 @@ async function cityMap(){
   const ok=await townLoad(true);if(!$('ctBack'))return;
   cityMapView(ok?'':'Нет связи — показаны прошлые данные.')}
 function cityMapView(msg){
-  const live=netLiveGame()&&(camp()||endl()),inn=!!netSt.townIn,i=townInfo(),free=live?totalCars()-townSum():0,k=townOn()?townK():1;
+  const live=townGame(),inn=!!netSt.townIn,i=townInfo(),free=live?townCap()-townSum():0,k=townOn()?townK():1;
   const box=$('modal'),y=box.scrollTop,y2=$('modalCard').scrollTop;
   showModal(`<span class="step">ГОРОД</span><h2>Город</h2>${cityTabs('map')}
     <p class="note" id="ctMsg">${esc(msg||(live?(inn?'Расставьте машины по районам: где тесно, выручка делится; лидер района получает надбавку.':'Вступите в город, чтобы делить районы с другими таксопарками.'):'Город работает в живой партии: кампания или бесконечный режим.'))}</p>
@@ -4935,7 +4943,7 @@ function cityMapView(msg){
   drawTown($('townMap'),i);cityTabBind();$('ctBack').onclick=()=>openNetModal();
   const m=t=>{const e=$('ctMsg');if(e)e.textContent=t};
   document.querySelectorAll('[data-td]').forEach(b=>b.onclick=()=>{const d=b.dataset.td,a=S.townAlloc,dx=+b.dataset.dx;
-    if(dx>0&&totalCars()-townSum()<=0)return;a[d]=Math.max(0,(+a[d]||0)+dx);townFix();save();townSave();cityMapView()});
+    if(dx>0&&townCap()-townSum()<=0)return;a[d]=Math.max(0,(+a[d]||0)+dx);townFix();save();townSave();cityMapView()});
   if($('ctJoin'))$('ctJoin').onclick=async()=>{$('ctJoin').disabled=true;m('Связываюсь…');
     const e=inn?await townLeave():await townJoin();if(!$('ctBack'))return;cityMapView(e||(inn?'Вы вышли из города':'Вы в городе'))}}
 
