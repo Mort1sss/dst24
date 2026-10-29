@@ -29,7 +29,7 @@ alter table public.saves drop constraint if exists saves_sane;
 alter table public.saves add constraint saves_sane check (
   (mode is null or mode in ('campaign','endless','story','daily','contest'))
   and (day is null or day between 0 and 2000) and (cars is null or cars between 0 and 1000)
-  and (money is null or abs(money) < 10000000000) and (stars is null or stars between 0 and 3));
+  and (money is null or abs(money) < 10000000000) and (stars is null or stars between 0 and 3)) not valid;
 
 create or replace function public.saves_touch() returns trigger
 language plpgsql as $$ begin new.updated_at := now(); return new; end $$;

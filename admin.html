@@ -174,7 +174,7 @@ const sel={
 async function load(){
   if(tab==='sum'){const[p,s]=await Promise.all([rpc('admin_players'),q('/rest/v1/scores?select=user_id,mode,score,created_at&order=score.desc&limit=1&created_at=gte.'+encodeURIComponent(new Date(new Date().setHours(0,0,0,0)).toISOString()))]);D.pl=p;D.top=s}
   else if(tab==='pl'){D.pl=await rpc('admin_players')}
-  else if(tab==='bal'){const src=await loadSrc();D.b=parseBal(src);D.cfg=await q('/rest/v1/config?select=rev,base,patch,note,active,created_at&order=rev.desc&limit=20');D.chg={}}
+  else if(tab==='bal'){const src=await loadSrc();D.b=parseBal(src);D.cfg=await q('/rest/v1/config?select=rev,base,patch,note,active,created_at&order=rev.desc&limit=200');D.chg={}}
   else if(tab==='ev'){D.ev=await q('/rest/v1/events?select=*&order=id.desc&limit=100')}
   else if(tab==='gf'){const src=await loadSrc();D.ach=parseAch(src);D.liv=parseLivery(src);[D.pl,D.gr,D.cl]=await Promise.all([rpc('admin_players'),q('/rest/v1/grants?select=*&order=id.desc&limit=100'),q('/rest/v1/grant_claims?select=grant_id&limit=5000')])}
   else if(tab==='sc'){[D.sc,D.pl]=await Promise.all([q(sel.sc),rpc('admin_players')])}}
@@ -198,11 +198,14 @@ function balField(k,v,path){
   if(isNum(v))return`<input type="number" step="any" data-bk="${esc(path)}" data-o="${v}" value="${v}" aria-label="${esc(path)}">`;
   if(v&&typeof v==='object'&&!Array.isArray(v)&&Object.values(v).every(isNum))return`<div class="sub">${Object.entries(v).map(([a,x])=>`<label>${esc(a)}<input type="number" step="any" data-bk="${esc(path+'.'+a)}" data-o="${x}" value="${x}"></label>`).join('')}</div>`;
   return`<code class="ro">${esc(JSON.stringify(v))}</code>`}
+// текущее значение = BAL плюс все включённые правки этой базы по порядку rev (клиент сливает так же)
+const balCur=(obj,nv,k,cfg)=>{let v=balVal(obj,nv,k);(cfg||[]).filter(c=>c.active&&+c.base===nv&&c.patch&&typeof c.patch==='object'&&k in c.patch).sort((x,y)=>x.rev-y.rev).forEach(c=>{const p=c.patch[k];
+  if(isNum(v)&&isNum(p))v=p;else if(v&&typeof v==='object'&&!Array.isArray(v)&&p&&typeof p==='object')v=Object.fromEntries(Object.entries(v).map(([a,x])=>[a,isNum(x)&&isNum(p[a])?p[a]:x]))});return v};
 function dBal(){
   const{nv,obj}=D.b,keys=[...new Set(Object.values(obj).flatMap(o=>Object.keys(o)))];
   const act_=D.cfg.find(c=>c.active);
   return`<div class="warn">Правка действует только на новые партии (версия баланса ${nv}). Начатые партии играют по своим числам. Работают только числовые ключи.</div>
-  <div class="card px"><h2>Ключи BAL (версия ${nv})</h2><div class="bal">${keys.map(k=>{const v=balVal(obj,nv,k);return`<div class="it" data-w="${esc(k)}"><span class="k">${esc(k)}</span>${balField(k,v,k)}</div>`}).join('')}</div>
+  <div class="card px"><h2>Ключи BAL (версия ${nv})</h2><div class="bal">${keys.map(k=>{const v=balCur(obj,nv,k,D.cfg);return`<div class="it" data-w="${esc(k)}"><span class="k">${esc(k)}</span>${balField(k,v,k)}</div>`}).join('')}</div>
   <label>Заметка к правке<input id="bnote" maxlength="120" placeholder="например: легче цель на Хардкоре"></label><button class="btn" id="bsave">Сохранить правку</button></div>
   <div class="card px"><h2>Последние правки</h2>${D.cfg.length?`<div class="list">${D.cfg.map(c=>`<div class="item"><div class="top"><b>rev ${esc(c.rev)} ${c.active?'<span class="tag good">ВКЛ</span>':'<span class="tag">ВЫКЛ</span>'}</b><span class="note">${dt(c.created_at)} · база ${esc(c.base)}</span></div>
   ${c.note?`<p>${esc(c.note)}</p>`:''}<code class="ro">${esc(JSON.stringify(c.patch))}</code><div class="row"><button class="btn sm ${c.active?'alt':''}" data-cfg="${esc(c.rev)}" data-v="${c.active?0:1}">${c.active?'Отключить':'Включить'}</button></div></div>`).join('')}</div>`:'<p class="note">Правок ещё не было.</p>'}</div>`}
@@ -263,11 +266,11 @@ function bind(){
     document.querySelectorAll('[data-bk]').forEach(i=>{const o=+i.dataset.o,v=i.value===''?NaN:+i.value;
       if(!isFinite(v)){bad='В поле «'+i.dataset.bk+'» нужно число';return}
       if(v===o)return;const p=i.dataset.bk.split('.');
-      if(p.length===1)patch[p[0]]=v;else{(patch[p[0]]=patch[p[0]]||Object.assign({},balVal(D.b.obj,D.b.nv,p[0])))[p[1]]=v}});
+      if(p.length===1)patch[p[0]]=v;else{(patch[p[0]]=patch[p[0]]||{})[p[1]]=v}});
     if(bad)return flash(bad);if(!Object.keys(patch).length)return flash('Нечего сохранять: ничего не изменено');
     act(()=>q('/rest/v1/config',{method:'POST',body:{base:D.b.nv,patch,note:$('bnote').value.trim()||null},prefer:'return=minimal'}),'Правка сохранена, действует на новые партии')};
   if($('evf')){
-    const ep=()=>{$('ep').innerHTML=epFields($('ek').value);if($('p_r'))$('p_r').onclick=()=>{$('p_s').value=Math.floor(Math.random()*1e9)}};
+    const ep=()=>{$('ep').innerHTML=epFields($('ek').value);if($('p_r'))$('p_r').onclick=()=>{$('p_s').value=Math.floor(Math.random()*1e6)+1}};
     $('ek').onchange=ep;ep();
     $('evf').onsubmit=ev=>{ev.preventDefault();act(()=>{
       const k=$('ek').value,t=$('et').value.trim();if(!t)throw new Error('Нужен заголовок');
@@ -275,7 +278,7 @@ function bind(){
       if(k==='rev')params={k:num('p_k',.5,1.5)};
       else if(k==='cash')params={amount:Math.round(num('p_a'))};
       else if(k==='event'){const id=$('p_i').value.trim();if(!id)throw new Error('Нужен id события');params={d:Math.round(num('p_d',0,2)),id}}
-      else if(k==='contest')params={seed:Math.round(num('p_s',0)),diff:$('p_f').value};
+      else if(k==='contest')params={seed:Math.round(num('p_s',1,1e6)),diff:$('p_f').value};
       const s=$('es').value||null,e=$('ee').value||null;if(s&&e&&e<s)throw new Error('Дата «по» раньше даты «с»');
       return q('/rest/v1/events',{method:'POST',body:{kind:k,title:t,text:$('ex').value.trim()||null,params,starts:s,ends:e,active:true},prefer:'return=minimal'})},'Событие создано')}}
   if($('gff')){
