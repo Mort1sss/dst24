@@ -162,7 +162,7 @@ function takeLoan(i){const L=loanOffer(i),m=maxLoans();if(S.over)return;if(S.loa
   addLog(`Банк: кредит ${rub(L.amount)} на ${L.days} дней.`);toast(`Получено ${rub(L.amount)}`);sfx('coin');save();render(before)}
 
 /* ================= КОНЕЦ ДНЯ ================= */
-const premiumN=()=>S.fleet.filter(c=>MODELS[c.m].cls!=='Эконом').length;
+const premiumN=()=>S.fleet.filter(c=>carCls(c)!=='Эконом').length;
 function endDay(){
   if(S.mode==='contest')ctUse(S.seed,S.day*2+1);
   const date=dateOf(S.day),sea=season(date),hol=HOLIDAYS[mmdd(date)];
@@ -227,7 +227,7 @@ function endDay(){
   let repair=0,breaks=0;const fm=failMult(),rmul=repairMult(),names={};
   const fmx=fm*Wt.fail*(B(3)?1+fatK(fat0)*bal('fatFail'):1+(S.night||0)/100*.3)*(S.lines.delivery?1.04:1);
   let usedParts=0,noParts=0;
-  S.fleet.forEach(c=>{if(!c.b&&!c.svc&&Math.random()<carFail(c)*fmx*(careIds.has(c.id)?.6:1)*(crisisOn('roads')?1.25:1)){c.b=1;breaks++;let pm=1;if(MODELS[c.m].repair){if(S.parts>0){S.parts--;usedParts++;pm=.6}else{noParts++;pm=crisisOn('parts')?1.8:1.3}}repair+=MODELS[c.m].repair*rmul*pm;names[MODELS[c.m].name]=(names[MODELS[c.m].name]||0)+1}});
+  S.fleet.forEach(c=>{if(!c.b&&!c.svc&&Math.random()<carFail(c)*fmx*(careIds.has(c.id)?.6:1)*(crisisOn('roads')?1.25:1)){c.b=1;breaks++;let pm=1;if(MODELS[c.m].repair){if(S.parts>0){S.parts--;usedParts++;pm=.6}else{noParts++;pm=crisisOn('parts')?1.8:1.3}}repair+=MODELS[c.m].repair*rmul*pm*(c.club?1-bal('club').repair:1);names[MODELS[c.m].name]=(names[MODELS[c.m].name]||0)+1}});
   repair=Math.round(repair/100)*100;
   if(usedParts)notes.push(`Со склада ушло запчастей: ${usedParts}. Осталось ${S.parts}.`);if(noParts)notes.push(`<span class="neg">На складе нет запчастей — ${noParts} ремонт(а) обошлись дороже.</span>`);
   S.fleet.forEach(c=>{if(c.svc){c.svc=0;c.to=c.km+bal('toKm')}});

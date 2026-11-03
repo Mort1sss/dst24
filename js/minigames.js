@@ -413,7 +413,9 @@ function buyLine(k){const L=LINES[k];if(S.lines[k]||S.over)return;if(S.rank<(L.r
 function toggleAds(){const before=snap();if(S.ads){S.ads=null;addLog('Реклама с машин снята.');toast('Реклама снята')}else{S.ads={brand:ADS[rand(0,ADS.length-1)]};addLog(`На машинах реклама ${S.ads.brand}: +300 ₽ с машины в день.`);toast(`Реклама: ${S.ads.brand}`)}sfx('click');save();render(before)}
 function tuneCar(id,k){const c=S.fleet.find(x=>x.id===id);if(!c||S.over)return;c.tune=c.tune||{};if(c.tune[k])return;const pr=tunePrice(k);if(S.money<pr)return toast('Не хватает денег');
   const before=snap();S.money-=pr;c.tune[k]=1;let msg=`${MODELS[c.m].name}: ${TUNE[k].n.toLowerCase()}.`;
-  const cls=c.up||MODELS[c.m].cls;if(Object.keys(TUNE).every(x=>c.tune[x])&&CLS_UP[cls]){c.up=CLS_UP[cls];c.tune={};msg+=` Машина переведена в класс «${c.up}»!`}
+  const cls=c.up||MODELS[c.m].cls,full=Object.keys(TUNE).every(x=>c.tune[x]);
+  if(full&&CLS_UP[cls]){c.up=CLS_UP[cls];c.tune={};msg+=` Машина переведена в класс «${c.up}»!`}
+  else if(full&&!c.club){c.club=1;const C=bal('club')||{rep:0,repair:0};S.rep=Math.min(100,S.rep+C.rep);msg+=` Полный комплект — клубный пакет: +${C.rep} к репутации и ремонты этой машины на ${Math.round(C.repair*100)}% дешевле.`}
   addLog('Тюнинг: '+msg);toast(msg);sfx('coin');save();render(before)}
 function buyParts(n){const pr=n>=30?Math.round(partPrice()*.89):partPrice(),tot=pr*n;if(S.parts+n>partsCap())return toast(`Склад вмещает ${partsCap()}`);if(S.money<tot)return toast('Не хватает денег');
   const before=snap();S.money-=tot;S.parts+=n;addLog(`Склад: закуплено ${n} запчастей за ${rub(tot)}.`);toast(`+${n} запчастей на складе`);sfx('cash');save();render(before)}
@@ -520,6 +522,13 @@ function sellFranchise(){const nw=B(7),pts=prestPts(),h=holdG(),op=Object.entrie
     recordResult('франшиза');S.cnt.franchise=1;S.ach.franchise=S.day;G.ach.franchise=true;S.over=true;saveG();save();render();sfx('win');
     showModal(`<h2>Франшиза открыта!</h2><p>Очков холдинга свободно: ${holdFree()}${nw?'':`, престиж: ${G.prestige}`}. Выберите новый город в бесконечном режиме.</p><div class="btns"><button class="btn" id="frGo">К выбору режима</button><button class="btn ghost" id="frHold">Открыть холдинг</button></div>`);$('frGo').onclick=pickMode;$('frHold').onclick=()=>openHolding()};
 }
+function frPreview(){const f1=x=>x.toFixed(1).replace('.',',');
+  showModal(`<span class="step">ФРАНШИЗА · ОЦЕНКА</span><h2>Парк «${esc(parkName())}»</h2>
+    <p>Оценка <b>${rub(valuation())}</b>. За продажу этого парка дадут <b>${prestPts()}</b> очк. холдинга.</p>
+    <div class="specs">${valRows().map(x=>`<div class="spec"><span>${esc(x[0].toLowerCase())}</span><b>${x[1]?rub(Math.round(x[1]/1000)*1000)+' → ':''}${f1(x[2])} очк.</b></div>`).join('')}</div>
+    <p class="note">Дробная часть отбрасывается, минимум 1 очко.${S.money<0?' Долги в оценку не входят: при минусе в кассе этот пункт даёт 0.':''} Парк, деньги, филиалы и кредиты в новый город не переносятся.</p>
+    <div class="btns"><button class="btn ghost" id="fpClose">Закрыть</button></div>`);
+  $('fpClose').onclick=hideModal;sfx('click')}
 function pickCity(mode,opts){
   showModal(`<span class="step">ХОЛДИНГ · ОЧКОВ СВОБОДНО ${holdFree()}</span><h2>Выберите город</h2><div class="modes">
     ${Object.entries(CITIES).map(([k,C])=>{const lk=!holdCityOpen(k),m=holdG().medals[k]||0;return `<button class="mode" id="ct_${k}" ${lk?'disabled style="opacity:.5"':''}><b>${C.n.toUpperCase()}${lk?' 🔒':''}${m?' · '+HOLD_MED[m]:''}</b><span>${lk?`Откроется ${C.gold?`после золота в ${C.gold} городах`:`после ${C.need} франшиз(ы)`}.`:C.d}</span></button>`}).join('')}</div><button class="btn ghost" id="ctHold">Холдинг: дерево и карта</button>`);$('ctHold').onclick=()=>openHolding(()=>pickCity(mode,opts));

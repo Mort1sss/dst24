@@ -32,9 +32,11 @@ const carRevM=(m,up,tm)=>{const M=MODELS[m],cls=up||M.cls;let v=S.rents[cls]*M.m
   if(stratOn('people'))v*=.96;
   return v};
 const tuneSum=c=>Object.keys(c.tune||{}).reduce((a,k)=>a+TUNE[k].m,0);
+// класс машины для аренды, целей и статистики: тот же, что и в выручке, — поднятый тюнингом, а не только заводской
+const carCls=c=>c.up||MODELS[c.m].cls;
 const carRev=c=>carRevM(c.m,c.up,tuneSum(c));
-function rentDev(){let o=0,u=0,n=0;S.fleet.forEach(c=>{const cl=MODELS[c.m].cls,m=mk(cl),r=S.rents[cl];o+=Math.max(0,(r-m)/m);u+=Math.max(0,(m-r)/m);n++});return n?{o:o/n,u:u/n}:{o:0,u:0}}
-function rentLabel(){let s=0,n=0;S.fleet.forEach(c=>{const cl=MODELS[c.m].cls;s+=S.rents[cl]/mk(cl)-1;n++});const v=n?Math.round(s/n*100):0;return v===0?'по рынку':(v>0?'+':'−')+Math.abs(v)+'% к рынку'}
+function rentDev(){let o=0,u=0,n=0;S.fleet.forEach(c=>{const cl=carCls(c),m=mk(cl),r=S.rents[cl];o+=Math.max(0,(r-m)/m);u+=Math.max(0,(m-r)/m);n++});return n?{o:o/n,u:u/n}:{o:0,u:0}}
+function rentLabel(){let s=0,n=0;S.fleet.forEach(c=>{const cl=carCls(c);s+=S.rents[cl]/mk(cl)-1;n++});const v=n?Math.round(s/n*100):0;return v===0?'по рынку':(v>0?'+':'−')+Math.abs(v)+'% к рынку'}
 const LEASE_DAYS=60;
 const SHOP_TABS=[['all','Все'],['Эконом','Эконом'],['Комфорт','Комфорт'],['top','Комфорт+ и выше'],['used','Б/у'],['new','Новые']];
 const tabMatch=(M,tab)=>tab==='all'||tab===M.cls||(tab==='top'&&['Комфорт+','Бизнес','Минивэн'].includes(M.cls))||(tab==='used'&&!M.lease)||(tab==='new'&&!!M.lease);
@@ -584,8 +586,8 @@ const EVENTS=[
  {t:'Дорогой сканер',who:'mech',x:'Механики просят профессиональный диагностический сканер за 40 000 ₽. Обещают находить поломки заранее.',c:[
   {l:'Купить',cost:40000,fx:{rep:1},m:'Сканер нашёл три скрытые поломки в первый же день.'},
   {l:'Обойтись старым',m:'Старый тоже работает. Иногда.',e:{p:.5,in:[4,9],fx:{broken:2,money:-10000},m:'Старый сканер пропустил поломку. Две машины встали на линии.'}}]},
- {t:'Шумоизоляция для комфорта',x:'Пассажиры «Комфорта» жалуются на шум в салоне. Можно сделать шумоизоляцию.',need:s=>s.fleet.some(c=>MODELS[c.m].cls!=='Эконом'),c:[
-  {l:'Сделать во всех премиальных',cost:s=>Math.max(1,s.fleet.filter(c=>MODELS[c.m].cls!=='Эконом').length)*3000,fx:{rep:3},m:'Тихо как в библиотеке. Оценки выросли.'},
+ {t:'Шумоизоляция для комфорта',x:'Пассажиры «Комфорта» жалуются на шум в салоне. Можно сделать шумоизоляцию.',need:s=>s.fleet.some(c=>carCls(c)!=='Эконом'),c:[
+  {l:'Сделать во всех премиальных',cost:s=>Math.max(1,s.fleet.filter(c=>carCls(c)!=='Эконом').length)*3000,fx:{rep:3},m:'Тихо как в библиотеке. Оценки выросли.'},
   {l:'Не нужно',m:'Шумно, но едут.'}]},
  {t:'Запчасти уходят «налево»',f:1,who:'mech',x:'По складу не сходится: новые колодки и фильтры исчезают. Подозрение пало на одного механика.',c:[
   {l:'Поставить камеру на склад',cost:5000,fx:{staff:-1},m:'Камера поймала механика с сумкой колодок. Уволен, запчасти вернули.'},
@@ -844,7 +846,7 @@ const totalCars=()=>S.fleet.length+(S.branches||[]).reduce((a,b)=>a+b.cars,0);
 
 /* ---- версия баланса ---- */
 // числа по версиям: партия читает свою версию, нет ключа — берётся ближайшая меньшая; новая настройка = новая запись, старые не менять
-const BAL_NEW=8,BAL={
+const BAL_NEW=9,BAL={
  1:{meet:30,plan:150000,offK:.5,offCap:1e12,loginDay:5000,loginBonus:20000,loginParts:0,loginLoy:0,leaseRet:0},
  2:{start:{normal:1,hard:.9},rev:{normal:1.08,hard:1.1},goal:{normal:175000,hard:175000},star2:1.3,star3:1.7, // подобрано ботом bot-2: «Обычный» ≈55%, «Хардкор» ≈27% побед
   taxDays:[14,28],endTax:60,crisisFirst:[16,21],crisisMin:16,crisisMax:6,endCrisisFirst:[20,30],endCrisisNext:[40,60],inflDay:15,inflPct:[2,3],endInfl:30,
@@ -856,12 +858,14 @@ const BAL_NEW=8,BAL={
  6:{brRev:5200,lotBack:.5,upgVal:.5,brVal:.7,prestK:6e5,rk:[[0,0,0],[16,0,0],[22,65,0],[32,70,0],[50,75,1],[80,80,2]],town:{center:{k:1.1,cap:14},station:{k:1.05,cap:12},airport:{k:1.2,cap:8},sleep:{k:.95,cap:24},univer:{k:1,cap:14},industry:{k:.9,cap:30}},townLead:.05,townFloor:.6,townMin:.6,townMax:1.25},
  7:{tree:{cost:[1,2,3,4],fin:{cap:.25,loan:.03,tax:.1},ppl:{loy:10,staff:1,fat:.2},car:{price:.08,fail:.05,svc:.15,gift:'monjaro'}},royK:.01,royCap:150000,royFin4:1.5,
   trials:{home:[2e6,4e6,7e6],capital:[30,45,60],resort:[1e6,2e6,3.5e6],north:[40,70,100],port:[800000,1800000,3500000],science:[10,18,25]},goldPts:2},
- 8:{collect:[['vesta'],['moskvich'],['solaris','solarisNew'],['rio'],['octavia'],['tiggo'],['jolion'],['camry'],['evolute'],['carnival'],['monjaro'],['mercedes'],['zeekr']]}}; // BAL[4] подобран ботом bot-4: «Обычный» ≈60%, агрегаторы 55/54/60%; BAL[5] (кредитный рейтинг) bot-5: «Обычный» ≈60%, «Хардкор» ≈31%
+ 8:{collect:[['vesta'],['moskvich'],['solaris','solarisNew'],['rio'],['octavia'],['tiggo'],['jolion'],['camry'],['evolute'],['carnival'],['monjaro'],['mercedes'],['zeekr']]},
+ 9:{club:{rep:2,repair:.1}}}; // BAL[4] подобран ботом bot-4: «Обычный» ≈60%, агрегаторы 55/54/60%; BAL[5] (кредитный рейтинг) bot-5: «Обычный» ≈60%, «Хардкор» ≈31%
 // BAL[6]: brRev — выручка филиала с машины (было 3300); lotBack — доля цены при продаже стоянки; upgVal/brVal — доля цены улучшений и филиалов в оценке парка; prestK — ₽ оценки на очко престижа; rk — пороги званий
 // BAL[6] город: town — k выручки и cap (заказов на всех) по районам; townLead — надбавка лидера; townFloor — нижний предел давки; townMin/townMax — границы множителя парка
 // BAL[7] холдинг (только бесконечный): tree — цены ступеней (cost) и эффекты веток: fin — капитал, ставка кредитов (п.п.), налоги; ppl — лояльность на старте, сотрудники в отделе, медленнее усталость; car — цены автосалона, поломки, ТО и ремонт, подарок-машина
 // BAL[7]: royK/royCap — отчисления франшиз (доля оценки, потолок ₽), royFin4 — множитель «Финансы IV»; trials — пороги бронза/серебро/золото по городам (port — прибавка выручки от ночных смен, ₽); goldPts — очки за золото
 // BAL[8] цели бесконечного режима: collect — группы моделей для цели «Собрать N авто …»; одна группа = одна модель (двойники вроде solaris+solarisNew считаются вместе), порядок = от дешёвых к дорогим
+// BAL[9] тюнинг: club — «клубный пакет» для машин верхнего класса, где повышать класс некуда: rep — разовая прибавка репутации, repair — доля, на которую дешевле ремонты этого автомобиля
 // BAL[3] подобран ботом bot-3: «Обычный» ≈63%, без смены и ТО ≈50%, смена всегда на максимуме ≈12%
 // balRev: правки баланса из админки действуют только на партии, начатые после них (см. ОНЛАЙН)
 const bal=(k,v)=>{const e=v;for(v=v||(S&&S.bal)||1;v>0;v--)if(BAL[v]&&k in BAL[v])return S&&S.balRev&&(!e||e===S.bal)?netPatch(k,BAL[v][k]):BAL[v][k]};
@@ -1119,7 +1123,7 @@ const AGG={mig:{n:'Мигом',d:'Привычный вариант: заказ�
 const aggDef=()=>bal('agg')[(S&&S.agg)||'mig']||bal('agg').mig;
 const avgRate=()=>S.dlist&&S.dlist.length?S.dlist.reduce((a,d)=>a+d.r,0)/S.dlist.length:5;
 const shashBad=()=>B(4)&&S.agg==='shash'&&avgRate()<bal('shashR');
-const rentAvg=()=>{let s=0,n=0;S.fleet.forEach(c=>{const cl=MODELS[c.m].cls;s+=S.rents[cl]/mk(cl)-1;n++});return n?s/n:0};
+const rentAvg=()=>{let s=0,n=0;S.fleet.forEach(c=>{const cl=carCls(c);s+=S.rents[cl]/mk(cl)-1;n++});return n?s/n:0};
 const warOn=()=>B(4)&&!!S.war&&S.day>=S.war.at&&S.day<S.war.at+S.war.len;
 const warSoon=()=>B(4)&&!!S.war&&S.day===S.war.at-1;
 function setAgg(k){if(!B(4)||S.over||S.preview||!AGG[k]||k===(S.agg||'mig'))return;const w=bal('aggGap')-(S.day-S.aggAt);

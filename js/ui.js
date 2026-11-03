@@ -298,6 +298,8 @@ function hireCard(){const off=S.over||S.preview,working=carsN()-brokenN(),free=M
     <div class="spec"><span>Машин без водителя</span><b class="${free?'neg':''}">${free}</b></div></div>
     <div class="btns"><button class="buy" id="hireBtn" ${S.hired||off||S.money<HIRE_COST?'disabled':''}>${S.hired?'Сегодня уже размещена':'Разместить'}</button></div></div>`}
 const b3=()=>B(3);
+// в renderMgmt локальная B — элемент #mbody, поэтому проверка баланса только через обёртку
+const b7=()=>B(7);
 /* карточка смен: bal 3 — вторая смена и усталость (во вкладке «Водители»), раньше — ночная смена (на карте) */
 function shiftCard(dis){
   if(b3()){const mx=bal('shiftMax'),owl=S.dlist.filter(d=>d.t==='night').length;
@@ -308,6 +310,7 @@ function shiftCard(dis){
   return `<div class="card2" style="grid-column:1/-1"><h3>Смены</h3><div class="row2"><span>Ночная смена: <b id="nightV">${S.night}%</b> водителей</span></div>
         <input type="range" id="nightR" min="0" max="50" step="5" value="${S.night}" ${dis} aria-label="Доля ночной смены">
         <p class="sub">Ночью заказы дороже (до +12,5% выручки), но водители устают (лояльность падает), машины ломаются чаще, а на рейдах останавливают чаще. «Совы» ночь любят.</p></div>`}
+let mgTab='';
 function renderMgmt(){
   if(!tabOpen(uiTab))uiTab='shop';
   G.seenTabs=G.seenTabs||{};
@@ -320,6 +323,8 @@ function renderMgmt(){
     (subs.length>1?`<div class="subtabs">${subs.map(k=>`<button class="stab${uiTab===k?' on':''}" data-mt="${k}">${lab(k)}${dot(k)?'<i class="newdot" title="Новое"></i>':''}</button>`).join('')}</div>`:'')+(simpleOn()&&vis.length<MTABS.length?`<span class="mtab-more">ещё ${MTABS.length-vis.length} разделов откроются позже</span>`:'');
   if(!G.seenTabs[uiTab]){G.seenTabs[uiTab]=1;saveG()}
   const B=$('mbody'),off=S.over||S.preview,dis=off?'disabled':'';
+  // таблицы пересобираются целиком, поэтому держим прокрутку: после покупки тюнинга список не уезжает наверх
+  const wrapOld=B.querySelector('.tablewrap'),keepTab=mgTab===uiTab,keep=[wrapOld?wrapOld.scrollTop:0,B.scrollTop];
   if(uiTab==='shop'){
     const full=carsN()>=S.spots,working=carsN()-brokenN();
     B.innerHTML=`<div class="row2"><div class="tabs">${SHOP_TABS.map(([k,l])=>`<button class="tab${shopTab===k?' on':''}" data-tab="${k}">${l}</button>`).join('')}</div>
@@ -341,7 +346,7 @@ function renderMgmt(){
   }
   else if(uiTab==='fleet'){
     const sorted=[...S.fleet].sort((a,b)=>b.b-a.b||carFail(b)-carFail(a));
-    B.innerHTML=`<p class="sub">Чем больше пробег, тем чаще машина ломается и тем дешевле продаётся. ${(S.bal||1)>=2?`Возврат лизинговой машины стоит ${bal('leaseRet')} дневных платежей, а после ${bal('leaseWearFrom')} дней она ломается чаще.`:'Лизинговую машину можно вернуть без выплаты.'} Сервис чинит до ${repairCap()} машин в день. Тюнинг: Т — тонировка, Ш — шумоизоляция, К — кожаный салон; все три переводят машину в класс выше.${hasHead('master')?' Мастер Ашот делает тюнинг на 30% дешевле.':''}</p>
+    B.innerHTML=`<p class="sub">Чем больше пробег, тем чаще машина ломается и тем дешевле продаётся. ${(S.bal||1)>=2?`Возврат лизинговой машины стоит ${bal('leaseRet')} дневных платежей, а после ${bal('leaseWearFrom')} дней она ломается чаще.`:'Лизинговую машину можно вернуть без выплаты.'} Сервис чинит до ${repairCap()} машин в день. Тюнинг: Т — тонировка, Ш — шумоизоляция, К — кожаный салон; полный комплект поднимает класс машины, а если класс уже верхний — даёт клубный пакет: +${bal('club').rep} к репутации и ремонты этой машины на ${Math.round(bal('club').repair*100)}% дешевле.${hasHead('master')?' Мастер Ашот делает тюнинг на 30% дешевле.':''}</p>
       ${toOn()&&S.fleet.some(c=>!c.b&&!c.svc&&toLeft(c)<0)?`<div class="btns"><button class="buy to" data-svcall="1" ${dis}>Все просроченные на ТО</button></div>`:''}
       <div class="tablewrap"><table><thead><tr><th>Машина</th><th>Класс</th><th>Пробег</th><th>Износ</th><th>Статус</th><th>Лизинг</th><th>Тюнинг</th><th></th></tr></thead><tbody>
       ${sorted.map(c=>{const M=MODELS[c.m],wear=Math.min(100,Math.round(carFail(c)/.15*100)),v=carValue(c);
@@ -492,7 +497,7 @@ function renderMgmt(){
       <div class="tablewrap"><table><thead><tr><th>#</th><th>Парк</th><th>Машин</th><th>Репутация</th><th>Стиль</th></tr></thead><tbody>
       ${rows.map((r,i)=>`<tr${r.me?' style="outline:3px solid var(--taxi)"':''}><td>${i+1}</td><td>${r.me?'<b>':''}${esc(r.name)}${r.me?'</b>':''}</td><td>${r.cars}</td><td>${r.rep}</td><td>${r.style}</td></tr>`).join('')}</tbody></table></div>
       <p class="sub">Если ваша репутация выше средней у конкурентов, пассажиры чаще выбирают вас: до +8% к спросу.</p></div>
-      ${S.mode==='endless'?`<div class="card2"><h3>Франшиза</h3><p class="kind">Продайте парк и начните в новом городе с постоянными бонусами. ${B(7)?`Очков холдинга свободно: ${holdFree()}.`:`Престиж сейчас: ${prestige()}.`} За этот парк: ${prestPts()} очк.</p><div class="btns"><button class="buy" id="frBtn" ${S.over||(S.rank<4&&S.day<60)?'disabled':''}>${S.rank<4&&S.day<60?'Откроется на звании «Таксомагнат» или с 60-го дня':'Продать парк'}</button></div></div>`:''}
+      ${S.mode==='endless'?`<div class="card2"><h3>Франшиза</h3><p class="kind">Продайте парк и начните в новом городе с постоянными бонусами. ${b7()?`Очков холдинга свободно: ${holdFree()}.`:`Престиж сейчас: ${prestige()}.`} За этот парк: ${prestPts()} очк.</p><div class="btns"><button class="buy" id="frBtn" ${S.over||(S.rank<4&&S.day<60)?'disabled':''}>${S.rank<4&&S.day<60?'Откроется на звании «Таксомагнат» или с 60-го дня':'Продать парк'}</button><button class="buy sm alt" id="frPrev">Оценка парка</button></div></div>`:''}
       <div class="card2"><h3>Ваше звание</h3><p><b class="pos">★ ${rankName(S.rank||0)}</b></p>${R?`<p class="kind">Следующее: «${R.n}» — нужно ${R.txt}. Откроет: ${R.unlock}.</p>`:'<p class="kind">Высшее звание получено!</p>'}</div>
       <div class="card2"><h3>Бензин и электро</h3><p class="kind">${fuelInfo()}</p>${evCars().length?`<p class="kind">Электромобилей в парке: ${evCars().length}${S.upg.charger?'.':`, без зарядной станции они теряют ≈${rub(evLoss())} в день.`}</p>`:''}</div>
       <div class="card2"><h3>Рейды и проверки</h3><p class="kind">${S.raid?`Идут рейды ГАИ: ещё ${S.raid.days} дн.`:'Рейдов ГАИ сейчас нет.'} Налоговая и учредители приходят без предупреждения.</p></div></div>`;
@@ -511,6 +516,8 @@ function renderMgmt(){
   }
   if(uiTab==='ach'&&NET.url)netBoardBind();
   if(simpleOn()&&TAB_HINTS[uiTab])B.insertAdjacentHTML('afterbegin',`<p class="hintbox">${TAB_HINTS[uiTab]}</p>`);
+  if(keepTab){const w=B.querySelector('.tablewrap');if(w)w.scrollTop=keep[0];B.scrollTop=keep[1]}
+  mgTab=uiTab;
   document.querySelectorAll('canvas.mini').forEach(drawMini);
 }
 
@@ -546,6 +553,7 @@ $('mbody').addEventListener('click',e=>{const b=e.target.closest('button');if(!b
   if(b.id==='schoolBtn')return enrollSchool();
   if(ds.hbonus!==undefined)return headBonus(+ds.hbonus);
   if(b.id==='frBtn')return sellFranchise();
+  if(b.id==='frPrev')return frPreview();
   if(ds.parts)return buyParts(+ds.parts);
   if(b.id==='dpBtn')return dispatcher();
   if(b.id==='partyBtn')return corpParty();

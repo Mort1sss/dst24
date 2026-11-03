@@ -87,23 +87,24 @@ const GOALS=[
  {t:'Довести парк до 15 машин',v:()=>carsN(),n:15,rw:{money:50000}},
  {t:'Собрать две Камри',v:()=>countM('camry'),n:2,rw:{money:40000,rep:2}},
  {t:'Избавиться от всех Грант',v:()=>countM('granta')===0?1:0,n:1,rw:{rep:5}},
- {t:'Купить машину бизнес-класса',v:()=>S.fleet.filter(c=>MODELS[c.m].cls==='Бизнес').length,n:1,rw:{money:60000}},
+ {t:'Купить машину бизнес-класса',v:()=>S.fleet.filter(c=>carCls(c)==='Бизнес').length,n:1,rw:{money:60000}},
  {t:'Открыть тариф «Минивэн»: 2 Carnival',v:()=>countM('carnival'),n:2,rw:{money:50000,rep:2}},
  {t:'Вывести на линию 18 экипажей',v:activeN,n:18,rw:{money:70000}},
  {t:'Довести парк до 25 машин',v:()=>carsN(),n:25,rw:{money:100000}},
 ];
-/* ---- цель «Собрать N авто …»: модель крутится по номеру цели (BAL[8].collect), партии bal≤7 остаются на Камри ---- */
+/* ---- цель «Собрать N авто …»: модель крутится по номеру цели (BAL[8].collect); начатая до миграции цель остаётся старой ---- */
+const gv=n=>((S&&S.goalBal)||S.bal||1)>=n;
 function collectGoal(gi,n,rw){const L=(bal('collect')||[]).filter(g=>Array.isArray(g)&&g.length&&MODELS[g[0]]),g=L.length?L[gi%L.length]:['camry'];
   return{t:`Собрать ${n} авто «${MODELS[g[0]].name}»`,v:()=>countM(...g),n,rw}}
 // ранние табличные цели №7 и №10 тоже были про одну модель — под BAL[8] становятся ротацией
 const GOAL_ROT={7:()=>collectGoal(0,2,{money:40000,rep:2}),10:()=>collectGoal(4,2,{money:50000,rep:2})};
 function goalAt(i){
-  if(i<GOALS.length)return B(8)&&GOAL_ROT[i]?GOAL_ROT[i]():GOALS[i];
+  if(i<GOALS.length)return gv(8)&&GOAL_ROT[i]?GOAL_ROT[i]():GOALS[i];
   const k=i-GOALS.length,L=k>>2;
   switch(k%4){
     case 0:{const n=30+10*L;return{t:`Довести парк до ${n} машин`,v:()=>carsN(),n,rw:{money:120000+30000*L}}}
     case 1:{const n=800000+400000*L;return{t:`Накопить ${rub(n)} в кассе`,v:()=>S.money,n,rw:{rep:4}}}
-    case 2:{const n=4+3*L,rw={money:80000+20000*L};return B(8)?collectGoal(L,n,rw):{t:`Собрать ${n} Камри`,v:()=>countM('camry'),n,rw}}
+    case 2:{const n=4+3*L,rw={money:80000+20000*L};return gv(8)?collectGoal(L,n,rw):{t:`Собрать ${n} Камри`,v:()=>countM('camry'),n,rw}}
     default:{const n=25+8*L;return{t:`Вывести на линию ${n} экипажей`,v:activeN,n,rw:{money:100000+30000*L,rep:2}}}
   }
 }
@@ -115,7 +116,7 @@ function checkGoals(){
     S.money+=g.rw.money||0;S.rep=Math.min(100,S.rep+(g.rw.rep||0));
     addLog(`Цель ${S.goal+1} выполнена: ${g.t}. Награда: ${rwText(g.rw)}.`);
     toast(`Цель ${S.goal+1} выполнена! ${rwText(g.rw)}`);sfx('win');
-    S.goal++;g=goalAt(S.goal);save();
+    S.goal++;S.goalBal=null;g=goalAt(S.goal);save();
   }
 }
 function checkAch(){
@@ -188,9 +189,13 @@ function blankState(mode){
     nextAuction:7,nextContract:rand(9,13),nextAgency:rand(10,15),contracts:[],lines:{},ads:null,school:[],agency:[],stat:[],wk:{rev:0,net:0,breaks:0,fines:0,fails:[]},
     custom:Object.assign({name:'ДСТ-24',color:'yellow',logo:'checker',avatar:0,livery:'none'},G.custom||{}),
     parts:10,crisis:null,nextCrisis:rand(25,40),extraHeads:[[],[],[]],moodMod:[0,0,0],nextCareer:rand(18,24),nextConflict:rand(14,20),lastParty:-99,strike:null,owned:{},dispDay:0,
-    agg:'mig',aggAt:-99,aggNext:0,aggLast:0,lowDays:0,cscore:0,cstreak:0,war:null,ctLost:null,infl:1,mInfl:1,taxAcc:0,kpi:null,kpiStreak:0,kpiFails:0,tdebt:0,rel:{},relCd:{},city:'home',hold:null,gid:'',balPatch:null,balRev:0,netSeen:{},netRev:[],seed:0};
+    agg:'mig',aggAt:-99,aggNext:0,aggLast:0,lowDays:0,cscore:0,cstreak:0,war:null,ctLost:null,infl:1,mInfl:1,taxAcc:0,kpi:null,kpiStreak:0,kpiFails:0,tdebt:0,rel:{},relCd:{},city:'home',hold:null,gid:'',balPatch:null,balRev:0,goalBal:null,netSeen:{},netRev:[],seed:0};
 }
-function fixState(v){const b=blankState(v.mode||'campaign');const o=Object.assign(b,v);o.bal=v.bal||1;if(!AGG[o.agg])o.agg='mig';
+function fixState(v){const b=blankState(v.mode||'campaign');const o=Object.assign(b,v);o.bal=v.bal||1;
+  // тихая миграция на текущую версию: цифры новые, но начатую цель игрок доигрывает по старым правилам (goalBal),
+  // а снимок правок баланса из админки пересчитывается, иначе старые патчи легли бы на новую версию
+  if(o.bal<BAL_NEW){o.goalBal=o.bal;o.bal=BAL_NEW;if(!netOff){o.balRev=netRevNow();o.balPatch=netSnap()}}
+  if(!AGG[o.agg])o.agg='mig';
   if(!v.rivals){o.rivals=b.rivals;if(v.rival){o.rivals[0].name=v.rival.name;o.rivals[0].cars=v.rival.cars}}
   if(!v.rents)o.rents=Object.assign({},MARKET);delete o.rival;if(!o.weather||o.weather.length<3)o.weather=[0,1,2].map(i=>genWeather(o.day+i));return o}
 function newDriver(){const t=Math.random()<.3?'rookie':TRAIT_KEYS[rand(0,TRAIT_KEYS.length-1)];
