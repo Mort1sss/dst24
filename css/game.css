@@ -235,7 +235,7 @@ input[type=range]{width:100%;accent-color:var(--taxi)}
 .logo-c{width:32px;height:32px;flex:none}
 .logo-c.sm{width:16px;height:16px;display:inline-block;vertical-align:-3px;margin-right:4px}
 #ownerC{width:40px;height:40px}
-.mapc{width:100%;max-width:640px;height:auto;aspect-ratio:16/9;border:3px solid var(--edge);margin:0 auto}
+.mapc{width:100%;max-width:480px;height:auto;aspect-ratio:16/9;image-rendering:pixelated;border:3px solid var(--edge);margin:0 auto;cursor:pointer}
 .sw{display:inline-block;width:12px;height:12px;border:2px solid var(--edge);margin-right:5px;vertical-align:-2px}
 .chart{width:100%;height:auto;display:block}
 .paper{background:#efe6cf;color:#2a2018;padding:16px 18px;border:3px solid var(--edge);display:grid;gap:8px;font-family:"PT Mono",monospace}

@@ -427,15 +427,21 @@ function renderMgmt(){
   }
   else if(uiTab==='map'){
     const tot=Object.values(S.alloc).reduce((a,b)=>a+b,0)||1;
-    B.innerHTML=`<div class="grid"><div class="card2" style="grid-column:1/-1"><h3>Карта города</h3><canvas id="mapC" class="mapc" width="240" height="135" aria-label="Карта районов"></canvas>
-      <p class="sub">Сегодня: ${(S.dnews||[]).map(e=>`${DISTRICTS.find(D=>D.k===e.d).n} — ${e.t.toLowerCase()} (×${e.m})`).join('; ')||'обычный день'}. Множитель районов: <b>×${distFactor().toFixed(2)}</b>.</p></div>
-      ${DISTRICTS.map(D=>{const sh=Math.round(S.alloc[D.k]/tot*100),mod=S.dmods[D.k];return `<div class="card2"><h3 style="color:${D.c}">${D.n}</h3>
+    B.innerHTML=`<div class="grid"><div class="card2" style="grid-column:1/-1"><h3>Карта города</h3><canvas id="mapC" class="mapc" width="480" height="270" role="button" tabindex="0" aria-label="Карта районов: нажмите на район, чтобы перейти к его слайдеру"></canvas>
+      <p class="sub">Сегодня: ${(S.dnews||[]).map(e=>`${DISTRICTS.find(D=>D.k===e.d).n} — ${e.t.toLowerCase()} (×${e.m})`).join('; ')||'обычный день'}. Множитель районов: <b>×${distFactor().toFixed(2)}</b>. Нажмите на район на карте — покажем его карточку.</p></div>
+      ${DISTRICTS.map(D=>{const sh=Math.round(S.alloc[D.k]/tot*100),mod=S.dmods[D.k];return `<div class="card2" id="dist-${D.k}"><h3 style="color:${D.c}">${D.n}</h3>
         <div class="spec"><span>Доля машин</span><b>${sh}%</b></div><div class="spec"><span>Спрос сегодня</span><b class="${mod>1?'pos':mod<1?'neg':''}">×${(D.base*mod).toFixed(2)}</b></div>
         <div class="spec"><span>Без перегруза до</span><b>${Math.round(D.cap*100)}%</b></div>
         <input type="range" data-dist="${D.k}" min="0" max="100" step="5" value="${S.alloc[D.k]}" ${dis} aria-label="Доля ${D.n}"></div>`}).join('')}
       <div class="card2" style="grid-column:1/-1"><h3>Смена диспетчера</h3><p class="kind">Мини-игра на 60 секунд: раздавайте заказы машинам. За каждый выполненный — 1 500 ₽. Раз в день.</p>
         <div class="btns"><button class="buy" id="dpBtn" ${off||S.dispDay===S.day?'disabled':''}>${S.dispDay===S.day?'Сегодня уже была':'Сесть за пульт'}</button></div></div>
       ${b3()?'':shiftCard(dis)}</div>`;
+    // клик по району: рамка на карте + подсветка и прокрутка к его карточке (как в онлайновом «Городе»)
+    const mc=$('mapC');
+    if(mc)mc.onclick=e=>{const bt=mc.getBoundingClientRect(),mx=(e.clientX-bt.left)/bt.width*240,my=(e.clientY-bt.top)/bt.height*135;
+      const D=DISTRICTS.find(D=>{const[x,y,w,h]=MAP_AREAS[D.k];return mx>=x&&mx<x+w&&my>=y&&my<y+h});if(!D)return;
+      mapSel=mapSel===D.k?'':D.k;drawMap();B.querySelectorAll('.card2').forEach(c=>c.style.outline='');
+      const card=$('dist-'+D.k);if(card&&mapSel){card.style.outline='3px solid var(--taxi)';try{card.scrollIntoView({block:'center',behavior:'smooth'})}catch(err){card.scrollIntoView()}}};
     if(!mapRAF)mapRAF=requestAnimationFrame(mapLoop);
   }
   else if(uiTab==='biz'){

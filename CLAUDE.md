@@ -35,7 +35,7 @@
 | Что | Файл | Имена |
 |---|---|---|
 | Справочники | `data.js` | `MODELS`, `EVENTS`, `CHAINS`, `NEWS`, `CHAPTERS`, `DIFF`, `ACH`, `LIVERY`, `tomorrowTease` |
-| Версии баланса | `data.js` | раздел `версия баланса`: `BAL`, `bal(k)`, `B(n)`, `camp()`, `endl()`, `profit()`, `goalMet()`, `starsOf()`, `carRevM`; `BAL[8].collect` — группы моделей для целей бесконечного, цель строит `collectGoal` в `state.js` |
+| Версии баланса | `data.js` | раздел `версия баланса`: `BAL`, `bal(k)`, `B(n)`, `camp()`, `endl()`, `profit()`, `goalMet()`, `starsOf()`, `carRevM`; `BAL[8].collect` и `BAL[9].collect` — группы моделей для целей бесконечного (берётся версия партии), цель строит `collectGoal` в `state.js` |
 | Удары и налоги | `data.js`, `day.js` | `isTaxDay`, `taxDueIn`, `heavyDays`, `heavyGate`, `ultBlocked`; кризис — в `endDay`, рейд/профсоюз/проверка — в `startDay` |
 | Состояние | `state.js` | `blankState`, `fixState`, `save`, `load`, `newGame`, `recordResult` |
 | День | `day.js` | `nextEvent`, `apply`, `choose`, `endDay`, `startDay`, `runMorning`, `inspection`; `autoResolve` — в `minigames.js` |
@@ -45,7 +45,7 @@
 | Награды | `minigames.js` | `offlineIncome`, `loginPay`, `checkLogin`; `checkLoginQuiet` — в `main.js` |
 | Мини-игры | `minigames.js` | `mgTiming`, `lgRace`, `lgPark`, `dispatcher`, `TOPCAR`, `mgRAF`, `mgStop` |
 | Финал и интерфейс | `ui.js` | `finale`, `gameOver`, `render`, `renderHud`, `renderMgmt`, `icon16`, `ICON16` |
-| Двор и графика | `art.js` | `draw`, `drawScene`, `drawCar`, `CARS2`, `syncMovers`, `stepParts`, `lightPass`, `post` (WebGL), `fitScene` |
+| Двор и графика | `art.js` | `draw`, `drawScene`, `drawCar`, `CARS2` (у новых моделей силуэт берётся у похожей машины — алиасы под списком), `SHAPE_OF`, `syncMovers`, `stepParts`, `lightPass`, `post` (WebGL), `fitScene`; карта города — `drawMap`, `MAP_AREAS`, выбранный район `mapSel` |
 | Онлайн | `online.js` | `NET`, `api`, `rpc`, `cloudPush/cloudPull`, `netSubmit`, `netDay`, `netGifts`, `netMailRun`, `openCity`, `ctUse/ctSync`, город `TOWN`/`townK`/`drawTown`; правки баланса — `S.balPatch`. Серверные проверки — в `supabase/schema.sql`: `send_gift` списывает кассу из `saves.money`, `poach` требует `saves.drivers`, `submit_score` держит пределы дней и одну лучшую запись на ключ дня | Подарки из админки: потолок `GRANT_MAX` (1 млн ₽), опрос раз в минуту через `setInterval` с условием `online()&&!netBusy()`, накопленное `G.netGift` зачисляется в живую партией тем же `netGifts()` |
 | Бот-измеритель | `sim.js` | `__balanceSim`, `.all`, `.story`, `.free` |
 

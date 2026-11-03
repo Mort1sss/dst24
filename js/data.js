@@ -14,11 +14,16 @@ const MODELS={
   octavia:{name:'Skoda Octavia',cls:'Комфорт',kind:'б/у, 2019',km0:160000,price:110000,lease:0,mult:1.3,fail:.04,repair:10000,resale:65000,body:'#d9dde8',trim:'#4a4570'},
   tiggo:{rank:1,name:'Chery Tiggo 4 Pro',cls:'Комфорт',kind:'новый кроссовер, лизинг',km0:0,price:50000,lease:1200,mult:1.15,fail:.02,repair:0,resale:70000,rep:1,body:'#ff8a4c',trim:'#c25a22',shape:'suv'},
   jolion:{rank:1,name:'Haval Jolion',cls:'Комфорт',kind:'новый кроссовер, лизинг',km0:0,price:70000,lease:1500,mult:1.35,fail:.015,repair:0,resale:90000,rep:1,body:'#86c4e0',trim:'#3a7fa0',shape:'suv'},
+  haval:{rank:1,name:'Haval M6',cls:'Комфорт',kind:'новый кроссовер, лизинг',km0:0,price:45000,lease:1300,mult:1.2,fail:.02,repair:0,resale:62000,rep:1,body:'#7fa8d8',trim:'#3d5f8a',shape:'suv',note:'Дешёвый способ зайти в «Комфорт»'},
+  coolpad:{rank:1,name:'Geely Coolpad',cls:'Комфорт',kind:'новый седан, лизинг',km0:0,price:60000,lease:1450,mult:1.25,fail:.018,repair:0,resale:78000,rep:1,body:'#c85a5a',trim:'#8a2f2f',shape:'sedan'},
   evolute:{rank:2,ev:1,name:'Evolute i-Joy',cls:'Эконом',kind:'новый электромобиль, лизинг',km0:0,price:45000,lease:1000,mult:1,fail:.012,repair:0,resale:55000,rep:1,body:'#86e06f',trim:'#2e7a3a',note:'Не боится цен на бензин. Нужна зарядная станция'},
   camry:{rank:2,name:'Toyota Camry',cls:'Комфорт+',kind:'новая, лизинг',km0:0,price:90000,lease:1900,mult:1.8,fail:.01,repair:0,resale:130000,rep:2,body:'#2e2a40',trim:'#151222'},
+  k5:{rank:2,name:'Kia K5',cls:'Комфорт+',kind:'новая, лизинг',km0:0,price:95000,lease:2000,mult:1.8,fail:.01,repair:0,resale:135000,rep:2,body:'#d8d0e8',trim:'#6a6488',shape:'sedan',note:'Седан вместо Camry: тот же класс, дешевле в обслуживании'},
   zeekr:{rank:2,ev:1,name:'Zeekr 001',cls:'Комфорт+',kind:'новый электромобиль, лизинг',km0:0,price:100000,lease:2000,mult:1.85,fail:.01,repair:0,resale:140000,rep:2,body:'#4a88c8',trim:'#1c1a24',note:'Электро-премиум. Нужна зарядная станция'},
   mercedes:{rank:3,name:'Mercedes E-класс',cls:'Бизнес',kind:'б/у, 2017',km0:220000,price:200000,lease:0,mult:2.4,fail:.045,repair:22000,resale:120000,rep:1,body:'#1c1a24',trim:'#a8a0cc',note:'Престижно, но ремонт дорогой'},
   monjaro:{rank:3,name:'Geely Monjaro',cls:'Бизнес',kind:'новый кроссовер, лизинг',km0:0,price:120000,lease:2400,mult:2.1,fail:.015,repair:0,resale:170000,rep:2,body:'#3a3550',trim:'#d9dde8',shape:'suv'},
+  voyah:{rank:3,ev:1,name:'Voyah Free',cls:'Бизнес',kind:'новый бизнес-кроссовер, лизинг',km0:0,price:150000,lease:2600,mult:2.2,fail:.012,repair:0,resale:190000,rep:2,body:'#2f6a5a',trim:'#1c3f36',shape:'suv',note:'Электро-премиум с запасом хода. Нужна зарядная станция'},
+  largus:{rank:2,name:'Lada Largus',cls:'Минивэн',kind:'б/у, 2019',km0:130000,price:85000,lease:0,mult:1.5,fail:.035,repair:9000,resale:52000,body:'#e8e2d0',trim:'#a8a0cc',shape:'van',note:'Дешёвый минивэн: аэропорты, семьи и багаж'},
   carnival:{rank:2,name:'Kia Carnival',cls:'Минивэн',kind:'новый минивэн, лизинг',km0:0,price:110000,lease:2200,mult:1.9,fail:.02,repair:0,resale:150000,rep:2,body:'#f3ecdc',trim:'#ff8a4c',shape:'van',note:'Аэропорты, семьи и багаж'},
 };
 const MODEL_KEYS=Object.keys(MODELS);
@@ -836,7 +841,7 @@ const rkOk=i=>{const[c,r,b]=rk(i);return totalCars()>=c&&S.rep>=r&&S.branches.le
 const rkTxt=i=>{const[c,r,b]=rk(i);return`${c} машин`+(b?` и ${b} ${b>1?'филиала':'филиал'}`:'')+(r?` и репутация ${r}`:'')};
 const RANKS=[
  {n:'Хозяин гаража',need:()=>true},
- {n:'Начальник колонны',need:()=>rkOk(1),get txt(){return rkTxt(1)},unlock:'новые кроссоверы «Комфорт»'},
+ {n:'Начальник колонны',need:()=>rkOk(1),get txt(){return rkTxt(1)},unlock:'новый «Комфорт»: кроссоверы и седаны'},
  {n:'Директор парка',need:()=>rkOk(2),get txt(){return rkTxt(2)},unlock:'Комфорт+, минивэны, электромобили, зарядка, новый офис'},
  {n:'Владелец сети',need:()=>rkOk(3),get txt(){return rkTxt(3)},unlock:'бизнес-класс и филиалы'},
  {n:'Таксомагнат',need:()=>rkOk(4),get txt(){return rkTxt(4)},unlock:'+5% к выручке'},
@@ -859,7 +864,7 @@ const BAL_NEW=9,BAL={
  7:{tree:{cost:[1,2,3,4],fin:{cap:.25,loan:.03,tax:.1},ppl:{loy:10,staff:1,fat:.2},car:{price:.08,fail:.05,svc:.15,gift:'monjaro'}},royK:.01,royCap:150000,royFin4:1.5,
   trials:{home:[2e6,4e6,7e6],capital:[30,45,60],resort:[1e6,2e6,3.5e6],north:[40,70,100],port:[800000,1800000,3500000],science:[10,18,25]},goldPts:2},
  8:{collect:[['vesta'],['moskvich'],['solaris','solarisNew'],['rio'],['octavia'],['tiggo'],['jolion'],['camry'],['evolute'],['carnival'],['monjaro'],['mercedes'],['zeekr']]},
- 9:{club:{rep:2,repair:.1}}}; // BAL[4] подобран ботом bot-4: «Обычный» ≈60%, агрегаторы 55/54/60%; BAL[5] (кредитный рейтинг) bot-5: «Обычный» ≈60%, «Хардкор» ≈31%
+ 9:{club:{rep:2,repair:.1},collect:[['vesta'],['moskvich'],['solaris','solarisNew'],['rio'],['octavia'],['tiggo'],['jolion'],['haval'],['coolpad'],['camry'],['evolute'],['k5'],['largus'],['carnival'],['monjaro'],['mercedes'],['zeekr'],['voyah']]}}; // BAL[4] подобран ботом bot-4: «Обычный» ≈60%, агрегаторы 55/54/60%; BAL[5] (кредитный рейтинг) bot-5: «Обычный» ≈60%, «Хардкор» ≈31%
 // BAL[6]: brRev — выручка филиала с машины (было 3300); lotBack — доля цены при продаже стоянки; upgVal/brVal — доля цены улучшений и филиалов в оценке парка; prestK — ₽ оценки на очко престижа; rk — пороги званий
 // BAL[6] город: town — k выручки и cap (заказов на всех) по районам; townLead — надбавка лидера; townFloor — нижний предел давки; townMin/townMax — границы множителя парка
 // BAL[7] холдинг (только бесконечный): tree — цены ступеней (cost) и эффекты веток: fin — капитал, ставка кредитов (п.п.), налоги; ppl — лояльность на старте, сотрудники в отделе, медленнее усталость; car — цены автосалона, поломки, ТО и ремонт, подарок-машина
@@ -1007,7 +1012,7 @@ const CLS_UP={'Эконом':'Комфорт','Комфорт':'Комфорт+'
 const tunePrice=k=>Math.round(TUNE[k].price*(hasHead('master')?.7:1));
 
 /* ---- аукцион, контракты, инвесторы ---- */
-const AUCTION_MODELS=['granta','vesta','solaris','rio','octavia','mercedes'];
+const AUCTION_MODELS=['granta','vesta','solaris','rio','octavia','largus','mercedes'];
 const COMPANIES=['Банк «Капитал»','Завод «Металлист»','IT-компания «Байт»','Больница №7','ТЦ «Плаза»','Логистика «Вектор»'];
 const INV_NAMES=['Фонд «Стрела»','Бизнес-ангел Игорь','Холдинг «Колесо»','Инвестор Марина Л.'];
 const valBase=()=>totalCars()*65000+Math.max(0,S.money)*.3+S.rep*3000;

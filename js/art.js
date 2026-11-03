@@ -100,7 +100,7 @@ const VAN=[
 "...oooo..........oooo...",
 ];
 const TAXI=SEDAN;
-const SHAPE_OF={granta:SEDAN,vesta:SEDAN,moskvich:SUV,solaris:SEDAN,rio:HATCH,solarisNew:SEDAN,octavia:HATCH,tiggo:SUV,jolion:SUV,evolute:HATCH,camry:LIMO,zeekr:LIMO,mercedes:LIMO,monjaro:SUV,carnival:VAN};
+const SHAPE_OF={granta:SEDAN,vesta:SEDAN,moskvich:SUV,solaris:SEDAN,rio:HATCH,solarisNew:SEDAN,octavia:HATCH,tiggo:SUV,jolion:SUV,haval:SUV,coolpad:SEDAN,evolute:HATCH,camry:LIMO,k5:LIMO,zeekr:LIMO,mercedes:LIMO,monjaro:SUV,voyah:SUV,largus:VAN,carnival:VAN};
 const PERSON=[
 "..HHH..",
 ".HHHHH.",
@@ -302,6 +302,8 @@ const CARS2={
 "kddddddddddddddddddddddddddddddddddk",
 ".kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk."]}};
 CARS2.solarisNew=CARS2.solaris;
+/* новые модели без своего рисунка: силуэт, колёса и фары берутся у похожей машины, поэтому дворовые огни и раскраски работают */
+CARS2.haval=CARS2.tiggo;CARS2.coolpad=CARS2.octavia;CARS2.k5=CARS2.camry;CARS2.voyah=CARS2.monjaro;CARS2.largus=CARS2.carnival;
 const carW=m=>CARS2[m]?CARS2[m].s[0].length:24;
 /* высота фар над верхом «старой» машины 24×11 — по ней ставятся свет фар и стоп-огни */
 const carHo=m=>{const N=CARS2[m];return N?5-N.wy+N.s.findIndex(r=>/[he]/.test(r)):6};
@@ -336,7 +338,7 @@ function livPix(s,flip,v){const P=new Map();const w=s[0].length;let R=LIV_RANGE.
 const LIV_CACHE=new WeakMap();
 function livery(g,s,x,y,flip,v){let M=LIV_CACHE.get(s);if(!M)LIV_CACHE.set(s,M=new Map());const key=v+(flip?1:0);let P=M.get(key);if(!P)M.set(key,P=livPix(s,flip,v));
   for(const[col,pts]of P){g.fillStyle=col;for(let i=0;i<pts.length;i+=2)g.fillRect(x+pts[i],y+pts[i+1],1,1)}}
-const carPal=m=>{const M=MODELS[m]||MODELS.solaris,C=S&&S.custom&&COLORS[S.custom.color],own=C&&C.body&&!['Комфорт+','Бизнес'].includes(M.cls);const by=own?C.body:M.body;const darkBody=hx(by).reduce((a,v)=>a+v,0)<270;return{y:by,l:darkBody?lerp(by,'#a8a0cc',.4):shade(by,1.16),s:shade(by,.74),n:'#3a4a78',m:'#d8d0e8',e:'#9ff0ff',d:own?C.trim:M.trim,t:M.ev?'#86e06f':'#f7c331',k:['camry','mercedes','monjaro','zeekr'].includes(m)?'#0b0914':'#1a1530',g:m==='mercedes'?'#e8e2d0':'#a8a0cc',v:S&&S.custom&&S.custom.livery&&S.custom.livery!=='none'?S.custom.livery:''}};
+const carPal=m=>{const M=MODELS[m]||MODELS.solaris,C=S&&S.custom&&COLORS[S.custom.color],own=C&&C.body&&!['Комфорт+','Бизнес'].includes(M.cls);const by=own?C.body:M.body;const darkBody=hx(by).reduce((a,v)=>a+v,0)<270;return{y:by,l:darkBody?lerp(by,'#a8a0cc',.4):shade(by,1.16),s:shade(by,.74),n:'#3a4a78',m:'#d8d0e8',e:'#9ff0ff',d:own?C.trim:M.trim,t:M.ev?'#86e06f':'#f7c331',k:['camry','mercedes','monjaro','zeekr','k5','voyah'].includes(m)?'#0b0914':'#1a1530',g:m==='mercedes'?'#e8e2d0':'#a8a0cc',v:S&&S.custom&&S.custom.livery&&S.custom.livery!=='none'?S.custom.livery:''}};
 function spr(g,s,x,y,flip,pal){x=Math.round(x);y=Math.round(y);for(let r=0;r<s.length;r++)for(let c=0;c<s[r].length;c++){const ch=s[r][c];if(ch==='.')continue;
   g.fillStyle=(pal&&pal[ch])||PAL[ch];g.fillRect(x+(flip?s[r].length-1-c:c),y+r,1,1)}}
 function drawMini(el){const g=el.getContext('2d');g.clearRect(0,0,38,17);
@@ -399,14 +401,12 @@ function drawLogo(g,key,x,y,col){const L=LOGOS[key]||LOGOS.checker;g.clearRect(x
 let mapRAF=null,mapT=0;
 function mapLoop(){if(uiTab!=='map'||!$('mapC')){mapRAF=null;return}if(!paused){mapT+=1;drawMap()}mapRAF=requestAnimationFrame(mapLoop)}
 const MAP_AREAS={sleep:[8,6,92,36],center:[124,6,62,36],air:[194,6,40,74],rail:[24,92,84,36]};
-function drawMap(){const el=$('mapC');if(!el)return;const g=el.getContext('2d'),Rm=(x,y,w,h,c)=>{g.fillStyle=c;g.fillRect(Math.round(x),Math.round(y),w,h)};
+let mapSel='';
+function drawMap(){const el=$('mapC');if(!el)return;const g=el.getContext('2d');g.setTransform(2,0,0,2,0,0);const Rm=(x,y,w,h,c)=>{g.fillStyle=c;g.fillRect(Math.round(x),Math.round(y),w,h)};
   const dk=sceneDark||0,T=mapT;
   Rm(0,0,240,135,lerp('#3a7a4a','#1a3a2a',dk));for(let i=0;i<90;i++)Rm((i*37)%240,(i*53)%135,2,2,lerp('#4a8a54','#22442e',dk));
   // река с бликами
   Rm(0,78,240,9,lerp('#3a7fa0','#1a3a5a',dk));for(let x=0;x<240;x+=12)Rm((x+T*.3)%240,80+((x/12)%3),5,1,lerp('#8ac8e8','#3a6a8a',dk));
-  // дороги и мост
-  const road=lerp('#6a6290','#3a3460',dk);Rm(114,0,6,135,road);Rm(0,46,240,5,road);Rm(0,104,190,5,road);Rm(112,76,10,12,lerp('#8a83b0','#4a4570',dk));
-  g.fillStyle=lerp('#f7c33188','#f7c33144',dk);for(let y=(T*.5)%8;y<135;y+=8)g.fillRect(116,y,1,4);for(let x=(T*.5)%8;x<240;x+=8)g.fillRect(x,48,4,1);
   const tot=Object.values(S.alloc).reduce((a,b)=>a+b,0)||1;
   DISTRICTS.forEach(D=>{const[x,y,w,h]=MAP_AREAS[D.k];Rm(x-1,y-1,w+2,h+2,'#0e0b1c');Rm(x,y,w,h,lerp(D.c+'',shade(D.c,.4),dk*.8));
     Rm(x,y,w,h,'#1d183866');
@@ -419,15 +419,22 @@ function drawMap(){const el=$('mapC');if(!el)return;const g=el.getContext('2d'),
     const n=Math.round(S.alloc[D.k]/tot*14);for(let k=0;k<n;k++){const per=2*(w+h),pos=((T*.4+k*per/n)%per);let px,py;
       if(pos<w){px=x+pos;py=y}else if(pos<w+h){px=x+w;py=y+pos-w}else if(pos<2*w+h){px=x+w-(pos-w-h);py=y+h}else{px=x;py=y+h-(pos-2*w-h)}
       Rm(px-1,py-1,3,3,'#0e0b1c');Rm(px,py,2,2,'#f7c331');if(dk>.4){g.fillStyle='rgba(255,246,168,.25)';g.fillRect(Math.round(px)-2,Math.round(py)-2,6,6)}}
-    g.fillStyle='#0e0b1c';g.font='7px monospace';g.fillText(D.n.split(' ')[0],x+3,y+9);g.fillStyle='#f3ecdc';g.fillText(D.n.split(' ')[0],x+2,y+8);
-    if(m!==1){Rm(x+w-14,y+2,12,8,m>1?'#86e06f':'#ff6b6b');g.fillStyle='#0e0b1c';g.font='6px monospace';g.fillText('×'+m,x+w-14,y+8)}});
+  });
+  // дороги и мост
+  const road=lerp('#6a6290','#3a3460',dk);Rm(114,0,6,135,road);Rm(0,46,240,5,road);Rm(0,104,190,5,road);Rm(112,76,10,12,lerp('#8a83b0','#4a4570',dk));
+  g.fillStyle=lerp('#f7c33188','#f7c33144',dk);for(let y=(T*.5)%8;y<135;y+=8)g.fillRect(116,y,1,4);for(let x=(T*.5)%8;x<240;x+=8)g.fillRect(x,48,4,1);
   // аэропорт: взлётная полоса и самолёт
   Rm(200,60,30,4,'#4a4570');for(let x=202;x<230;x+=5)Rm(x,61,2,1,'#f3ecdc');
   const pc=(T%400)/400;if(pc<.6){const px=200+pc/.6*40,py=61-Math.max(0,pc/.6-.4)*60;Rm(px,py,6,2,'#f3ecdc');Rm(px+2,py-2,2,6,'#f3ecdc');Rm(px+5,py-1,1,1,'#ff6b6b')}
   // вокзал: поезд
-  Rm(24,122,84,2,'#8a83b0');for(let x=24;x<108;x+=4)Rm(x,124,2,1,'#5a5285');const tx=24+((T*.5)%110)-20;for(let k=0;k<4;k++)Rm(tx+k*7,118,6,4,k?'#4fc7b0':'#ff8a4c');
+  Rm(24,122,84,2,'#8a83b0');for(let x=24;x<108;x+=4)Rm(x,124,2,1,'#5a5285');const tx=26+((T*.5)%54);for(let k=0;k<4;k++)Rm(tx+k*7,118,6,4,k?'#4fc7b0':'#ff8a4c');
   // ваш парк
   Rm(140,58,10,8,'#0e0b1c');Rm(141,59,8,6,'#f7c331');drawLogo(g,S.custom&&S.custom.logo,141,58,'#0e0b1c');
+  // подписи — отдельным проходом, чтобы их не перекрывали дороги и декор
+  DISTRICTS.forEach(D=>{const[x,y,w,h]=MAP_AREAS[D.k],m=S.dmods[D.k];
+    g.fillStyle='#0e0b1c';g.font='7px monospace';g.fillText(D.n,x+3,y+9);g.fillStyle='#f3ecdc';g.fillText(D.n,x+2,y+8);
+    if(m!==1){Rm(x+2,y+12,13,7,m>1?'#86e06f':'#ff6b6b');g.fillStyle='#0e0b1c';g.font='6px monospace';g.fillText('×'+m,x+3,y+17)}
+    if(mapSel===D.k){g.strokeStyle='#f3ecdc';g.lineWidth=1;g.strokeRect(x-2.5,y-2.5,w+5,h+5)}});
   if(dk>.3){g.fillStyle=`rgba(10,8,30,${(dk*.25).toFixed(2)})`;g.fillRect(0,0,240,135)}
 }
 function svgChart(st,key,col){const W2=600,H2=130,P=6,vals=st.map(x=>x[key]),mn=Math.min(...vals),mx=Math.max(...vals),rg=(mx-mn)||1;
