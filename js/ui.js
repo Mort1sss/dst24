@@ -433,8 +433,9 @@ function renderMgmt(){
         <div class="spec"><span>Доля машин</span><b>${sh}%</b></div><div class="spec"><span>Спрос сегодня</span><b class="${mod>1?'pos':mod<1?'neg':''}">×${(D.base*mod).toFixed(2)}</b></div>
         <div class="spec"><span>Без перегруза до</span><b>${Math.round(D.cap*100)}%</b></div>
         <input type="range" data-dist="${D.k}" min="0" max="100" step="5" value="${S.alloc[D.k]}" ${dis} aria-label="Доля ${D.n}"></div>`}).join('')}
-      <div class="card2" style="grid-column:1/-1"><h3>Смена диспетчера</h3><p class="kind">Мини-игра на 60 секунд: раздавайте заказы машинам. За каждый выполненный — 1 500 ₽. Раз в день.</p>
-        <div class="btns"><button class="buy" id="dpBtn" ${off||S.dispDay===S.day?'disabled':''}>${S.dispDay===S.day?'Сегодня уже была':'Сесть за пульт'}</button></div></div>
+      <div class="card2" style="grid-column:1/-1"><h3>Смена диспетчера</h3><p class="kind">60 секунд за пультом: тап по заказу — берёте его, тап по свободной машине — отправляете именно её (тап по пустому месту — ближайшую). Награда растёт с парком и спросом районов, сгоревшие заказы её режут. Деньги приходят в кассу вечером, раз в день.</p>
+        <div class="spec"><span>Парк сейчас</span><b>${activeN()} экипажей</b></div><div class="spec"><span>Около при чистой смене</span><b class="${S.dispDay===S.day?'':'pos'}">${rub(dispTop())}</b></div>
+        <div class="btns"><button class="buy" id="dpBtn" ${off||S.dispDay===S.day||activeN()<2?'disabled':''}>${S.dispDay===S.day?'Сегодня уже была':activeN()<2?'Нужен экипаж на линии':'Сесть за пульт'}</button></div></div>
       ${b3()?'':shiftCard(dis)}</div>`;
     // клик по району: рамка на карте + подсветка и прокрутка к его карточке (как в онлайновом «Городе»)
     const mc=$('mapC');

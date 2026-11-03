@@ -539,9 +539,9 @@ function autoResolve(){if(S.over||S.preview)return;let n=0;
     ev.c.forEach((c,i)=>{if(c.game)return;let sc=evCost(c,d)+(c.r&&isBad(c.r.fx)?c.r.p*25000*costScale():0)+(isBad(c.fx)?15000:0)-((c.fx&&c.fx.rep)||0)*2500-((c.fx&&c.fx.drivers)||0)*6000;if(evCost(c,d)>S.money)sc+=1e9;if(sc<bs){bs=sc;best=i}});
     if(best>=0){choose(d,best);n++}}
   if(n)toast(`Секретарь Света решила задач: ${n}`)}
-function takePhoto(){const sc=4,c2=document.createElement('canvas');c2.width=320*sc;c2.height=150*sc+56;const g=c2.getContext('2d');g.imageSmoothingEnabled=false;
-  g.drawImage(cv,0,0,320,150,0,0,320*sc,150*sc);g.fillStyle='#0e0b1c';g.fillRect(0,150*sc,c2.width,56);g.fillStyle='#f7c331';g.font='22px "Press Start 2P", monospace';g.textBaseline='middle';
-  g.fillText(`Таксопарк «${parkName()}»`,18,150*sc+28);g.fillStyle='#f3ecdc';g.font='18px "PT Mono", monospace';g.textAlign='right';g.fillText(`день ${S.day} · машин ${totalCars()} · ★ ${rankName(S.rank||0)}`,c2.width-18,150*sc+28);
+function takePhoto(){const sc=4,w=cv.width,h=cv.height,c2=document.createElement('canvas');c2.width=w*sc;c2.height=h*sc+56;const g=c2.getContext('2d');g.imageSmoothingEnabled=false;
+  g.drawImage(cv,0,0,w,h,0,0,w*sc,h*sc);g.fillStyle='#0e0b1c';g.fillRect(0,h*sc,c2.width,56);g.fillStyle='#f7c331';g.font='22px "Press Start 2P", monospace';g.textBaseline='middle';
+  g.fillText(`Таксопарк «${parkName()}»`,18,h*sc+28);g.fillStyle='#f3ecdc';g.font='18px "PT Mono", monospace';g.textAlign='right';g.fillText(`день ${S.day} · машин ${totalCars()} · ★ ${rankName(S.rank||0)}`,c2.width-18,h*sc+28);
   let url='';try{url=c2.toDataURL('image/png')}catch(e){}
   showModal(`<span class="step">ФОТО-РЕЖИМ</span><h2>Кадр вашего парка</h2>${url?`<img class="photo" src="${url}" alt="Двор таксопарка «${esc(parkName())}»">`:'<p>Не получилось сделать снимок в этом браузере.</p>'}
     <p class="note">Чтобы сохранить: нажмите «Скачать» или удерживайте картинку (на компьютере — правый клик → «Сохранить»).</p>
@@ -604,16 +604,36 @@ function checkLogin(){const k=todayKey();G.login=G.login||{};const off=offlineIn
   showModal(`<span class="step">НАГРАДА ЗА ВХОД</span><h2>День ${streak} подряд</h2><div class="streak">${[1,2,3,4,5,6,7].map(i=>`<i class="${i<=((streak-1)%7)+1?'on':''}">${i}</i>`).join('')}</div>
     ${off?`<p>Пока вас не было, парк заработал <b class="pos">${rub(off)}</b>.</p>`:''}<p>${live?`В кассу парка зачислено ${rub(reward)}.`:`Награда придёт в кассу, когда начнёте игру.`}${w7?` Бонус 7-го дня: ${live?'':'тоже '}+${bal('loginParts',bv)} запчасти и +${bal('loginLoy',bv)} к лояльности всех водителей.`:''} Заходите каждый день: награда растёт до 7-го дня, а на 7-й — бонус.</p><button class="btn" id="lgOk">Забрать</button>`);
   sfx('win');$('lgOk').onclick=()=>{hideModal();if(S&&S.preview)pickMode()}}
-/* ---- диспетчер ---- */
-function dispatcher(){
+/* ---- смена диспетчера ---- */
+// оценка «quanto заплатит смена»: парк × ставка × полная точность × вторая смена; спрос районов заранее неизвестен, поэтому в тексте это «около»
+const dispTop=()=>{const dp=bal('dp');return Math.round(activeN()*dp.per*1.2*(1+shN()/100*(dp.nightK-1))*inf()/100)*100};
+function dispAsk(){
+  if(S.over||S.dispDay===S.day||activeN()<2||!featOpen('disp'))return runMorning();
+  const top=dispTop();
+  showModal(`<span class="step">УТРО · ДИСПЕТЧЕРСКАЯ</span><h2>За пультом нужен человек</h2>
+    <p>Диспетчер заболел, 60 секунд раздачи заказов — на вас. Награда зависит от размера парка, спроса районов и того, сколько заказов сгорит; при чистой смене это около <b class="pos">${rub(top)}</b>. Деньги придут в кассу вечером.</p>
+    <div class="modes"><button class="mode" id="dpGo"><b>СЕСТЬ ЗА ПУЛЬТ</b><span>Мини-игра на 60 секунд.</span></button>
+    <button class="mode" id="dpSkip"><b>ПОСЛАТЬ ЗАМЕНИТЬ</b><span>Бонуса не будет, но и время не уйдёт.</span></button></div>`);
+  sfx('alert');
+  $('dpGo').onclick=()=>{hideModal();dispatcher(runMorning)};
+  $('dpSkip').onclick=()=>{hideModal();runMorning()};
+}
+function dispatcher(cb){
   if(S.dispDay===S.day)return toast('Смена диспетчера уже была сегодня');
-  const nCars=Math.max(2,Math.min(6,activeN()));S.dispDay=S.day;save();
+  const dp=bal('dp'),nCars=Math.max(2,Math.min(dp.cap,activeN())),park=activeN();
+  S.dispDay=S.day;save();
+  const crew=Array.from({length:nCars},(_,i)=>{const d=S.dlist[i];return d?esc(d.n):'Экипаж '+(i+1)});
   showModal(`<span class="step">МИНИ-ИГРА · ДИСПЕТЧЕР</span><h2>Раздайте заказы за 60 секунд</h2>
-    <p>Нажимайте на мигающие заказы — к ним поедет ближайшая свободная машина. Не дайте заказам сгореть.</p>
+    <p>Тап по заказу — берёте его в работу (белая рамка), затем тап по свободной машине — поедет именно она. Тап по пустому месту отправит ближайшую. Сгоревший заказ режет награду, район задаёт её множитель, усталость замедляет экипажи.</p>
     <canvas id="dpC" class="dp-canvas" width="200" height="120"></canvas><div class="row2"><span class="mg-timer" id="dpInfo"></span><button class="buy sm alt" id="dpStop">Закончить</button></div>`);
-  const cv2=$('dpC'),g=cv2.getContext('2d');crisp(cv2);const GX=[10,50,90,130,170,190],GY=[10,40,70,100,112];
-  // город рисуется один раз: кварталы с крышами разной высоты, парки с деревьями, дороги с тротуарами
-  const city=document.createElement('canvas');city.width=200;city.height=120;{const c=city.getContext('2d'),F=(x,y,w,h,col)=>{c.fillStyle=col;c.fillRect(x,y,w,h)};let sd=11;const rr=()=>(sd=(sd*16807)%2147483647)/2147483647;
+  const cv2=$('dpC'),g=cv2.getContext('2d');crisp(cv2);const GX=[10,50,90,130,170,190],GY=[10,40,70,100];
+  const DC={};DISTRICTS.forEach(D=>DC[D.k]=D.c);
+  // узлы карты по районам: центр в середине, аэропорт справа сверху, вокзалы слева снизу, спальные — остальное
+  const ZONE={center:[],air:[],rail:[],sleep:[]};
+  for(let ci=0;ci<GX.length;ci++)for(let ri=0;ri<GY.length;ri++)
+    ZONE[ci>=2&&ci<=3&&ri>=1&&ri<=2?'center':ci>=4&&ri<=1?'air':ci<=1&&ri>=2?'rail':'sleep'].push({x:GX[ci],y:GY[ri]});
+  // город рисуется один раз: кварталы с крышами разной высоты, парки с деревьями, дороги с тротуарами; сид — номер дня
+  const city=document.createElement('canvas');city.width=200;city.height=120;{const c=city.getContext('2d'),F=(x,y,w,h,col)=>{c.fillStyle=col;c.fillRect(x,y,w,h)};let sd=(S.day*7919)%2147483646+1;const rr=()=>(sd=(sd*16807)%2147483647)/2147483647;
     F(0,0,200,120,'#2a2740');const xs=[-10,...GX,210],ys=[-10,...GY,130];
     for(let i=0;i<xs.length-1;i++)for(let j=0;j<ys.length-1;j++){const x0=xs[i]+4,y0=ys[j]+4,x1=xs[i+1]-4,y1=ys[j+1]-4;if(x1-x0<3||y1-y0<3)continue;
       F(x0-1,y0-1,x1-x0+2,y1-y0+2,'#5a5285');
@@ -622,28 +642,49 @@ function dispatcher(){
         F(x,y0,w,y1-y0,roof);F(x,y0,w,1,shade(roof,1.3));F(x+w-1,y0,1,y1-y0,shade(roof,.7));F(x,y1-1,w,1,shade(roof,.6));
         if(w>4&&y1-y0>4){F(x+1+(rr()*(w-3)|0),y0+2,2,2,shade(roof,.8));if(rr()<.5)F(x+2,y1-4,1,1,'#f7c33188')}x+=w+1}}
     GX.forEach(x=>{F(x-3,0,1,120,'#4a4570');F(x+2,0,1,120,'#4a4570')});GY.forEach(y=>{F(0,y-3,200,1,'#4a4570');F(0,y+2,200,1,'#4a4570')});
-    GX.forEach(x=>F(x-2,0,4,120,'#2a2740'));GY.forEach(y=>F(0,y-2,200,4,'#2a2740'))}
-  const node=()=>({x:GX[rand(0,4)],y:GY[rand(0,3)]});
-  const cars=Array.from({length:nCars},()=>Object.assign(node(),{st:'free',path:[],ord:null}));
-  let orders=[],t2=0,last=0,spawn=1,score=0,lost=0,fin=false;
+    GX.forEach(x=>F(x-2,0,4,120,'#2a2740'));GY.forEach(y=>F(0,y-2,200,4,'#2a2740'));
+    // подсветка районов, чтобы было видно, откуда заказ
+    c.globalAlpha=.17;[[90,40,40,30,'center'],[170,10,20,30,'air'],[10,70,40,30,'rail'],[10,10,40,30,'sleep'],[170,70,20,30,'sleep']].forEach(z=>{c.fillStyle=DC[z[4]];c.fillRect(z[0],z[1],z[2],z[3])});c.globalAlpha=1}
+  const ALLN=Object.keys(ZONE).reduce((a,z)=>a.concat(ZONE[z]),[]);
+  const cars=Array.from({length:nCars},(_,i)=>{const p=ALLN[rand(0,ALLN.length-1)];return{x:p.x,y:p.y,i,st:'free',path:[],ord:null}});
+  function node(){const p=ALLN[rand(0,ALLN.length-1)];return{x:p.x,y:p.y}}
+  const DPOOL=DISTRICTS.filter(D=>(S.alloc[D.k]||0)>0),dTot=DPOOL.reduce((a,D)=>a+S.alloc[D.k],0)||1;
+  const distOf=()=>{if(!DPOOL.length)return DISTRICTS[0];let r=Math.random()*dTot;for(const D of DPOOL){r-=S.alloc[D.k];if(r<=0)return D}return DPOOL[DPOOL.length-1]};
+  const mkOrder=()=>{const D=distOf(),z=ZONE[D.k],p=z[rand(0,z.length-1)];
+    return{x:p.x+rand(-4,4),y:p.y,ttl:dp.ttl,taken:false,d:D.k,k:+((D.base*(S.dmods[D.k]||1)).toFixed(2))}};
+  let orders=[],t2=0,last=0,spawn=1,done=0,sumK=0,lost=0,fin=false,sel=null,pop=[];
   const pathTo=(c,tx,ty)=>[{x:tx,y:c.y},{x:tx,y:ty}];
+  const spMul=()=>1-(1-dp.tiredK)*fatK(S.fat||0);
+  const need=Math.max(4,nCars*2);
+  const stat=()=>{const pr=done+lost,skill=pr?Math.max(.4,Math.min(1.2,.4+done/pr*.8)):0,avgK=done?sumK/done:1,night=1+shN()/100*(dp.nightK-1),vol=Math.min(1,done/need);
+    return{skill,avgK,night,vol,need,money:done?Math.round(park*dp.per*skill*avgK*night*vol*inf()/100)*100:0}};
+  const send=(o,c)=>{o.taken=true;c.st='pick';c.ord=o;c.k=o.k;c.path=pathTo(c,o.x,o.y);sel=null;sfx('click')};
   cv2.onpointerdown=e=>{const r=cv2.getBoundingClientRect(),px=(e.clientX-r.left)/r.width*200,py=(e.clientY-r.top)/r.height*120;
-    const o=orders.find(o=>!o.taken&&Math.hypot(o.x-px,o.y-py)<12);if(!o)return;const fc=cars.filter(c=>c.st==='free').sort((a,b)=>Math.hypot(a.x-o.x,a.y-o.y)-Math.hypot(b.x-o.x,b.y-o.y))[0];
-    if(!fc){sfx('bad');return}o.taken=true;fc.st='pick';fc.ord=o;fc.path=pathTo(fc,o.x,o.y);sfx('click')};
+    const o=orders.find(o=>!o.taken&&Math.hypot(o.x-px,o.y-py)<12);
+    if(o){sel=o===sel?null:o;sfx('click');return}
+    const hit=cars.find(c=>c.st==='free'&&Math.hypot(c.x-px,c.y-py)<11);
+    if(!sel){if(hit)toast('Сначала выберите заказ');return}
+    const free=cars.filter(c=>c.st==='free');if(!free.length){sfx('bad');toast('Свободных машин нет');return}
+    send(sel,hit||free.sort((a,b)=>Math.hypot(a.x-sel.x,a.y-sel.y)-Math.hypot(b.x-sel.x,b.y-sel.y))[0])};
   const frame=ts=>{const dt=last?Math.min(.05,(ts-last)/1000):0;last=ts;t2+=dt;
-    spawn-=dt;if(spawn<=0){spawn=Math.max(.9,2.2-t2*.02);const n=node();orders.push({x:n.x+rand(-4,4),y:n.y,ttl:9,taken:false})}
-    orders.forEach(o=>{if(!o.taken)o.ttl-=dt});orders=orders.filter(o=>{if(!o.taken&&o.ttl<=0){lost++;sfx('bad');return false}return true});
-    cars.forEach(c=>{if(!c.path.length)return;const tg=c.path[0],dx=tg.x-c.x,dy=tg.y-c.y,dist=Math.hypot(dx,dy),sp=70*dt;
-      if(dist<=sp){c.x=tg.x;c.y=tg.y;c.path.shift();if(!c.path.length){if(c.st==='pick'){c.st='drive';orders=orders.filter(o=>o!==c.ord);const n=node();c.path=pathTo(c,n.x,n.y)}else if(c.st==='drive'){c.st='free';score++;sfx('coin')}}}
+    spawn-=dt;if(spawn<=0){spawn=Math.max(dp.spawn[1],dp.spawn[0]-t2*dp.spawn[2]);orders.push(mkOrder())}
+    orders.forEach(o=>{if(!o.taken)o.ttl-=dt});orders=orders.filter(o=>{if(!o.taken&&o.ttl<=0){lost++;if(sel===o)sel=null;sfx('bad');return false}return true});
+    const sp=70*dt*spMul();
+    cars.forEach(c=>{if(!c.path.length)return;const tg=c.path[0],dx=tg.x-c.x,dy=tg.y-c.y,dist=Math.hypot(dx,dy);
+      if(dist<=sp){c.x=tg.x;c.y=tg.y;c.path.shift();if(!c.path.length){if(c.st==='pick'){c.st='drive';orders=orders.filter(o=>o!==c.ord);c.path=pathTo(c,node().x,node().y)}
+        else if(c.st==='drive'){c.st='free';done++;sumK+=c.k;pop.push({x:c.x,y:c.y,t:1});sfx('coin')}}}
       else{c.x+=dx/dist*sp;c.y+=dy/dist*sp}});
+    pop.forEach(p=>p.t-=dt*2);pop=pop.filter(p=>p.t>0);
     g.drawImage(city,0,0);
     g.fillStyle='#f7c33155';GY.forEach(y=>{for(let x=(Math.floor(t2*20))%8;x<200;x+=8)g.fillRect(x,y,3,1)});
-    // заказ: пульсирующее кольцо и пассажир, цвет — сколько осталось ждать
-    orders.forEach(o=>{const x=Math.round(o.x),y=Math.round(o.y),col=o.taken?'#a8a0cc':o.ttl<3?'#ff4d4d':o.ttl<6?'#f7c331':'#86e06f';
-      if(!o.taken){const r=2+Math.floor((t2*2.5)%1*5);g.globalAlpha=1-((t2*2.5)%1);g.fillStyle=col;g.fillRect(x-r,y-4-r,r*2+1,1);g.fillRect(x-r,y-4+r,r*2+1,1);g.fillRect(x-r,y-4-r,1,r*2+1);g.fillRect(x+r,y-4-r,1,r*2+1);g.globalAlpha=1}
-      g.fillStyle='#0e0b1c';g.fillRect(x-2,y-8,5,8);g.fillStyle='#f0c8a0';g.fillRect(x-1,y-7,3,2);g.fillStyle=col;g.fillRect(x-1,y-5,3,3);g.fillStyle='#2a2450';g.fillRect(x-1,y-2,1,1);g.fillRect(x+1,y-2,1,1);
-      if(!o.taken){g.fillStyle='#0e0b1c';g.fillRect(x-5,y+2,11,2);g.fillStyle=col;g.fillRect(x-4,y+2,Math.max(1,Math.round(9*o.ttl/9)),1)}});
-    // такси сверху: повёрнуто по ходу движения, на крыше шашка, спереди фары
+    // заказ: пульсирующее кольцо и пассажир в цвете района, цвет — сколько осталось ждать
+    orders.forEach(o=>{const x=Math.round(o.x),y=Math.round(o.y),on=sel===o,col=o.taken?'#a8a0cc':o.ttl<3?'#ff4d4d':o.ttl<6?'#f7c331':'#86e06f';
+      if(!o.taken&&!on){const r=2+Math.floor((t2*2.5)%1*5);g.globalAlpha=1-((t2*2.5)%1);g.fillStyle=col;g.fillRect(x-r,y-4-r,r*2+1,1);g.fillRect(x-r,y-4+r,r*2+1,1);g.fillRect(x-r,y-4-r,1,r*2+1);g.fillRect(x+r,y-4-r,1,r*2+1);g.globalAlpha=1}
+      if(on){g.fillStyle='#f3ecdc';g.fillRect(x-7,y-11,3,1);g.fillRect(x+4,y-11,3,1);g.fillRect(x-7,y-11,1,3);g.fillRect(x+6,y-11,1,3);g.fillRect(x-7,y+2,3,1);g.fillRect(x+4,y+2,3,1);g.fillRect(x-7,y,1,3);g.fillRect(x+6,y,1,3)}
+      g.fillStyle='#0e0b1c';g.fillRect(x-2,y-8,5,8);g.fillStyle='#f0c8a0';g.fillRect(x-1,y-7,3,2);g.fillStyle=on?'#f3ecdc':(DC[o.d]||col);g.fillRect(x-1,y-5,3,3);g.fillStyle='#2a2450';g.fillRect(x-1,y-2,1,1);g.fillRect(x+1,y-2,1,1);
+      if(!o.taken){g.fillStyle='#0e0b1c';g.fillRect(x-5,y+2,11,2);g.fillStyle=col;g.fillRect(x-4,y+2,Math.max(1,Math.round(9*o.ttl/dp.ttl)),1)}});
+    pop.forEach(p=>{const y=Math.round(p.y-10-(1-p.t)*8);g.globalAlpha=Math.min(1,p.t*2);g.fillStyle='#86e06f';g.fillRect(Math.round(p.x)-3,y,7,1);g.fillRect(Math.round(p.x)+3,y-3,1,7);g.globalAlpha=1});
+    // такси сверху: повёрнуто по ходу движения, на крыше шашка, спереди фары; свободные мигают рамкой, пока выбран заказ
     cars.forEach(c=>{const tg=c.path[0],hz=tg?Math.abs(tg.x-c.x)>=Math.abs(tg.y-c.y):true,dir=tg?(hz?Math.sign(tg.x-c.x):Math.sign(tg.y-c.y))||1:1,x=Math.round(c.x),y=Math.round(c.y);
       const body=c.st==='free'?'#f7c331':c.st==='pick'?'#ff8a4c':'#4fc7b0',w=hz?8:5,h=hz?5:8;
       g.globalAlpha=.4;g.fillStyle='#0e0b1c';g.fillRect(x-(w>>1)+1,y-(h>>1)+1,w,h);g.globalAlpha=1;
@@ -651,11 +692,21 @@ function dispatcher(){
       g.fillStyle=body;g.fillRect(x-(w>>1),y-(h>>1),w,h);g.fillStyle='#9fd3ff';
       if(hz){g.fillRect(dir>0?x+1:x-2,y-1,2,3);g.fillStyle='#fff6a8';g.fillRect(dir>0?x+3:x-4,y-2,1,1);g.fillRect(dir>0?x+3:x-4,y+2,1,1)}
       else{g.fillRect(x-1,dir>0?y+1:y-2,3,2);g.fillStyle='#fff6a8';g.fillRect(x-2,dir>0?y+3:y-4,1,1);g.fillRect(x+2,dir>0?y+3:y-4,1,1)}
-      g.fillStyle='#0e0b1c';g.fillRect(x,y,1,1)});
-    const left=Math.max(0,60-t2);$('dpInfo').textContent=`⏱ ${left.toFixed(0)} сек · выполнено ${score} · сгорело ${lost}`;
-    if(left<=0||fin){mgStop();const money=score*1500,rp=score>=12?2:score>=7?1:0;S.money+=money;S.rep=Math.min(100,S.rep+rp);S.cnt.disp=Math.max(S.cnt.disp||0,score);
-      addLog(`Диспетчер: выполнено ${score} заказов, +${rub(money)}${rp?`, +${rp} к репутации`:''}.`);save();render();sfx(score>=7?'win':'coin');
-      showModal(`<span class="step">ДИСПЕТЧЕР</span><h2>${score} заказов</h2><p>Бонус к выручке: ${rub(money)}${rp?`, репутация +${rp}`:''}. Сгорело заказов: ${lost}.</p><button class="btn" id="dpOk">Отлично</button>`);$('dpOk').onclick=hideModal;return}
+      g.fillStyle='#0e0b1c';g.fillRect(x,y,1,1);
+      if(sel&&c.st==='free'&&(t2*4|0)%2){g.fillStyle='#f3ecdc';g.fillRect(x-(w>>1)-2,y-(h>>1)-2,w+4,1);g.fillRect(x-(w>>1)-2,y+(h>>1)+1,w+4,1);g.fillRect(x-(w>>1)-2,y-(h>>1)-2,1,h+3);g.fillRect(x+(w>>1)+1,y-(h>>1)-2,1,h+3)}});
+    const left=Math.max(0,60-t2),st=stat();let tip='';
+    if(sel){const D=DISTRICTS.find(x=>x.k===sel.d),nr=cars.filter(c=>c.st==='free').sort((a,b)=>Math.hypot(a.x-sel.x,a.y-sel.y)-Math.hypot(b.x-sel.x,b.y-sel.y))[0];
+      tip=' · '+D.n+' ×'+sel.k+(nr?', едет '+crew[nr.i]:' · свободных машин нет')}
+    $('dpInfo').textContent=`⏱ ${left.toFixed(0)} с · выполнено ${done} · сгорело ${lost} · ≈${rub(st.money)}`+tip;
+    if(left<=0||fin){mgStop();
+      const pr=done+lost,rp=(dp.rep.filter(x=>done>=x[0]).pop()||[0,0])[1];
+      S.dispEarn=st.money;S.rep=Math.min(100,S.rep+rp);S.cnt.disp=Math.max(S.cnt.disp||0,done);
+      addLog(`Диспетчер: выполнено ${done} заказов, сгорело ${lost}, ${rub(st.money)} в вечернюю кассу${rp?`, репутация +${rp}`:''}.`);save();render();sfx(done>=7?'win':'coin');
+      showModal(`<span class="step">ДИСПЕТЧЕР</span><h2>${done} заказов</h2>
+        <p>Выполнено ${done}, сгорело ${lost} — точность ${pr?Math.round(done/pr*100):0}%, она даёт ×${st.skill.toFixed(2)} к награде${lost?', сгоревшие заказы её режут':''}.</p>
+        <p>Парк ${park} машин, средний район ×${st.avgK.toFixed(2)}, норма смены ${st.need} заказов — оплата ${Math.round(st.vol*100)}%${shN()?`, вторая смена ×${st.night.toFixed(2)}`:''}${(S.fat||0)>=bal('fatFrom')?`, усталость ${Math.round(S.fat)}% — экипажи медленнее`:''}.</p>
+        <p><b class="pos">${rub(st.money)}</b> придут в кассу вечером${rp?`, репутация +${rp}`:''}.</p><button class="btn" id="dpOk">Отлично</button>`);
+      $('dpOk').onclick=()=>{hideModal();if(cb)cb()};return}
     mgRaf=mgRAF(frame)};
   $('dpStop').onclick=()=>{fin=true};mgRaf=mgRAF(frame);
 }

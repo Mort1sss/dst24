@@ -851,7 +851,7 @@ const totalCars=()=>S.fleet.length+(S.branches||[]).reduce((a,b)=>a+b.cars,0);
 
 /* ---- версия баланса ---- */
 // числа по версиям: партия читает свою версию, нет ключа — берётся ближайшая меньшая; новая настройка = новая запись, старые не менять
-const BAL_NEW=9,BAL={
+const BAL_NEW=10,BAL={
  1:{meet:30,plan:150000,offK:.5,offCap:1e12,loginDay:5000,loginBonus:20000,loginParts:0,loginLoy:0,leaseRet:0},
  2:{start:{normal:1,hard:.9},rev:{normal:1.08,hard:1.1},goal:{normal:175000,hard:175000},star2:1.3,star3:1.7, // подобрано ботом bot-2: «Обычный» ≈55%, «Хардкор» ≈27% побед
   taxDays:[14,28],endTax:60,crisisFirst:[16,21],crisisMin:16,crisisMax:6,endCrisisFirst:[20,30],endCrisisNext:[40,60],inflDay:15,inflPct:[2,3],endInfl:30,
@@ -864,13 +864,15 @@ const BAL_NEW=9,BAL={
  7:{tree:{cost:[1,2,3,4],fin:{cap:.25,loan:.03,tax:.1},ppl:{loy:10,staff:1,fat:.2},car:{price:.08,fail:.05,svc:.15,gift:'monjaro'}},royK:.01,royCap:150000,royFin4:1.5,
   trials:{home:[2e6,4e6,7e6],capital:[30,45,60],resort:[1e6,2e6,3.5e6],north:[40,70,100],port:[800000,1800000,3500000],science:[10,18,25]},goldPts:2},
  8:{collect:[['vesta'],['moskvich'],['solaris','solarisNew'],['rio'],['octavia'],['tiggo'],['jolion'],['camry'],['evolute'],['carnival'],['monjaro'],['mercedes'],['zeekr']]},
- 9:{club:{rep:2,repair:.1},collect:[['vesta'],['moskvich'],['solaris','solarisNew'],['rio'],['octavia'],['tiggo'],['jolion'],['haval'],['coolpad'],['camry'],['evolute'],['k5'],['largus'],['carnival'],['monjaro'],['mercedes'],['zeekr'],['voyah']]}}; // BAL[4] подобран ботом bot-4: «Обычный» ≈60%, агрегаторы 55/54/60%; BAL[5] (кредитный рейтинг) bot-5: «Обычный» ≈60%, «Хардкор» ≈31%
+ 9:{club:{rep:2,repair:.1},collect:[['vesta'],['moskvich'],['solaris','solarisNew'],['rio'],['octavia'],['tiggo'],['jolion'],['haval'],['coolpad'],['camry'],['evolute'],['k5'],['largus'],['carnival'],['monjaro'],['mercedes'],['zeekr'],['voyah']]},
+ 10:{dp:{per:400,cap:8,ttl:9,spawn:[2.1,.85,.02],nightK:1.25,tiredK:.7,rep:[[7,1],[12,2],[18,3]]}}}; // BAL[4] подобран ботом bot-4: «Обычный» ≈60%, агрегаторы 55/54/60%; BAL[5] (кредитный рейтинг) bot-5: «Обычный» ≈60%, «Хардкор» ≈31%
 // BAL[6]: brRev — выручка филиала с машины (было 3300); lotBack — доля цены при продаже стоянки; upgVal/brVal — доля цены улучшений и филиалов в оценке парка; prestK — ₽ оценки на очко престижа; rk — пороги званий
 // BAL[6] город: town — k выручки и cap (заказов на всех) по районам; townLead — надбавка лидера; townFloor — нижний предел давки; townMin/townMax — границы множителя парка
 // BAL[7] холдинг (только бесконечный): tree — цены ступеней (cost) и эффекты веток: fin — капитал, ставка кредитов (п.п.), налоги; ppl — лояльность на старте, сотрудники в отделе, медленнее усталость; car — цены автосалона, поломки, ТО и ремонт, подарок-машина
 // BAL[7]: royK/royCap — отчисления франшиз (доля оценки, потолок ₽), royFin4 — множитель «Финансы IV»; trials — пороги бронза/серебро/золото по городам (port — прибавка выручки от ночных смен, ₽); goldPts — очки за золото
 // BAL[8] цели бесконечного режима: collect — группы моделей для цели «Собрать N авто …»; одна группа = одна модель (двойники вроде solaris+solarisNew считаются вместе), порядок = от дешёвых к дорогим
 // BAL[9] тюнинг: club — «клубный пакет» для машин верхнего класса, где повышать класс некуда: rep — разовая прибавка репутации, repair — доля, на которую дешевле ремонты этого автомобиля
+// BAL[10] смена диспетчера: per — ₽ на машину парка за идеальную смену; cap — сколько экипажей выходит на мини-карту (остальные учитываются в награде через activeN); ttl — секунд на заказ; spawn — [старт, пол, ускорение в секунду]; nightK — множитель при второй смене 100%; tiredK — скорость экипажей при усталости 100%; rep — пороги [выполнено, +репутация]
 // BAL[3] подобран ботом bot-3: «Обычный» ≈63%, без смены и ТО ≈50%, смена всегда на максимуме ≈12%
 // balRev: правки баланса из админки действуют только на партии, начатые после них (см. ОНЛАЙН)
 const bal=(k,v)=>{const e=v;for(v=v||(S&&S.bal)||1;v>0;v--)if(BAL[v]&&k in BAL[v])return S&&S.balRev&&(!e||e===S.bal)?netPatch(k,BAL[v][k]):BAL[v][k]};
@@ -932,7 +934,7 @@ const dayLimit=()=>S.mode==='story'?CHAPTERS[S.chapter||0].days:dailyLike()?7:DA
 const hasLimit=()=>['campaign','story','daily','contest'].includes(S.mode);
 /* ---- режим новичка: возможности открываются постепенно ---- */
 const simpleOn=()=>G.simple!==false&&S&&!['sandbox','daily','contest'].includes(S.mode);
-const FEATURE_DAY={quest:3,inspect:5,rival:6,paper:8,auction:10,contract:11,raid:12,union:14,agency:15,conflict:16,career:20};
+const FEATURE_DAY={quest:3,inspect:5,rival:6,paper:8,auction:10,contract:11,raid:12,disp:8,union:14,agency:15,conflict:16,career:20};
 const TAB_DAY={shop:1,fleet:1,style:2,ach:2,drivers:3,depts:4,fin:5,base:6,map:8,stats:9,biz:10,city:12,branch:12};
 const TAB_HINTS={shop:'Покупайте машины и нанимайте водителей. Больше экипажей на линии — больше выручки. Новые машины надёжнее, б/у дешевле.',
  fleet:'Все ваши машины: пробег, износ, ремонт. Старые машины ломаются чаще — их можно продать или улучшить тюнингом.',
@@ -949,7 +951,7 @@ const TAB_HINTS={shop:'Покупайте машины и нанимайте в�
  ach:'Достижения и ваши лучшие результаты.'};
 const tabOpen=k=>!simpleOn()||S.day>=(TAB_DAY[k]||1)||(k==='branch'&&S.rank>=3);
 const featOpen=k=>!simpleOn()||S.day>=(FEATURE_DAY[k]||1);
-const MORNING_PRIO=['boom','tax','quit','meeting','union','paper','rare','inspect','quest','rival','raid','auction','contract','career','conflict','branch','agency','a2hs'];
+const MORNING_PRIO=['boom','tax','quit','meeting','union','paper','rare','inspect','quest','rival','raid','auction','contract','career','conflict','branch','agency','disp','a2hs'];
 function advice(){
   const left=S.done.filter(x=>!x).length,working=carsN()-brokenN(),free=working-S.drivers,idle=S.drivers-working;
   if(S.over)return null;

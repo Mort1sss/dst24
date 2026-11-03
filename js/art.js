@@ -542,7 +542,7 @@ const post=(()=>{
         gl.uniform1f(U('final','gr'),.035);gl.uniform1f(U('final','tm'),still?0:(fr%61));gl.uniform3f(U('final','tint'),cur.r,cur.g,cur.b)})}};
   return api})();
 /* ровные пиксели: масштаб только целый (в точках экрана), а лишнюю ширину занимает сама сцена, не пустые поля */
-function fitScene(){const d=devicePixelRatio||1,cw=cv.parentElement.clientWidth*d,k=Math.max(1,Math.ceil(cw/400));
+function fitScene(){const d=devicePixelRatio||1,cssW=cv.parentElement.clientWidth,cw=cssW*d,k=Math.max(1,Math.ceil(cw/(cssW<520?400:560)));
   W=Math.floor(cw/k);
   if(W<320){W=320;cv.style.width='100%';cv.style.height='auto';post&&post.show(false)} // очень узкий экран: целый масштаб не помещается
   else{cv.style.width=W*k/d+'px';cv.style.height=H*k/d+'px';if(post){post.fit(cv.style.width,cv.style.height,W*k,H*k);post.show(true)}}

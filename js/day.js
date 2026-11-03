@@ -198,6 +198,8 @@ function endDay(){
   if(AG){const gr=Math.round(revenue/bal('grossK')/100)*100,nt=Math.round(revenue*(1-AG.fee)/bal('grossK')/100)*100;aggFee=gr-nt;revenue=nt;S.aggLast=aggFee}
   {const sN=strikeOn();if(sN){if(!S.strike)S.strike={day:S.day,lost:0};const k=newsDef(sN).demand||1;if(k<1)S.strike.lost+=Math.round(revenue*(1-k)/k)}}
   const adsRev=(S.ads?carsN()*300:0)+(S.upg.gas?carsN()*150:0);
+  // смена диспетчера: мини-игра пишет в S.dispEarn, деньги приходят вечером через кассу дня
+  const dpRev=B(10)?(S.dispEarn||0):0;if(dpRev)S.dispEarn=0;
   const parking=Math.round(carsN()*PARKING*inf()*(S.lotOwned?.4:1)), lease=leaseSum(), pay=payroll(), loans=loanSum(), office=Math.round(OFFICE*inf()*(ownHas('office')?.95:1));
   if(hol){notes.push(`Праздник: ${hol[1]}! Спрос ×${hol[0]}.`);if(hol[1]==='Новогодняя ночь'&&active>0)S.cnt.nye=1}
   if(moodNote)notes.push(moodNote);
@@ -300,7 +302,7 @@ function endDay(){
   S.contracts.filter(c=>c.days<=0).forEach(c=>{notes.push(`Контракт с ${c.co} завершён${c.fails?` (сорвано дней: ${c.fails})`:' без срывов: +2 к репутации'}.`);if(!c.fails)S.rep=Math.min(100,S.rep+2)});
   S.contracts=S.contracts.filter(c=>c.days>0);
   if(cPen)notes.push(`Не хватило машин на контракты: неустойка ${rub(cPen)}.`);
-  const gross=revenue+cRev+adsRev-office-mgmt-pay-parking-lease-loans-repair-raidFine-drvFines-cPen+brNet;
+  const gross=revenue+cRev+adsRev+dpRev-office-mgmt-pay-parking-lease-loans-repair-raidFine-drvFines-cPen+brNet;
   const invCut=gross>0?Math.round(gross*invShare()/10000)*100:0;
   const net=gross-invCut;
   S.money+=net;
@@ -318,15 +320,15 @@ function endDay(){
   S.weather.shift();while(S.weather.length<3)S.weather.push(genWeather(S.day+1+S.weather.length));
   // статистика и неделя
   if(S.rep>75&&S.day%2===0)S.rep--;
-  if(S.kpi)S.kpi.acc+=revenue+cRev+adsRev;
+  if(S.kpi)S.kpi.acc+=revenue+cRev+adsRev+dpRev;
   S.taxAcc=Math.max(0,(S.taxAcc||0)+net);
   let taxPaid=0;if(taxOn()&&isTaxDay(S.day)&&S.taxAcc>0){taxPaid=Math.round(Math.min(S.taxAcc*taxRate(),Math.max(0,S.money)*.5)/100)*100;S.money-=taxPaid;S.taxAcc=0;notes.unshift(`${B(2)&&camp()?'Налог':'Квартальный налог'} с прибыли: ${rub(taxPaid)}.`)}
   if(B(2)&&camp()?S.day===bal('inflDay'):S.day%(B(2)&&endl()?bal('endInfl'):30)===0){const r=rand(...(B(2)&&camp()?bal('inflPct'):[2,4]))/100;S.infl=(S.infl||1)*(1+r);S.mInfl=(S.mInfl||1)*(1+r*.6);notes.push(`Инфляция: цены выросли на ${Math.round(r*100)}%. Рыночные ставки аренды подросли — проверьте ставки во «Финансах».`)}
   if(cOn()){if(S.money<0){cAdd(-1);S.cstreak=0}else if(++S.cstreak>=bal('cStreak')){cAdd(1);S.cstreak=0}
     if(cGrade()!==grade0)notes.unshift(`Кредитный рейтинг: ${grade0} → <b class="${cGrade()<grade0?'pos':'neg'}">${cGrade()}</b>.`)}
-  S.stat.push({d:S.day,rev:revenue+cRev+adsRev,net,money:Math.round(S.money),cars:totalCars(),rep:S.rep});S.stat=S.stat.slice(-90);
+  S.stat.push({d:S.day,rev:revenue+cRev+adsRev+dpRev,net,money:Math.round(S.money),cars:totalCars(),rep:S.rep});S.stat=S.stat.slice(-90);
   if(S.mode==='endless'&&B(7)&&!S.preview)holdDay(revenue,nightK);
-  S.wk.rev+=revenue+cRev+adsRev;S.wk.net+=net;S.wk.breaks+=breaks;S.cnt.brk=(S.cnt.brk||0)+breaks;S.wk.fines+=raidFine+drvFines;
+  S.wk.rev+=revenue+cRev+adsRev+dpRev;S.wk.net+=net;S.wk.breaks+=breaks;S.cnt.brk=(S.cnt.brk||0)+breaks;S.wk.fines+=raidFine+drvFines;
   const lines=[['Экипажей на линии',crews+(stops?` (−${stops} на рейде)`:'')+(crews-regular?`, ${crews-regular} на контрактах`:'')],[`Аренда (реп. ×${factor.toFixed(2)}, спрос ×${demand.toFixed(2)}, районы ×${distK.toFixed(2)}${revK!==1?`, сложность ×${revK}`:''}${B(3)?(S.shift2?`, вторая смена ×${nightK.toFixed(2)}`:''):S.night?`, ночь ×${nightK.toFixed(2)}`:''}${sat<1?`, рынок ×${sat.toFixed(2)}`:''})`,rub(revenue+aggFee)],['Офис',rub(-office)],...(mgmt?[['Управление большим парком',rub(-mgmt)]]:[]),['Зарплаты начальников и команд',rub(-pay)],['Стоянка и страховка',rub(-parking)]];
   if(aggFee)lines.splice(2,0,[`Комиссия «${AGG[S.agg||'mig'].n}» (${Math.round(AG.fee*100)}%)`,rub(-aggFee)]);
   if(lease)lines.push(['Лизинг',rub(-lease)]);
@@ -338,6 +340,7 @@ function endDay(){
   if(S.branches.length)lines.push([`Филиалы (${S.branches.length})`,(brNet>=0?'+':'')+rub(brNet)]);
   if(cRev)lines.splice(2,0,['Корпоративные контракты',rub(cRev)]);
   if(adsRev)lines.splice(2,0,[S.upg.gas&&S.ads?'Реклама и своя АЗС':S.upg.gas?'Своя АЗС':'Реклама на машинах',rub(adsRev)]);
+  if(dpRev)lines.splice(2,0,['Смена диспетчера',rub(dpRev)]);
   if(cPen)lines.push(['Неустойка по контрактам',rub(-cPen)]);
   if(typeof taxPaid!=='undefined'&&taxPaid)lines.push(['Квартальный налог',rub(-taxPaid)]);
   if(invCut)lines.push([`Доля инвесторов (${invShare()}%)`,rub(-invCut)]);
@@ -391,6 +394,7 @@ function startDay(){
   if(S.day>=S.nextAgency&&HEADS.some(h=>h.some(x=>x.hidden&&!S.agency.includes(x.key))))m.push('agency');
   if(S.day>=S.nextRival)m.push('rival');
   if(!S.quest&&S.day>=S.nextQuest)m.push('quest');
+  if(B(10)&&S.day>1&&S.dispDay!==S.day&&activeN()>=2&&featOpen('disp')&&Math.random()<.3)m.push('disp');
   let mm=m.filter(k=>featOpen(k));
   if(simpleOn()){mm.sort((a,b)=>MORNING_PRIO.indexOf(a)-MORNING_PRIO.indexOf(b));mm=mm.slice(0,1)}
   // новые вкладки
@@ -403,7 +407,7 @@ function startDay(){
 function runMorning(){
   if(!S.morning.length||S.over){save();render();return}
   const k=S.morning.shift();save();
-  ({inspect:inspection,rival:rivalEvent,quest:newQuest,meeting:meeting,tax:taxAudit,raid:raidEvent,branch:branchEvent,paper:newspaper,career:careerEvent,a2hs:a2hsEvent,boom:debtBoom,rare:rareEvent,echo:echoEvent,quit:quitEvent,conflict:conflictEvent,union:unionEvent,auction:auction,contract:contractOffer,agency:agencyEvent,netnews:netNewsEv}[k]||runMorning)();
+  ({inspect:inspection,rival:rivalEvent,quest:newQuest,meeting:meeting,tax:taxAudit,raid:raidEvent,branch:branchEvent,paper:newspaper,career:careerEvent,a2hs:a2hsEvent,boom:debtBoom,rare:rareEvent,echo:echoEvent,quit:quitEvent,conflict:conflictEvent,union:unionEvent,auction:auction,contract:contractOffer,agency:agencyEvent,netnews:netNewsEv,disp:dispAsk}[k]||runMorning)();
 }
 const fName=i=>G.founders[i]||FOUNDERS[i].name;
 function inspection(){
