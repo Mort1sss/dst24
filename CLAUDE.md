@@ -46,7 +46,7 @@
 | Мини-игры | `minigames.js` | `mgTiming`, `lgRace`, `lgPark`, `dispatcher`, `TOPCAR`, `mgRAF`, `mgStop` |
 | Финал и интерфейс | `ui.js` | `finale`, `gameOver`, `render`, `renderHud`, `renderMgmt`, `icon16`, `ICON16` |
 | Двор и графика | `art.js` | `draw`, `drawScene`, `drawCar`, `CARS2`, `syncMovers`, `stepParts`, `lightPass`, `post` (WebGL), `fitScene` |
-| Онлайн | `online.js` | `NET`, `api`, `rpc`, `cloudPush/cloudPull`, `netSubmit`, `netDay`, `netGifts`, `netMailRun`, `openCity`, `ctUse/ctSync`, город `TOWN`/`townK`/`drawTown`; правки баланса — `S.balPatch`. Серверные проверки — в `supabase/schema.sql`: `send_gift` списывает кассу из `saves.money`, `poach` требует `saves.drivers`, `submit_score` держит пределы дней и одну лучшую запись на ключ дня |
+| Онлайн | `online.js` | `NET`, `api`, `rpc`, `cloudPush/cloudPull`, `netSubmit`, `netDay`, `netGifts`, `netMailRun`, `openCity`, `ctUse/ctSync`, город `TOWN`/`townK`/`drawTown`; правки баланса — `S.balPatch`. Серверные проверки — в `supabase/schema.sql`: `send_gift` списывает кассу из `saves.money`, `poach` требует `saves.drivers`, `submit_score` держит пределы дней и одну лучшую запись на ключ дня | Подарки из админки: потолок `GRANT_MAX` (1 млн ₽), опрос раз в минуту через `setInterval` с условием `online()&&!netBusy()`, накопленное `G.netGift` зачисляется в живую партией тем же `netGifts()` |
 | Бот-измеритель | `sim.js` | `__balanceSim`, `.all`, `.story`, `.free` |
 
 ## Данные и сохранения

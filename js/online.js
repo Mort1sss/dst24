@@ -3,6 +3,8 @@
 // Надстройка: без NET.url не делает ни одного запроса, все ошибки сети гасятся.
 const NET={url:'https://rqliljvgabjefmkfefxb.supabase.co',key:'sb_publishable_duTc_qYnmM6pGsWrrF4fiA_vcPcOqJK',mail:'mort1sss.github.io'};
 const NKEY='dst24-net-v1';
+// потолок разовой награды: столько же разрешает форма админки, сверх — игрок видит, что сумму урезали
+const GRANT_MAX=1e6;
 let netSt={};try{netSt=JSON.parse(localStorage.getItem(NKEY))||{}}catch(e){}
 const netSave=()=>{try{localStorage.setItem(NKEY,JSON.stringify(netSt))}catch(e){}};
 const online=()=>!!NET.url&&!!netSt.tok;
@@ -128,7 +130,7 @@ function openNetModal(msg){
     showModal(`<span class="step">ОНЛАЙН</span><h2>${netDot()} На связи</h2><p>Вы вошли как <b>${esc(netSt.nick||'игрок')}</b>. Партия копируется в облако после каждого дня, результаты уходят в общую таблицу.</p><p class="note" id="nvMsg">${msg?esc(msg):''}</p>
       <div class="btns"><button class="buy" id="nvCity">Город</button><button class="buy" id="nvSync">Синхронизировать</button><button class="buy alt" id="nvOut">Выйти</button><button class="btn ghost" id="nvClose">Закрыть</button></div>`);
     $('nvCity').onclick=openCity;
-    $('nvSync').onclick=async()=>{$('nvMsg').textContent='Связываюсь…';netPushT=0;await cloudPull();if($('nvMsg'))$('nvMsg').textContent='Готово'};
+    $('nvSync').onclick=async()=>{$('nvMsg').textContent='Связываюсь…';netPushT=0;await cloudPull();await netGifts();netMailRun();if($('nvMsg'))$('nvMsg').textContent='Готово'};
     $('nvOut').onclick=async()=>{await signOut();openNetModal('Вы вышли.')};
   }else{
     showModal(`<span class="step">ОНЛАЙН</span><h2>${netDot()} Вход в диспетчерскую</h2><p class="note">Облачные сохранения и общий рейтинг. Без входа игра работает как раньше.</p>
@@ -143,6 +145,8 @@ function openNetModal(msg){
   $('nvClose').onclick=hideModal}
 if(NET.url&&netSt.tok)setTimeout(async()=>{rpc('touch');await cloudPull();netGifts();netMailRun()},1500);
 if(NET.url)setTimeout(netLoad,600);
+// раньше награды дожидались захода в игру или утра следующего дня; теперь раз в минуту, когда игрок не в модалке и не в рассылке
+if(NET.url)setInterval(()=>{if(online()&&!netBusy()){netGifts();netMailRun()}},60000);
 
 /* ---- правки баланса, события, подарки ---- */
 let netOff=false; // бот ?sim: онлайн-правки не видит
@@ -182,19 +186,27 @@ function netNewsEv(){const n=S.netNews||[];S.netNews=[];
   $('nnOk').onclick=()=>{hideModal();runMorning()}}
 function netGrant(r){const p=r.params||{};
   if(r.kind==='ach'){const a=ACH.find(x=>x[0]===p.id);if(!a)return;G.ach[a[0]]=true;saveG();if(S&&!S.preview){S.ach[a[0]]=S.ach[a[0]]||S.day;addLog(`Достижение: «${a[1]}»`)}}
-  else if(r.kind==='money'){const a=Math.round(netClamp(p.amount,0,1e5));if(!a)return;
-    if(netLiveGame()){S.money+=a;addLog(`Подарок от диспетчерской: ${rub(a)}.`);save();render()}else{G.netGift=(+G.netGift||0)+a;saveG()}}
+  else if(r.kind==='money'){const v=Math.round(+p.amount||0),a=Math.round(netClamp(v,0,GRANT_MAX));if(!a)return;
+    if(netLiveGame()){S.money+=a;addLog(`Подарок от диспетчерской: ${rub(a)}.`);save();render()}
+    else{G.netGift=(+G.netGift||0)+a;saveG()}
+    // один тост: иначе общий ниже перезатрёт честный текст про урезание или ожидание
+    toast(a!==v?`Диспетчерская урезала награду до ${rub(a)}`:netLiveGame()?'Подарок от диспетчерской':'Награда ждёт: придёт с новой партией');sfx('win');return}
   else if(r.kind==='livery'){const a=UNLOCK.livery[String(p.id)];if(!a)return;G.ach[a]=true;saveG()}
   else if(r.kind==='note'){const t=String(p.text||p.note||'').slice(0,400);if(!t)return;
     if($('modal').hidden)showModal(`<span class="step">ДИСПЕТЧЕРСКАЯ</span><h2>Сообщение</h2><p>${esc(t)}</p><button class="btn" id="ngOk">Понятно</button>`),$('ngOk').onclick=hideModal;
     else if(S&&!S.preview)addLog('Диспетчерская: '+esc(t))}
   else return;
   toast(r.kind==='note'?'Записка от диспетчерской':'Подарок от диспетчерской');sfx('win')}
-let netGB=false;
+let netGB=false,netGBad=0;
+// предупреждаем один раз, пока связь с диспетчерской не восстановится: опрос по таймеру, спамить не надо
+const netGBad1=()=>{if(netGBad)return;netGBad=1;toast('Диспетчерская не отвечает: награды не забрать')};
 async function netGifts(){if(!online()||netGB||netOff)return;netGB=true;
-  try{const l=await rpc('my_grants');if(!Array.isArray(l))return;
-    for(const g of l.slice(0,20)){const id=Math.round(+g.id);if(!id)continue;const r=await rpc('claim_grant',{p_id:id});if(r&&r.kind)netGrant(r)}}
-  catch(e){}finally{netGB=false}}
+  try{const l=await rpc('my_grants');if(!Array.isArray(l)){netGBad1();return}netGBad=0;
+    for(const g of l.slice(0,20)){const id=Math.round(+g.id);if(!id)continue;const r=await rpc('claim_grant',{p_id:id});if(r&&r.kind)netGrant(r)}
+    // накопленное, когда живой партии не было, падает в кассу, как только игрок в неё вернулся — не ждать новой партии
+    if(G.netGift&&netLiveGame()){const a=Math.round(netClamp(G.netGift,0,GRANT_MAX));
+      if(a){S.money+=a;G.netGift=Math.max(0,(+G.netGift||0)-a);saveG();addLog(`Подарок от диспетчерской: ${rub(a)}.`);toast('Подарок от диспетчерской');sfx('coin');save();render()}}
+  }catch(e){netGBad1()}finally{netGB=false}}
 // входящие письма: сначала my_mail (список), mail_done забирает письмо, и только его ответ даёт награду/потерю
 let netMB=false;
 async function netMailRun(){if(!online()||netMB||!netLiveGame())return;netMB=true;

@@ -229,7 +229,7 @@ function newGame(mode,heads,opts={}){
     if(lp.streak){const w=loginPay(lp.streak);addLog(`Награда за вход: ${rub(w.m)}${w.w?`, +${bal('loginParts')} запчасти, лояльность +${bal('loginLoy')}`:''}.`)}
     else{S.money+=lp;addLog(`Награда за вход: ${rub(lp)}.`)}
     G.loginPending=0;saveG()}
-  if(G.netGift&&mode!=='sandbox'&&!dailyLike()){const g=Math.min(1e5,+G.netGift||0);S.money+=g;addLog(`Подарок от диспетчерской: ${rub(g)}.`);G.netGift=Math.max(0,(+G.netGift||0)-g);saveG()}
+  if(G.netGift&&mode!=='sandbox'&&!dailyLike()){const g=Math.min(GRANT_MAX,+G.netGift||0);S.money+=g;addLog(`Подарок от диспетчерской: ${rub(g)}.`);G.netGift=Math.max(0,(+G.netGift||0)-g);saveG()}
   save();render();
   if(mode==='story')showModal(`<span class="step">СЮЖЕТ</span><h2>${CHAPTERS[S.chapter].n}</h2><p>${CHAPTERS[S.chapter].d}</p><p><b>Цель:</b> ${CHAPTERS[S.chapter].goalTxt}.</p><button class="btn" id="chGo">Начать</button>`),$('chGo').onclick=()=>{hideModal();if(!G.tutDone)tutorial()};
   else if(dailyLike()){showModal(`<span class="step">${mode==='contest'?'СОРЕВНОВАНИЕ НЕДЕЛИ':'ИСПЫТАНИЕ ДНЯ'} · ${mode==='contest'?esc(S.dailyKey):todayKey()}</span><h2>${DAILY_SC[S.dailyIdx].n}</h2><p>${DAILY_SC[S.dailyIdx].d}</p><p>7 дней. Очки = касса + 50 000 ₽ за каждую машину + 2 000 ₽ за каждое очко репутации. Сегодня у всех игроков одинаковое испытание — сравните результат с друзьями.</p>${mode==='daily'&&G.daily&&G.daily.key===todayKey()?`<p class="note">Ваш лучший результат сегодня: ${G.daily.best.toLocaleString('ru-RU')} очков.</p>`:''}<button class="btn" id="dyGo">Поехали</button>`);$('dyGo').onclick=hideModal}
