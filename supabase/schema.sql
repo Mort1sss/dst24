@@ -198,8 +198,9 @@ language plpgsql security definer set search_path = public as $$
 declare u uuid := public._uid(); r bigint; k date; nowd date := ((now() at time zone 'utc')::date);
 begin
   if p_mode is null or p_mode not in ('campaign','endless','story','daily','contest') then raise exception 'mode'; end if;
-  if p_days is null or p_days < 0 or p_days > case p_mode
-    when 'campaign' then 31 when 'story' then 46 when 'daily' then 10 when 'contest' then 10 else 2000 end
+  -- скобки обязательны: plpgsql ищет конец условия по первому THEN, а их внутри CASE несколько
+  if p_days is null or p_days < 0 or p_days > (case p_mode
+    when 'campaign' then 31 when 'story' then 46 when 'daily' then 10 when 'contest' then 10 else 2000 end)
     then raise exception 'days'; end if;
   if p_cars is null or p_cars < 0 or p_cars > 1000 then raise exception 'cars'; end if;
   if p_money is null or abs(p_money) >= 10000000000 then raise exception 'money'; end if;
