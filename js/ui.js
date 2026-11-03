@@ -290,13 +290,16 @@ function render(prev){
 const MGROUPS=[['garage','Гараж',['shop','fleet','base']],['people','Люди',['drivers','depts']],['town','Город',['map','city','branch']],['cash','Деньги',['fin','biz','stats']],['more','Ещё',['style','ach']]];
 let lastSub={};
 const MTABS=[['shop','Автосалон'],['fleet','Мой парк'],['drivers','Водители'],['depts','Отделы'],['map','Карта'],['biz','Бизнес'],['branch','Филиалы'],['base','База'],['fin','Финансы'],['stats','Статистика'],['city','Город'],['style','Мой стиль'],['ach','Достижения']];
-function hireCard(){const off=S.over||S.preview,working=carsN()-brokenN(),free=Math.max(0,working-S.drivers);
+function hireCard(){const off=S.over||S.preview,working=carsN()-brokenN(),free=Math.max(0,working-S.drivers),H=B(11)?bal('hire'):null,used=B(11)?hireUsed():0,cap=B(11)?hireCap():0,full=B(11)&&used>=cap,cost=B(11)?H.cost:HIRE_COST;
   return `<div class="card2 hire${free>0?' need':''}"><div class="car-top"><canvas class="mini" width="38" height="17" data-m="person"></canvas>
     <div><h3>Нанять водителей</h3><div class="kind">вакансия на Авито</div></div></div>
-    <div class="specs"><div class="spec"><span>Размещение</span><b>${rub(HIRE_COST)}</b></div>
-    <div class="spec"><span>Обычно приходит</span><b>1–2 вод.</b></div>
-    <div class="spec"><span>Машин без водителя</span><b class="${free?'neg':''}">${free}</b></div></div>
-    <div class="btns"><button class="buy" id="hireBtn" ${S.hired||off||S.money<HIRE_COST?'disabled':''}>${S.hired?'Сегодня уже размещена':'Разместить'}</button></div></div>`}
+    <div class="specs"><div class="spec"><span>Размещение</span><b>${rub(cost)}</b></div>
+    <div class="spec"><span>${B(11)?'Отклики':'Обычно приходит'}</span><b>${B(11)?`${H.min}–${H.max} вод.`:'1–2 вод.'}</b></div>
+    <div class="spec"><span>Машин без водителя</span><b class="${free?'neg':''}">${free}</b></div>
+    ${B(11)?`<div class="spec"><span>Найм за 7 дней</span><b class="${full?'neg':'pos'}">${used} из ${cap}</b></div>`:''}</div>
+    <div class="btns"><button class="buy" id="hireBtn" ${S.hired||off||S.money<cost||full?'disabled':''}>${S.hired?'Вакансия уже размещена':full?'Лимит найма на неделю':'Разместить'}</button>
+    ${B(11)?`<button class="buy alt" id="hireBoost" ${S.hired||off||S.money<H.cost+H.boost||full?'disabled':''}>С продвижением · ${rub(H.cost+H.boost)}</button>`:''}</div>
+    ${B(11)?'<p class="sub">Продвижение даёт больше откликов и больше «звёзд», но кандидаты дороже. Собеседование — утром.</p>':''}</div>`}
 const b3=()=>B(3);
 // в renderMgmt локальная B — элемент #mbody, поэтому проверка баланса только через обёртку
 const b7=()=>B(7);
@@ -364,11 +367,11 @@ function renderMgmt(){
         <label class="chk"><input type="checkbox" data-pin="${d}" ${pinned?'checked':''}> Закрепить для новых игр</label>
         <div class="row2"><span>Сменить на:</span><div class="btns">${availHeads(d).filter(x=>x.key!==h.key).map(x=>`<button class="buy sm alt" data-head="${d}:${x.key}" ${dis} title="${x.perk}: ${x.desc}">${esc(x.name)}</button>`).join('')}</div></div>
         <p class="sub">Смена начальника: выходное пособие ${rub(15000)}.</p>
-        <div class="row2"><span>Сотрудники (${rub(STAFF_PAY)}/день каждый)</span><div class="btns"><button class="buy sm alt" data-staff="${d}:-1" ${dis}>−</button><span class="count">${S.staff[d]}</span><button class="buy sm" data-staff="${d}:1" ${dis}>+</button></div></div>
+        <div class="row2"><span>Сотрудники (${rub(STAFF_PAY)}/день каждый)</span><div class="btns"><button class="buy sm alt" data-staff="${d}:-1" ${dis}>−</button><span class="count">${S.staff[d]}/${staffCap()}</span><button class="buy sm" data-staff="${d}:1" ${dis||S.staff[d]>=staffCap()?'disabled':''}>+</button></div></div>
         <div class="row2"><span>Обучение: ${S.train[d]}/3</span>${S.train[d]<3?`<button class="buy sm" data-train="${d}" ${dis}>Обучить −${rub(trainPrice(d))}</button>`:'<span class="done-tag">МАКС.</span>'}</div>
         <div class="row2"><span>Характер</span><span class="sub">${BIAS_N[headBias(d)]}</span></div>
         <div class="row2"><span>Отношения</span><span class="rel ${relOf(d)<0?'neg':''}" title="${relOf(d)}">${relHearts(relOf(d))}</span><button class="buy sm alt" data-hbonus="${d}" ${dis}>Премия ${rub(Math.round(10000*inf()))}</button></div>
-        <div class="row2"><span>Риск провалов</span><b class="${r<=.8?'pos':r>1?'neg':''}">×${r.toFixed(2)}</b></div>
+        <div class="row2"><span>Риск провалов</span><b class="${r<=.8?'pos':r>1?'neg':''}">×${r.toFixed(2)}${S.staff[d]<staffCap()?` <span class="sub">→ ×${rmAt(d,S.staff[d]+1).toFixed(2)}</span>`:''}</b></div>
         ${load01(d)>0?`<p class="neg" style="font-size:14px">Отдел перегружен: ${d===0?'много водителей':'много машин'} на ${S.staff[d]} сотр. Наймите людей.</p>`:''}
         ${d===2?`<p class="sub">Чинит до ${repairCap()} машин в день.</p>`:''}
       </div></div>`}).join('')}</div>
@@ -419,7 +422,7 @@ function renderMgmt(){
       <div class="row2"><span>Корпоратив для всех: лояльность +15, репутация +1 (раз в 30 дней)</span><button class="buy sm" id="partyBtn" ${off||S.day-S.lastParty<30?'disabled':''}>${S.day-S.lastParty<30?`Через ${30-(S.day-S.lastParty)} дн.`:'Устроить за '+rub(5000+S.drivers*500)}</button></div>
       ${S.upg.school?`<div class="row2"><span>Школа водителей: учеников ${S.school.length}/3${S.school.length?` (выпуск: ${S.school.map(x=>'день '+x.ready).join(', ')})`:''}</span><button class="buy sm" id="schoolBtn" ${dis}>Набрать ученика −4 000 ₽</button></div>`:'<p class="sub">Постройте «Школу водителей» во вкладке «База», чтобы учить новичков самим.</p>'}
       <div class="tablewrap"><table><thead><tr><th>Водитель</th><th>Рейтинг</th><th>Стаж</th><th>Характер</th><th>Лояльность</th><th></th></tr></thead><tbody>
-      ${list.map(d=>{const T=TRAITS[d.t];return `<tr><td>${esc(d.n)}</td><td>★ ${d.r.toFixed(2)}</td><td>${d.xp} ${d.xp%10===1&&d.xp!==11?'год':d.xp%10>=2&&d.xp%10<=4&&(d.xp<10||d.xp>20)?'года':'лет'}</td>
+      ${list.map(d=>{const T=TRAITS[d.t];return `<tr><td>${esc(d.n)}${d.req&&Math.abs(d.req-1)>=.005?`<br><span class="sub" style="font-size:13px">аренда ${rentTxt(d.req)}</span>`:''}</td><td>★ ${d.r.toFixed(2)}</td><td>${d.xp} ${d.xp%10===1&&d.xp!==11?'год':d.xp%10>=2&&d.xp%10<=4&&(d.xp<10||d.xp>20)?'года':'лет'}</td>
         <td title="${T.d}">${T.n}<br><span class="sub" style="font-size:13px">${T.d}</span></td><td><div class="bar ${d.loy>=50?'green':''}"><i style="width:${d.loy}%"></i></div></td>
         <td><div class="btns"><button class="buy sm" data-dprem="${d.id}" ${dis}>Премия 3 000</button><button class="buy sm alt" data-dtalk="${d.id}" ${dis}>Беседа</button>
         ${canMonth?`<button class="buy sm" data-dmonth="${d.id}" ${dis}>★ Месяца</button>`:''}<button class="buy sm alt" data-dfire="${d.id}" ${dis}>${d.fireArm===S.day?'Точно?':'Уволить'}</button></div></td></tr>`}).join('')}
@@ -536,7 +539,8 @@ $('mbody').addEventListener('click',e=>{const b=e.target.closest('button');if(!b
   if(ds.tab){shopTab=ds.tab;renderMgmt();return}
   if(S.preview)return;
   if(ds.buy)return buy(ds.buy);
-  if(b.id==='hireBtn')return hire();
+  if(b.id==='hireBtn')return hire(false);
+  if(b.id==='hireBoost')return hire(true);
   if(ds.sellcar)return sellCar(+ds.sellcar);
   if(ds.svc){if(service(S.fleet.find(c=>c.id===+ds.svc))){addLog('ТО: машина отправлена на плановое обслуживание.');sfx('coin');save();render()}else toast('Не хватает денег');return}
   if(ds.svcall)return serviceOverdue();

@@ -604,6 +604,25 @@ function checkLogin(){const k=todayKey();G.login=G.login||{};const off=offlineIn
   showModal(`<span class="step">НАГРАДА ЗА ВХОД</span><h2>День ${streak} подряд</h2><div class="streak">${[1,2,3,4,5,6,7].map(i=>`<i class="${i<=((streak-1)%7)+1?'on':''}">${i}</i>`).join('')}</div>
     ${off?`<p>Пока вас не было, парк заработал <b class="pos">${rub(off)}</b>.</p>`:''}<p>${live?`В кассу парка зачислено ${rub(reward)}.`:`Награда придёт в кассу, когда начнёте игру.`}${w7?` Бонус 7-го дня: ${live?'':'тоже '}+${bal('loginParts',bv)} запчасти и +${bal('loginLoy',bv)} к лояльности всех водителей.`:''} Заходите каждый день: награда растёт до 7-го дня, а на 7-й — бонус.</p><button class="btn" id="lgOk">Забрать</button>`);
   sfx('win');$('lgOk').onclick=()=>{hideModal();if(S&&S.preview)pickMode()}}
+/* ---- собеседование на Авито ---- */
+const rentTxt=r=>{const v=Math.round((r-1)*100);return v===0?'по рынку':(v>0?'+':'−')+Math.abs(v)+'% к рынку'};
+function vacancy(){
+  if(!S.cands||!S.cands.length)return runMorning();
+  showModal(`<span class="step">УТРО · СОБЕСЕДОВАНИЕ</span><h2>Отклики на Авито</h2>
+    <p>Пришли ${S.cands.length} ${S.cands.length===1?'кандидат':'кандидата'}. Рейтинг и ставка ходят вместе: «звезда» просит аренду ниже рынка, слабый согласен платить больше. Лимит найма сейчас ${hireUsed()}/${hireCap()} за 7 дней.</p>
+    <div class="modes">${S.cands.map((c,i)=>`<button class="mode" id="vc${i}"><b>${esc(c.n)}</b><span style="color:var(--ink)">★${c.r.toFixed(2)} · ${TRAITS[c.t].n} · лояльность ${c.loy} · аренда ${rentTxt(c.req)}</span></button>`).join('')}</div>
+    <button class="btn ghost" id="vcSkip">Никого не брать</button>`);
+  sfx('alert');
+  S.cands.forEach((c,i)=>{$('vc'+i).onclick=()=>takeCand(i)});
+  $('vcSkip').onclick=()=>{S.cands=[];save();hideModal();runMorning()};
+}
+function takeCand(i){
+  const c=S.cands[i];if(!c)return;
+  const nd={id:++S.dseq,n:c.n,r:c.r,xp:c.xp,t:c.t,loy:c.loy,req:c.req};
+  S.dlist.push(nd);S.drivers=S.dlist.length;S.hireLog=(S.hireLog||[]).concat(S.day);S.cands=[];
+  addLog(`Авито: нанят ${nd.n} — ★${nd.r}, аренда ${rentTxt(nd.req)}.`);
+  toast(`${nd.n} вышел на линию`);sfx('coin');syncDrivers();save();render();hideModal();runMorning();
+}
 /* ---- смена диспетчера ---- */
 // оценка «quanto заплатит смена»: парк × ставка × полная точность × вторая смена; спрос районов заранее неизвестен, поэтому в тексте это «около»
 const dispTop=()=>{const dp=bal('dp');return Math.round(activeN()*dp.per*1.2*(1+shN()/100*(dp.nightK-1))*inf()/100)*100};

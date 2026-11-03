@@ -47,16 +47,21 @@ function addLog(t){S.log.unshift({d:S.day,t});S.log=S.log.slice(0,80)}
 
 /* ---- модификаторы отделов ---- */
 function load01(d){const need=d===0?S.drivers/6:carsN()/6, cap=S.staff[d]+1;return Math.min(.4,Math.max(0,need/cap-1)*.15)}
-function rm(d){
-  const h=headDef(d);let r=1-.07*S.staff[d]-.1*S.train[d]-.08*h.skill+load01(d);
+const staffCap=()=>B(11)?bal('staffCap'):8;
+function rmAt(d,n){
+  const h=headDef(d);let r=1-.1*S.train[d]-.08*h.skill;
   if(h.key==='gena')r+=.15; if(h.key==='irina'||h.key==='zarina')r-=.15;
   if(d===0&&S.upg.call)r-=.12;
   if(d===1)r+=newsMod('risk1');
   if(S.moodMod)r+=S.moodMod[d]||0;
   r-=relOf(d)*.01;
+  // B(11): каждый сотрудник даёт множитель, а не вычитание — 25-й почти ничего не добавляет
+  if(B(11))r*=Math.pow(bal('staffK'),n)*(1+load01(d));
+  else r-=.07*n+load01(d);
   r*=dif().risk;
-  return Math.max(.25,Math.min(1.6,r));
+  return Math.max(B(11)?.12:.25,Math.min(1.6,r));
 }
+const rm=d=>rmAt(d,S.staff[d]);
 const repairMult=()=>inf()*(hq('car',3)?1-bal('tree',7).car.svc:1)*(hasHead('master')?.85:1)*(hasHead('petrovich')?.7:1)*(S.upg.tire?.65:1)*newsMod('repair');
 const failMult=()=>(cityDef().fail||1)*dif().fail*(hasHead('sanya')?.65:1)*(S.upg.diag?.7:1)*(hq('car',2)?1-bal('tree',7).car.fail:1)*season(dateOf(S.day)).fail*newsMod('fail');
 const repairCap=()=>2+2*S.staff[2]+(hasHead('olga')?3:0)+(hasHead('robot')?5:0)+(S.upg.lift?2:0);
@@ -188,7 +193,7 @@ function blankState(mode){
     alloc:{center:30,sleep:40,air:15,rail:15},dmods:{center:1,sleep:1,air:1,rail:1},townAlloc:{},dnews:[],night:0,shift2:0,fat:0,weather:[],investors:[],union:false,unionDays:0,nextUnion:0,
     nextAuction:7,nextContract:rand(9,13),nextAgency:rand(10,15),contracts:[],lines:{},ads:null,school:[],agency:[],stat:[],wk:{rev:0,net:0,breaks:0,fines:0,fails:[]},
     custom:Object.assign({name:'ДСТ-24',color:'yellow',logo:'checker',avatar:0,livery:'none'},G.custom||{}),
-    parts:10,crisis:null,nextCrisis:rand(25,40),extraHeads:[[],[],[]],moodMod:[0,0,0],nextCareer:rand(18,24),nextConflict:rand(14,20),lastParty:-99,strike:null,owned:{},dispDay:0,dispEarn:0,
+    parts:10,crisis:null,nextCrisis:rand(25,40),extraHeads:[[],[],[]],moodMod:[0,0,0],nextCareer:rand(18,24),nextConflict:rand(14,20),lastParty:-99,strike:null,owned:{},dispDay:0,dispEarn:0,vac:null,cands:[],hireLog:[],
     agg:'mig',aggAt:-99,aggNext:0,aggLast:0,lowDays:0,cscore:0,cstreak:0,war:null,ctLost:null,infl:1,mInfl:1,taxAcc:0,kpi:null,kpiStreak:0,kpiFails:0,tdebt:0,rel:{},relCd:{},city:'home',hold:null,gid:'',balPatch:null,balRev:0,goalBal:null,migBal:null,netSeen:{},netRev:[],seed:0};
 }
 function fixState(v){const b=blankState(v.mode||'campaign');const o=Object.assign(b,v);o.bal=v.bal||1;

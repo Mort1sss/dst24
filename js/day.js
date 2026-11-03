@@ -110,8 +110,32 @@ function sellCar(id){
   addLog(c.lease>0?`Вернули ${M.name} лизинговой компании${lr?` (−${rub(lr)})`:''}. Платежи прекращены.`:`Продали ${M.name} (${km(c.km)}) за ${rub(v)}.`);
   toast(c.lease>0?'Машина возвращена в лизинг':`Продано за ${rub(v)}`);sfx('coin');save();render(before);
 }
-function hire(){
+const hireUsed=()=>{if(!S.hireLog)S.hireLog=[];S.hireLog=S.hireLog.filter(d=>S.day-d<7);return S.hireLog.length};
+const hireCap=()=>{const H=bal('hire');return H.cap+Math.floor(S.rep/H.capRep)};
+const candName=()=>DNAMES[rand(0,DNAMES.length-1)]+' '+'АБВГДЕЖЗИКЛМНОПРСТУФХ'[rand(0,19)]+'.';
+/* отклики: слабый просит аренду выше рынка, «звезда» — ниже; рейтинг и ставка ходят вместе */
+function mkCands(boost){
+  const H=bal('hire'),n=boost?rand(H.max+1,H.bmax):rand(H.min,H.max),out=[];
+  for(let i=0;i<n;i++){
+    const q=Math.random()+(boost?H.bstar:0)+(hasHead('artur')?.15:0),tier=q>.78?'star':q>.42?'mid':'weak';
+    const r=tier==='star'?+(4.84+Math.random()*.1).toFixed(2):tier==='mid'?+(4.68+Math.random()*.14).toFixed(2):+(4.55+Math.random()*.12).toFixed(2);
+    const req=tier==='star'?+(.93+Math.random()*.04).toFixed(3):tier==='mid'?+(.98+Math.random()*.04).toFixed(3):+(1.02+Math.random()*.04).toFixed(3);
+    const loy=Math.round(tier==='star'?66+Math.random()*19:tier==='mid'?60+Math.random()*20:55+Math.random()*15);
+    const ts=tier==='star'?['star','vet','night']:tier==='mid'?['neat','vet','night','star']:['rookie','racer','neat'];
+    out.push({n:candName(),r,req,loy,xp:tier==='star'?rand(6,15):rand(2,8),t:ts[rand(0,ts.length-1)]});
+  }
+  return out;
+}
+function hire(boost){
   if(S.hired||S.over)return;
+  if(B(11)){
+    if(S.cands&&S.cands.length){toast('Сначала проведите собеседование');return}
+    if(hireUsed()>=hireCap()){toast(`Лимит найма: ${hireCap()} за 7 дней`);return}
+    const H=bal('hire'),cost=H.cost+(boost?H.boost:0),before=snap();
+    if(S.money<cost){toast('Не хватает денег в кассе');return}
+    S.money-=cost;S.hired=true;S.vac={boost:!!boost,day:S.day};
+    addLog(`Авито: вакансия размещена${boost?' с продвижением':''} за ${rub(cost)} — отклики утром.`);
+    toast('Вакансия размещена — отклики придут утром');sfx('coin');save();render(before);return}
   if(S.money<HIRE_COST){toast('Не хватает денег в кассе');return}
   const before=snap();S.money-=HIRE_COST;S.hired=true;
   const r=Math.random()*(hasHead('artur')?.75:1),n=r<.25?2:r<.8?1:0;S.drivers+=n;
@@ -134,7 +158,7 @@ function sellLot(){if(S.over||S.preview||!B(6)||!(S.lotsPaid||[]).length||S.spot
   const p=lotBack(),before=snap();S.money+=p;S.spots-=8;S.lotsPaid.pop();addLog(`База: продано 8 мест стоянки, вернулось ${rub(p)}. Теперь ${S.spots} мест.`);toast(`Стоянка: ${S.spots} мест, +${rub(p)}`);sfx('coin');save();render(before)}
 function buyLot(){if(S.over)return;const p=lotPrice();if(S.money<p){toast('Не хватает денег в кассе');sfx('bad');return}
   const before=snap();S.money-=p;S.spots+=8;S.lotsPaid=(S.lotsPaid||[]).concat(p);addLog(`База: стоянка расширена до ${S.spots} мест.`);toast(`Стоянка: ${S.spots} мест`);sfx('coin');save();render(before)}
-function staffChange(d,delta){const n=S.staff[d]+delta;if(n<0||n>8||S.over)return;S.staff[d]=n;addLog(`${DEPTS[d].name}: ${delta>0?'нанят сотрудник':'сотрудник уволен'}. Теперь ${n}.`);sfx('click');save();render()}
+function staffChange(d,delta){const n=S.staff[d]+delta;if(n<0||n>staffCap()||S.over)return;S.staff[d]=n;addLog(`${DEPTS[d].name}: ${delta>0?'нанят сотрудник':'сотрудник уволен'}. Теперь ${n}.`);sfx('click');save();render()}
 const trainPrice=d=>Math.round(15000*(S.train[d]+1)*inf()/1000)*1000;
 function train(d){if(S.train[d]>=3||S.over)return;const p=trainPrice(d);if(S.money<p){toast('Не хватает денег в кассе');sfx('bad');return}
   const before=snap();S.money-=p;S.train[d]++;addLog(`${DEPTS[d].name}: обучение команды, уровень ${S.train[d]}.`);toast('Команда прошла обучение');sfx('win');save();render(before)}
@@ -191,7 +215,7 @@ function endDay(){
   const shB=shashBad();
   const tk=townK();if(tk!==1)notes.push(`Город: ×${tf2(tk)} к выручке.`);
   const demand=cityDemand()*(crisisOn('giant')?.85:1)*(crisisOn('cyber')?.75:1)*mood*sea.demand*newsMod('demand')*(hol?hol[0]:1)*share*RANK_BONUS[S.rank||0]*prestRev()*(warOn()?bal('warK'):1)*ownRev()*netRevK()*tk;
-  const base=working.slice(0,regular).reduce((a,c,i)=>a+carRev(c)*drvQ(crewD[i]),0);
+  const base=working.slice(0,regular).reduce((a,c,i)=>a+carRev(c)*drvQ(crewD[i])*(crewD[i]&&crewD[i].req||1),0);
   const sat=satK(),mgmt=mgmtCost();
   const revK=B(2)&&camp()&&bal('rev')[S.diff]||1,AG=B(4)?aggDef():null,aggM=AG?AG.ord*(shB?bal('shashOrd'):1)*(S.aggNext===S.day?bal('aggIdle'):1):1;
   let revenue=Math.round(base*factor*demand*nightK*distK*sat*revK*aggM/100)*100,aggFee=0;
@@ -397,6 +421,8 @@ function startDay(){
   if(B(10)&&S.day>1&&S.dispDay!==S.day&&activeN()>=2&&featOpen('disp')&&Math.random()<.3)m.push('disp');
   let mm=m.filter(k=>featOpen(k));
   if(simpleOn()){mm.sort((a,b)=>MORNING_PRIO.indexOf(a)-MORNING_PRIO.indexOf(b));mm=mm.slice(0,1)}
+  if(B(11)&&S.vac&&S.day>S.vac.day){S.cands=mkCands(S.vac.boost);S.vac=null}
+  if(S.cands&&S.cands.length)mm.unshift('vac');
   // новые вкладки
   const opened=MTABS.filter(([k])=>simpleOn()&&S.day===(TAB_DAY[k]||1)&&S.day>1).map(([k,l])=>l);
   if(opened.length){toast(`Открыто: ${opened.join(', ')}`);addLog(`Новые возможности: ${opened.join(', ')}.`)}
@@ -407,7 +433,7 @@ function startDay(){
 function runMorning(){
   if(!S.morning.length||S.over){save();render();return}
   const k=S.morning.shift();save();
-  ({inspect:inspection,rival:rivalEvent,quest:newQuest,meeting:meeting,tax:taxAudit,raid:raidEvent,branch:branchEvent,paper:newspaper,career:careerEvent,a2hs:a2hsEvent,boom:debtBoom,rare:rareEvent,echo:echoEvent,quit:quitEvent,conflict:conflictEvent,union:unionEvent,auction:auction,contract:contractOffer,agency:agencyEvent,netnews:netNewsEv,disp:dispAsk}[k]||runMorning)();
+  ({inspect:inspection,rival:rivalEvent,quest:newQuest,meeting:meeting,tax:taxAudit,raid:raidEvent,branch:branchEvent,paper:newspaper,career:careerEvent,a2hs:a2hsEvent,boom:debtBoom,rare:rareEvent,echo:echoEvent,quit:quitEvent,conflict:conflictEvent,union:unionEvent,auction:auction,contract:contractOffer,agency:agencyEvent,netnews:netNewsEv,disp:dispAsk,vac:vacancy}[k]||runMorning)();
 }
 const fName=i=>G.founders[i]||FOUNDERS[i].name;
 function inspection(){
