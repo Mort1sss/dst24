@@ -63,8 +63,11 @@ function metaMerge(m){ // мета всегда объединяется, нез
     if(metaSig()!==h0){saveG();metaPush()}}catch(e){}}
 async function cloudPush(force,keep){
   if(!cloudOk()||(!force&&Date.now()-netPushT<30000))return;netPushT=Date.now();
-  const body={data:S,mode:S.mode,day:S.day,money:Math.round(S.money),cars:totalCars(),stars:S.stars||0,bal:S.bal||1,updated_at:new Date().toISOString()};if(netMetaPulled)body.meta=netMeta();
-  await api('/rest/v1/saves?on_conflict=user_id',{method:'POST',prefer:'resolution=merge-duplicates,return=minimal',body,keep:!!keep&&JSON.stringify(body).length<60000})}
+  const body={data:S,mode:S.mode,day:S.day,money:Math.round(S.money),cars:totalCars(),drivers:S.drivers||0,stars:S.stars||0,bal:S.bal||1,updated_at:new Date().toISOString()};if(netMetaPulled)body.meta=netMeta();
+  const opt=b=>({method:'POST',prefer:'resolution=merge-duplicates,return=minimal',body:b,keep:!!keep&&JSON.stringify(b).length<60000});
+  const r=await netReq('/rest/v1/saves?on_conflict=user_id',opt(body));
+  // в базе ещё нет столбца drivers (schema.sql не перавставляли): без него сохранение уходит как раньше, синхронизация не встаёт
+  if(!r.ok&&r.st===400&&'drivers'in body){delete body.drivers;await netReq('/rest/v1/saves?on_conflict=user_id',opt(body))}}
 const cloudInfo=r=>`${{campaign:'кампания',endless:'бесконечный',story:'сюжет',daily:'испытание дня',contest:'соревнование'}[r.mode]||esc(r.mode)}, день ${esc(r.day)}, касса ${rub(r.money)}${r.at?`, сохранено ${esc(new Date(r.at).toLocaleString('ru-RU',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}))}`:''}`;
 const netBusy=()=>!$('modal').hidden||!!(S&&S.morning&&S.morning.length);
 async function cloudPull(tries=0){
@@ -351,8 +354,8 @@ async function cityParks(){
   const rows=Array.isArray(l)?l.filter(x=>x&&x.nick):null;
   const MN={campaign:'кампания',endless:'бесконечный',story:'сюжет',daily:'испытание',contest:'соревнование',sandbox:'песочница'};
   const live=cityLive(),can5=live&&S.money>=5000;
-  showModal(`<span class="step">ГОРОД</span><h2>Город</h2>${cityTabs('pk')}<p class="note" id="ctMsg">${live?'Переманить можно раз в сутки. Подарок — 5 000 ₽ из вашей кассы.':'Подарки и переманивание — только в живой партии (не песочница, не испытание).'}</p>
-    ${!rows?'<p class="kind">нет связи</p>':!rows.length?'<p class="kind">Пока пусто.</p>':`<div class="tablewrap"><table><thead><tr><th>Игрок</th><th>День</th><th>Касса</th><th>Машин</th></tr></thead><tbody>${rows.map((r,i)=>`<tr${r.nick===netSt.nick?' style="outline:3px solid var(--taxi)"':''}><td>${esc(r.nick)}<br><span class="sub">${esc(MN[r.mode]||String(r.mode||''))}</span>${r.nick===netSt.nick?'':`<br><button class="buy sm" data-po="${i}"${live?'':' disabled'}>Переманить водителя</button> <button class="buy sm alt" data-gf="${i}"${can5?'':' disabled'}>Подарок 5 000 ₽</button>`}</td><td>${+r.day||0}</td><td>${rub(+r.money||0)}</td><td>${+r.cars||0}</td></tr>`).join('')}</tbody></table></div>`}
+  showModal(`<span class="step">ГОРОД</span><h2>Город</h2>${cityTabs('pk')}<p class="note" id="ctMsg">${live?'Переманить можно раз в сутки. Подарок — 5 000 ₽ из вашей кассы, её проверяет и списывает сервер.':'Подарки и переманивание — только в живой партии (не песочница, не испытание).'}</p>
+    ${!rows?'<p class="kind">нет связи</p>':!rows.length?'<p class="kind">Пока пусто.</p>':`<div class="tablewrap"><table><thead><tr><th>Игрок</th><th>День</th><th>Касса</th><th>Машин</th></tr></thead><tbody>${rows.map((r,i)=>{const po=live&&!(r.drivers!=null&&+r.drivers<2);return `<tr${r.nick===netSt.nick?' style="outline:3px solid var(--taxi)"':''}><td>${esc(r.nick)}<br><span class="sub">${esc(MN[r.mode]||String(r.mode||''))}</span>${r.nick===netSt.nick?'':`<br><button class="buy sm" data-po="${i}"${po?'':' disabled'}>${live&&!po?'Не у кого переманивать':'Переманить водителя'}</button> <button class="buy sm alt" data-gf="${i}"${can5?'':' disabled'}>Подарок 5 000 ₽</button>`}</td><td>${+r.day||0}</td><td>${rub(+r.money||0)}</td><td>${+r.cars||0}</td></tr>`}).join('')}</tbody></table></div>`}
     <div class="btns"><button class="btn ghost" id="ctBack">Назад</button></div>`);
   $('ctBack').onclick=()=>openNetModal();cityTabBind();
   const msg=t=>{const m=$('ctMsg');if(m)m.textContent=t};
@@ -361,6 +364,7 @@ async function cityParks(){
     if(a&&a.ok){if(cityLive()){S.drivers++;syncDrivers();addLog(`Вы переманили водителя у ${esc(r.nick)}.`);save();render()}msg('Водитель теперь ваш')}
     else msg(a&&a.err?String(a.err).slice(0,80):'Не получилось, попробуйте позже')});
   document.querySelectorAll('[data-gf]').forEach(b=>b.onclick=async()=>{const r=rows[+b.dataset.gf];if(!cityLive()||S.money<5000)return;b.disabled=true;msg('Связываюсь…');
+    await cloudPush(true); // сервер сверяет и списывает подарок по облачной кассе, поэтому сначала синхронизация
     const a=await rpc('send_gift',{p_nick:r.nick,p_amount:5000});
     if(a&&a.ok){if(cityLive()&&S.money>=5000){S.money-=5000;addLog(`Подарок игроку ${esc(r.nick)}: −5 000 ₽.`);save();render()}msg('Подарок отправлен')}
     else msg(a&&a.err?String(a.err).slice(0,80):'Не получилось, попробуйте позже')})}
