@@ -1161,7 +1161,7 @@ const cityDef=()=>CITIES[(S&&S.city)||'home']||CITIES.home;
 function cityDemand(){const C=cityDef();if(C.resort){const m=dateOf(S.day).getMonth();return m>=5&&m<=8?1.5:(m===11||m<=1)?.7:1.05}return C.demand||1}
 const prestige=()=>G.prestige||0;
 const prestCap=p=>1+Math.min(1,p*.05), prestRevK=p=>1+Math.min(.2,p*.02);
-const prestRev=()=>endl()&&!B(7)?prestRevK(prestige()):1;
+const prestRev=()=>endl()&&(!B(7)||(S.migBal||99)<7)?prestRevK(prestige()):1; // переехавшие партии bal≤6 сохраняют заработанный бонус
 /* ---- холдинг: дерево владельца (снимок S.hold = {fin,ppl,car}, только бесконечный bal 7) ---- */
 const hq=(b,n)=>!!S&&!!S.hold&&S.hold[b]>=n;
 const TRIAL={home:{t:'Оценка парка',v:()=>valuation(),f:n=>rub(n)},capital:{t:'Машин в парке',v:()=>totalCars(),f:n=>n+' маш.'},resort:{t:'Выручка за лето',v:()=>S.cnt.sum||0,f:n=>rub(n)},

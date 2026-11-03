@@ -189,12 +189,13 @@ function blankState(mode){
     nextAuction:7,nextContract:rand(9,13),nextAgency:rand(10,15),contracts:[],lines:{},ads:null,school:[],agency:[],stat:[],wk:{rev:0,net:0,breaks:0,fines:0,fails:[]},
     custom:Object.assign({name:'ДСТ-24',color:'yellow',logo:'checker',avatar:0,livery:'none'},G.custom||{}),
     parts:10,crisis:null,nextCrisis:rand(25,40),extraHeads:[[],[],[]],moodMod:[0,0,0],nextCareer:rand(18,24),nextConflict:rand(14,20),lastParty:-99,strike:null,owned:{},dispDay:0,
-    agg:'mig',aggAt:-99,aggNext:0,aggLast:0,lowDays:0,cscore:0,cstreak:0,war:null,ctLost:null,infl:1,mInfl:1,taxAcc:0,kpi:null,kpiStreak:0,kpiFails:0,tdebt:0,rel:{},relCd:{},city:'home',hold:null,gid:'',balPatch:null,balRev:0,goalBal:null,netSeen:{},netRev:[],seed:0};
+    agg:'mig',aggAt:-99,aggNext:0,aggLast:0,lowDays:0,cscore:0,cstreak:0,war:null,ctLost:null,infl:1,mInfl:1,taxAcc:0,kpi:null,kpiStreak:0,kpiFails:0,tdebt:0,rel:{},relCd:{},city:'home',hold:null,gid:'',balPatch:null,balRev:0,goalBal:null,migBal:null,netSeen:{},netRev:[],seed:0};
 }
 function fixState(v){const b=blankState(v.mode||'campaign');const o=Object.assign(b,v);o.bal=v.bal||1;
   // тихая миграция на текущую версию: цифры новые, но начатую цель игрок доигрывает по старым правилам (goalBal),
+  // а migBal навсегда запоминает старую версию ради живых бонусов, которые игрок уже заработал (см. prestRev),
   // а снимок правок баланса из админки пересчитывается, иначе старые патчи легли бы на новую версию
-  if(o.bal<BAL_NEW){o.goalBal=o.bal;o.bal=BAL_NEW;if(!netOff){o.balRev=netRevNow();o.balPatch=netSnap()}}
+  if(o.bal<BAL_NEW){o.goalBal=o.bal;o.migBal=o.bal;o.bal=BAL_NEW;if(!netOff){o.balRev=netRevNow();o.balPatch=netSnap()}}
   if(!AGG[o.agg])o.agg='mig';
   if(!v.rivals){o.rivals=b.rivals;if(v.rival){o.rivals[0].name=v.rival.name;o.rivals[0].cars=v.rival.cars}}
   if(!v.rents)o.rents=Object.assign({},MARKET);delete o.rival;if(!o.weather||o.weather.length<3)o.weather=[0,1,2].map(i=>genWeather(o.day+i));return o}
