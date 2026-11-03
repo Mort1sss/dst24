@@ -19,18 +19,26 @@ const QUIZ=[
  {q:'«С меня списали деньги за поездку дважды!»',a:['Проверить поездку и оформить возврат через агрегатор','Сказать, что виноват банк','Пообещать скидку без проверки']},
  {q:'Водитель хочет в отпуск на две недели',a:['Согласовать даты и найти подмену на его машину','Запретить отпуск','Отпустить, а машина пусть постоит']},
  {q:'Агрегатор упал, водители спрашивают, что делать',a:['Предупредить всех в чате и переключить на резервный агрегатор','Отправить всех домой','Ничего не отвечать, само починится']},
- {q:'«В машине грязно, сиденье липкое!»',a:['Извиниться, вернуть часть оплаты и отправить машину на мойку','Сказать, что так у всех','Попросить пассажира протереть самому']},
+ {q:'«В машине грязно, сиденье липкое!»',a:['Извиниться, вернуть часть оплаты и отправить машину на мойку','Сказать, что так у всех','Просить пассажира протереть самому']},
+ {q:'«Почему списали больше, чем обещал тариф?»',a:['Сверить поездку и показать детализацию: маршрут, платная дорога, ожидание','Сказать, что тариф не ошибается','Предложить не вспоминать']},
+ {q:'Водитель заболел и не выходит на смену',a:['Найти подмену и переставить машину','Заблокировать без разбора','Сказать, что смена не отменяется']},
+ {q:'Мама пассажира оставила у вас телефон',a:['Найти водителя по номеру поездки и вернуть','Сказать, что ничем не помочь','Посоветовать написать отзыв']},
+ {q:'Водитель просит аванс на бензин',a:['Оформить по правилам парка и разобраться, почему не хватило','Отказать и снять с линии','Выдать из кассы без записи']},
+ {q:'«Не доехал, водитель заблудился»',a:['Оформить возврат и отметить маршрут','Сказать разбираться с навигатором','Посоветовать идти пешком']},
+ {q:'Водитель: «Пассажира укачало в салоне»',a:['Остановиться, помочь и отправить машину на мойку','Сказать доезжать и убрать самому','Ускориться, чтобы скорее доехать']},
+ {q:'Агрегатор требует медсправку, где её взять?',a:['Объяснить, где пройти, и дать время на оформление','Сказать, что справка не нужна','Сразу заблокировать водителя']},
+ {q:'Ночью у половины парка не горят фонари',a:['Снять с линии до ремонта: без световых нельзя','Отпустить, аккуратненько поедут','Раздать водителям фонарики']},
 ];
 function mgQuiz(fi,done){
   const qs=shuffle([...QUIZ]).slice(0,3);let i=0,ok=0;
   const step=()=>{
     if(i>=qs.length){const b=ok*6-(3-ok)*4;done(b,`звонки в поддержку — правильных ответов ${ok} из 3`);return}
     const Q=qs[i],ans=shuffle(Q.a.map((t,k)=>({t,k})));
-    showModal(`<span class="step">ПРОВЕРКА · ЗВОНОК ${i+1} ИЗ 3</span><h2>${esc(fName(fi))} на линии</h2><p class="mg-q">${Q.q}</p>
-      <div class="modes">${ans.map((a,j)=>`<button class="mode" id="qa${j}" data-k="${a.k}"><span style="color:var(--ink)">${a.t}</span></button>`).join('')}</div><p class="note" id="qaMsg"></p>`);
+    showModal(`<span class="step">ПРОВЕРКА · ЗВОНОК ${i+1} ИЗ 3</span><h2>${esc(fName(fi))} на линии</h2><p class="mg-q">${esc(Q.q)}</p>
+      <div class="modes">${ans.map((a,j)=>`<button class="mode" id="qa${j}" data-k="${a.k}"><span style="color:var(--ink)">${esc(a.t)}</span></button>`).join('')}</div><p class="note" id="qaMsg"></p>`);
     let answered=false;
     ans.forEach((a,j)=>$('qa'+j).onclick=()=>{if(answered)return;answered=true;const right=a.k===0;if(right)ok++;sfx(right?'coin':'bad');
-      $('qaMsg').innerHTML=right?'<span class="pos">Верно! Учредитель кивнул.</span>':`<span class="neg">Не то. Правильно: ${Q.a[0]}.</span>`;
+      $('qaMsg').innerHTML=right?'<span class="pos">Верно! Учредитель кивнул.</span>':`<span class="neg">Не то. Правильно: ${esc(Q.a[0])}.</span>`;
       $('qa'+j).classList.add(right?'mg-ok':'mg-bad');
       const nb=document.createElement('button');nb.className='btn';nb.textContent=i<2?'Следующий звонок':'Итог';nb.onclick=()=>{i++;step()};$('qaMsg').after(nb);nb.focus()});
   };step();
@@ -420,11 +428,11 @@ function pddExam(list){const qs=shuffle([...PDD]).slice(0,3);let i=0,ok=0;const 
       addLog(`Экзамен ПДД: ${names} — ${ok} из 3. Стартовый рейтинг ★${r}.`);save();render();
       showModal(`<span class="step">ЭКЗАМЕН ПДД</span><h2>${ok} из 3</h2><p>${esc(names)} ${list.length>1?'начинают':'начинает'} работу с рейтингом ★${r}.${ok===3?' Отличный результат!':''}</p><button class="btn" id="exOk">Готово</button>`);$('exOk').onclick=hideModal;return}
     const Q=qs[i],ans=shuffle(Q.a.map((t,k)=>({t,k})));
-    showModal(`<span class="step">ЭКЗАМЕН ПДД · ВОПРОС ${i+1} ИЗ 3</span><h2>${esc(names)}</h2><p class="mg-q">${Q.q}</p>
-      <div class="modes">${ans.map((a,j)=>`<button class="mode" id="ex${j}"><span style="color:var(--ink)">${a.t}</span></button>`).join('')}</div><p class="note" id="exMsg"></p>
+    showModal(`<span class="step">ЭКЗАМЕН ПДД · ВОПРОС ${i+1} ИЗ 3</span><h2>${esc(names)}</h2><p class="mg-q">${esc(Q.q)}</p>
+      <div class="modes">${ans.map((a,j)=>`<button class="mode" id="ex${j}"><span style="color:var(--ink)">${esc(a.t)}</span></button>`).join('')}</div><p class="note" id="exMsg"></p>
       <button class="btn ghost" id="exSkip">Пропустить экзамен</button>`);
     let done=false;ans.forEach((a,j)=>$('ex'+j).onclick=()=>{if(done)return;done=true;const r=a.k===0;if(r)ok++;sfx(r?'coin':'bad');$('ex'+j).classList.add(r?'mg-ok':'mg-bad');
-      $('exMsg').innerHTML=r?'<span class="pos">Верно!</span>':`<span class="neg">Правильно: ${Q.a[0]}.</span>`;
+      $('exMsg').innerHTML=r?'<span class="pos">Верно!</span>':`<span class="neg">Правильно: ${esc(Q.a[0])}.</span>`;
       const nb=document.createElement('button');nb.className='btn';nb.textContent=i<2?'Дальше':'Итог';nb.onclick=()=>{i++;step()};$('exMsg').after(nb);nb.focus()});
     $('exSkip').onclick=hideModal};
   step()}

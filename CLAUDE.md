@@ -35,7 +35,7 @@
 | Что | Файл | Имена |
 |---|---|---|
 | Справочники | `data.js` | `MODELS`, `EVENTS`, `CHAINS`, `NEWS`, `CHAPTERS`, `DIFF`, `ACH`, `LIVERY`, `tomorrowTease` |
-| Версии баланса | `data.js` | раздел `версия баланса`: `BAL`, `bal(k)`, `B(n)`, `camp()`, `endl()`, `profit()`, `goalMet()`, `starsOf()`, `carRevM` |
+| Версии баланса | `data.js` | раздел `версия баланса`: `BAL`, `bal(k)`, `B(n)`, `camp()`, `endl()`, `profit()`, `goalMet()`, `starsOf()`, `carRevM`; `BAL[8].collect` — группы моделей для целей бесконечного, цель строит `collectGoal` в `state.js` |
 | Удары и налоги | `data.js`, `day.js` | `isTaxDay`, `taxDueIn`, `heavyDays`, `heavyGate`, `ultBlocked`; кризис — в `endDay`, рейд/профсоюз/проверка — в `startDay` |
 | Состояние | `state.js` | `blankState`, `fixState`, `save`, `load`, `newGame`, `recordResult` |
 | День | `day.js` | `nextEvent`, `apply`, `choose`, `endDay`, `startDay`, `runMorning`, `inspection`; `autoResolve` — в `minigames.js` |

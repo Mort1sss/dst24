@@ -92,13 +92,18 @@ const GOALS=[
  {t:'Вывести на линию 18 экипажей',v:activeN,n:18,rw:{money:70000}},
  {t:'Довести парк до 25 машин',v:()=>carsN(),n:25,rw:{money:100000}},
 ];
+/* ---- цель «Собрать N авто …»: модель крутится по номеру цели (BAL[8].collect), партии bal≤7 остаются на Камри ---- */
+function collectGoal(gi,n,rw){const L=(bal('collect')||[]).filter(g=>Array.isArray(g)&&g.length&&MODELS[g[0]]),g=L.length?L[gi%L.length]:['camry'];
+  return{t:`Собрать ${n} авто «${MODELS[g[0]].name}»`,v:()=>countM(...g),n,rw}}
+// ранние табличные цели №7 и №10 тоже были про одну модель — под BAL[8] становятся ротацией
+const GOAL_ROT={7:()=>collectGoal(0,2,{money:40000,rep:2}),10:()=>collectGoal(4,2,{money:50000,rep:2})};
 function goalAt(i){
-  if(i<GOALS.length)return GOALS[i];
+  if(i<GOALS.length)return B(8)&&GOAL_ROT[i]?GOAL_ROT[i]():GOALS[i];
   const k=i-GOALS.length,L=k>>2;
   switch(k%4){
     case 0:{const n=30+10*L;return{t:`Довести парк до ${n} машин`,v:()=>carsN(),n,rw:{money:120000+30000*L}}}
     case 1:{const n=800000+400000*L;return{t:`Накопить ${rub(n)} в кассе`,v:()=>S.money,n,rw:{rep:4}}}
-    case 2:{const n=4+3*L;return{t:`Собрать ${n} Камри`,v:()=>countM('camry'),n,rw:{money:80000+20000*L}}}
+    case 2:{const n=4+3*L,rw={money:80000+20000*L};return B(8)?collectGoal(L,n,rw):{t:`Собрать ${n} Камри`,v:()=>countM('camry'),n,rw}}
     default:{const n=25+8*L;return{t:`Вывести на линию ${n} экипажей`,v:activeN,n,rw:{money:100000+30000*L,rep:2}}}
   }
 }

@@ -361,7 +361,7 @@ async function cityParks(){
   const msg=t=>{const m=$('ctMsg');if(m)m.textContent=t};
   document.querySelectorAll('[data-po]').forEach(b=>b.onclick=async()=>{const r=rows[+b.dataset.po];b.disabled=true;msg('Связываюсь…');
     const a=await rpc('poach',{p_nick:r.nick});
-    if(a&&a.ok){if(cityLive()){S.drivers++;syncDrivers();addLog(`Вы переманили водителя у ${esc(r.nick)}.`);save();render()}msg('Водитель теперь ваш')}
+    if(a&&a.ok){if(cityLive()){S.drivers++;S.cnt.poached=(S.cnt.poached||0)+1;syncDrivers();addLog(`Вы переманили водителя у ${esc(r.nick)}.`);save();render()}msg('Водитель теперь ваш')}
     else msg(a&&a.err?String(a.err).slice(0,80):'Не получилось, попробуйте позже')});
   document.querySelectorAll('[data-gf]').forEach(b=>b.onclick=async()=>{const r=rows[+b.dataset.gf];if(!cityLive()||S.money<5000)return;b.disabled=true;msg('Связываюсь…');
     await cloudPush(true); // сервер сверяет и списывает подарок по облачной кассе, поэтому сначала синхронизация
