@@ -37,6 +37,12 @@ alter table public.saves drop constraint if exists saves_meta_sane;
 alter table public.saves add constraint saves_meta_sane check (
   meta is null or (jsonb_typeof(meta) = 'object' and octet_length(meta::text) <= 65536)) not valid;
 
+/* ---- водители в облачном сохранении: нужны, чтобы сервер проверял переманивание ---- */
+alter table public.saves add column if not exists drivers int;
+alter table public.saves drop constraint if exists saves_drivers_sane;
+alter table public.saves add constraint saves_drivers_sane check (
+  drivers is null or drivers between 0 and 2000) not valid;
+
 create or replace function public.saves_touch() returns trigger
 language plpgsql as $$ begin new.updated_at := now(); return new; end $$;
 drop trigger if exists saves_touch on public.saves;
@@ -174,19 +180,68 @@ exception when unique_violation then return jsonb_build_object('err','Ник з�
 end $$;
 
 /* ---- рекорды ---- */
+-- Испытание дня и соревнование: у игрока одна лучшая запись на ключ дня.
+-- Сперва разчищаем старые повторы, иначе уникальный индекс не создастся;
+-- из повторов оставляем лучшую видимую запись (скрытую админом не восстанавливаем).
+delete from public.scores where id in (
+  select id from (
+    select id, row_number() over (partition by user_id, mode, coalesce(day_key, '')
+      order by hidden asc, score desc nulls last, id asc) rn
+    from public.scores where mode in ('daily','contest')) t where t.rn > 1);
+create unique index if not exists scores_once on public.scores(user_id, mode, day_key)
+  where mode in ('daily','contest');
+
+-- пределы дней по режимам: кампания 30 дней, главы сюжета до 45, испытание недели — 7 (js/data.js)
 create or replace function public.submit_score(p_mode text, p_diff text, p_day_key text, p_score bigint,
   p_stars int, p_days int, p_cars int, p_money bigint, p_bal int) returns bigint
 language plpgsql security definer set search_path = public as $$
-declare u uuid := public._uid(); r bigint;
+declare u uuid := public._uid(); r bigint; k date; nowd date := ((now() at time zone 'utc')::date);
 begin
   if p_mode is null or p_mode not in ('campaign','endless','story','daily','contest') then raise exception 'mode'; end if;
-  if p_days is null or p_days < 0 or p_days > 2000 then raise exception 'days'; end if;
+  if p_days is null or p_days < 0 or p_days > case p_mode
+    when 'campaign' then 31 when 'story' then 46 when 'daily' then 10 when 'contest' then 10 else 2000 end
+    then raise exception 'days'; end if;
   if p_cars is null or p_cars < 0 or p_cars > 1000 then raise exception 'cars'; end if;
   if p_money is null or abs(p_money) >= 10000000000 then raise exception 'money'; end if;
   if p_score is null or p_score < 0 or p_score >= 10000000000 then raise exception 'score'; end if;
   if p_stars is null or p_stars < 0 or p_stars > 3 then raise exception 'stars'; end if;
+  if p_bal is null or p_bal < 1 or p_bal > 12 then raise exception 'bal'; end if;
   if coalesce(p_diff,'') not in ('easy','normal','hard','') or length(coalesce(p_day_key,'')) > 20 then raise exception 'key'; end if;
   if (select count(*) from public.scores where user_id = u and created_at > now() - interval '1 hour') >= 30 then raise exception 'limit'; end if;
+  -- очки обычной партии = машины × 20 000 + касса (recordResult); потолок с запасом на округление
+  if p_mode in ('campaign','endless','story') and p_score > greatest(0, p_cars * 20000 + coalesce(p_money, 0)) + 100000
+    then raise exception 'score'; end if;
+
+  if p_mode in ('daily','contest') then
+    if coalesce(p_day_key,'') = '' then raise exception 'key'; end if;
+    -- очки испытания = касса + 50 000 за машину + 2 000 за репутацию (репутация не выше 100)
+    if p_score > greatest(0, coalesce(p_money, 0)) + p_cars * 50000 + 250000 then raise exception 'score'; end if;
+    if p_mode = 'daily' then
+      if p_day_key !~ '^[0-9]{4}-[0-9]{1,2}-[0-9]{1,2}$' then raise exception 'key'; end if;
+      begin k := to_date(p_day_key, 'YYYY-MM-DD'); exception when others then raise exception 'key'; end;
+      -- ключ ставится в день старта, а забег идёт 7 дней: пускаем неделю назад плюс сутки на часовые пояса
+      if k not between nowd - 8 and nowd + 1 then raise exception 'stale'; end if;
+    else
+      -- ключ соревнования обязан совпадать с настоящим событием; active не требуем:
+      -- выключенное админом событие не должно съедать уже сыгранные результаты
+      if not exists(select 1 from public.events e where e.kind = 'contest'
+        and ('c' || e.id::text) = p_day_key
+        and (e.starts is null or e.starts <= nowd + 1)
+        and (e.ends is null or e.ends >= nowd - 9)) then raise exception 'key'; end if;
+    end if;
+    insert into public.scores(user_id, mode, diff, day_key, score, stars, days, cars, money, bal)
+      values (u, p_mode, p_diff, p_day_key, p_score, p_stars, p_days, p_cars, p_money, p_bal)
+      on conflict (user_id, mode, day_key) where mode in ('daily','contest')
+      do update set diff = excluded.diff, score = excluded.score, stars = excluded.stars,
+        days = excluded.days, cars = excluded.cars, money = excluded.money, bal = excluded.bal, created_at = now()
+      where excluded.score > scores.score
+      returning id into r;
+    if r is null then -- результат хуже прежнего: оставляем и показываем прежний
+      select id into r from public.scores where user_id = u and mode = p_mode and day_key = p_day_key;
+    end if;
+    return r;
+  end if;
+
   insert into public.scores(user_id, mode, diff, day_key, score, stars, days, cars, money, bal)
     values (u, p_mode, p_diff, p_day_key, p_score, p_stars, p_days, p_cars, p_money, p_bal)
     returning id into r;
@@ -221,23 +276,29 @@ begin
 end $$;
 
 /* ---- города и почта ---- */
-create or replace function public.parks() returns table(nick text, mode text, day int, money bigint, cars int, stars int, updated_at timestamptz)
+drop function if exists public.parks();
+create or replace function public.parks() returns table(nick text, mode text, day int, money bigint, cars int, drivers int, stars int, updated_at timestamptz)
 language plpgsql security definer set search_path = public as $$
 declare u uuid := public._uid();
 begin
-  return query select p.nick, s.mode, s.day, s.money, s.cars, s.stars, s.updated_at
+  return query select p.nick, s.mode, s.day, s.money, s.cars, s.drivers, s.stars, s.updated_at
     from public.saves s join public.profiles p on p.id = s.user_id
     where not p.banned and s.updated_at > now() - interval '14 days'
     order by s.money desc nulls last limit 200;
 end $$;
 
+-- переманивать можно только у живого парка: сохранение не старше 14 дней и есть кого забирать
 create or replace function public.poach(p_nick text) returns jsonb
 language plpgsql security definer set search_path = public as $$
-declare u uuid := public._uid(); t uuid;
+declare u uuid := public._uid(); t uuid; d int; seen timestamptz;
 begin
   select id into t from public.profiles where lower(nick) = lower(btrim(coalesce(p_nick,''))) and not banned;
   if t is null then return jsonb_build_object('err','Игрок не найден'); end if;
   if t = u then return jsonb_build_object('err','Нельзя переманивать у себя'); end if;
+  select s.drivers, s.updated_at into d, seen from public.saves s where s.user_id = t;
+  if seen is null or seen < now() - interval '14 days' then return jsonb_build_object('err','Игрок давно не заходил'); end if;
+  -- null = игрок ещё не обновил сохранение после этого выпуска: не блокируем
+  if d is not null and d < 2 then return jsonb_build_object('err','У игрока некого переманивать'); end if;
   if exists(select 1 from public.mail where from_user = u and kind = 'poach' and created_at > now() - interval '1 day') then
     return jsonb_build_object('err','Сегодня вы уже пытались'); end if;
   if exists(select 1 from public.mail where to_user = t and kind = 'poach' and created_at > now() - interval '1 day') then
@@ -246,9 +307,10 @@ begin
   return jsonb_build_object('ok', true);
 end $$;
 
+-- подарок оплачивается из кассы на сервере: клиент шлёт сохранение перед отправкой (cloudPush)
 create or replace function public.send_gift(p_nick text, p_amount int) returns jsonb
 language plpgsql security definer set search_path = public as $$
-declare u uuid := public._uid(); t uuid;
+declare u uuid := public._uid(); t uuid; seen timestamptz;
 begin
   if p_amount is null or p_amount < 1000 or p_amount > 20000 then return jsonb_build_object('err','Подарок от 1 000 до 20 000 ₽'); end if;
   select id into t from public.profiles where lower(nick) = lower(btrim(coalesce(p_nick,''))) and not banned;
@@ -258,6 +320,10 @@ begin
     return jsonb_build_object('err','Не больше 3 подарков в сутки'); end if;
   if (select count(*) from public.mail where to_user = t and kind = 'gift' and created_at > now() - interval '1 day') >= 3 then
     return jsonb_build_object('err','Этому игроку сегодня уже много подарков'); end if;
+  select s.updated_at into seen from public.saves s where s.user_id = u;
+  if seen is null or seen < now() - interval '14 days' then return jsonb_build_object('err','Сначала обновите облачное сохранение'); end if;
+  update public.saves set money = money - p_amount where user_id = u and money >= p_amount;
+  if not found then return jsonb_build_object('err','В кассе не хватает денег'); end if;
   insert into public.mail(to_user, from_user, kind, params) values (t, u, 'gift', jsonb_build_object('amount', p_amount));
   return jsonb_build_object('ok', true);
 end $$;

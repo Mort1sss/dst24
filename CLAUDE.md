@@ -46,7 +46,7 @@
 | Мини-игры | `minigames.js` | `mgTiming`, `lgRace`, `lgPark`, `dispatcher`, `TOPCAR`, `mgRAF`, `mgStop` |
 | Финал и интерфейс | `ui.js` | `finale`, `gameOver`, `render`, `renderHud`, `renderMgmt`, `icon16`, `ICON16` |
 | Двор и графика | `art.js` | `draw`, `drawScene`, `drawCar`, `CARS2`, `syncMovers`, `stepParts`, `lightPass`, `post` (WebGL), `fitScene` |
-| Онлайн | `online.js` | `NET`, `api`, `rpc`, `cloudPush/cloudPull`, `netSubmit`, `netDay`, `netGifts`, `netMailRun`, `openCity`, `ctUse/ctSync`, город `TOWN`/`townK`/`drawTown`; правки баланса — `S.balPatch` |
+| Онлайн | `online.js` | `NET`, `api`, `rpc`, `cloudPush/cloudPull`, `netSubmit`, `netDay`, `netGifts`, `netMailRun`, `openCity`, `ctUse/ctSync`, город `TOWN`/`townK`/`drawTown`; правки баланса — `S.balPatch`. Серверные проверки — в `supabase/schema.sql`: `send_gift` списывает кассу из `saves.money`, `poach` требует `saves.drivers`, `submit_score` держит пределы дней и одну лучшую запись на ключ дня |
 | Бот-измеритель | `sim.js` | `__balanceSim`, `.all`, `.story`, `.free` |
 
 ## Данные и сохранения
@@ -55,6 +55,8 @@
 - Новое поле состояния добавлять в `blankState()`: `fixState()` подставит его в старые сохранения, и они не сломаются.
 - Ключи сохранений не переименовывать: у игроков пропадёт прогресс.
 - Код сохранения (`DST24Z.…`) — это сжатый JSON состояния. Формат должен оставаться совместимым со старыми кодами.
+- В облако (`saves`) уходят столбцы `data, mode, day, money, cars, drivers, stars, bal, meta` — их заполняет `cloudPush`, сервер по ним сверяет подарки, переманивание и город. Новый столбец: `alter table … add column if not exists` в начале `schema.sql`, поле в `cloudPush`, проверка в функции; старые сохранения приходит `null`, проверки на `null` обязаны пропускать игрока.
+- Проверки сервера не должны отклонять честных: границы широкие, отказ только там, где число заведомо невозможно (`schema.sql` после `/* ---- рекорды ---- */`).
 
 ## Как писать код
 
