@@ -116,8 +116,9 @@ const PERSON=[
 const shapeOf=m=>SHAPE_OF[m]||SEDAN;
 /* спрайты CARS2 вынесены в js/cars.js (рисунок кузовов), carW/carHo/drawCar остаются здесь */
 const carW=m=>CARS2[m]?CARS2[m].s[0].length:24;
-/* высота фар над верхом «старой» машины 24×11 — по ней ставятся свет фар и стоп-огни */
-const carHo=m=>{const N=CARS2[m];return N?5-N.wy+N.s.findIndex(r=>/[he]/.test(r)):6};
+/* ряд, где у модели фары (h) или светополоса (e) — по нему ставятся лучи дальнего и стоп-огни;
+   раньше высота считалась от «старой» машины 24×11 и на кузове 46 px луч вставал на 2–4 px выше фар */
+const carHo=m=>{const N=CARS2[m];if(!N)return 6;const i=N.s.findIndex(r=>/[he]/.test(r));return i<0?5-N.wy:i};
 /* колесо: шина, диск, ступица и блик, который обегает диск — так видно вращение.
    размер считаем от ширины кузова, иначе на длинных машинах колёса превращаются в точки */
 const wheelSize=w=>Math.max(6,Math.min(9,Math.round(w*.17)));
