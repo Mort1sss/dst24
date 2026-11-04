@@ -160,9 +160,25 @@ function spr(g,s,x,y,flip,pal){x=Math.round(x);y=Math.round(y);for(let r=0;r<s.l
 /* ---- кэш спрайтов: кузов вместе с раскраской собирается в крохотный offscreen-канвас один раз,
    дальше в сцену и в «Фото парка» идёт drawImage вместо ~400 fillRect на машину за кадр ---- */
 const SPX=new Map(),SPX_MAX=420;
+/* уменьшенная копия спрайта для парковочных мест: берём самый частый цвет в блоке,
+   контур и шины не учитываем — иначе у машины получается чёрная шапка вместо крыши;
+   силуэты моделей различаются сами и обновляются вместе с js/cars.js */
+function thumbOf(src,w,h,P){const TW=11,TH=5,t=document.createElement('canvas');t.width=TW;t.height=TH;const g=t.getContext('2d');
+  const rgb=c=>{const v=hx(c);return (v[0]<<16)|(v[1]<<8)|v[2]},skip=new Set([rgb(P.k),rgb('#0e0b1c'),rgb(P.d)]);
+  const d=src.getContext('2d').getImageData(0,0,w,h).data,out=g.createImageData(TW,TH);
+  for(let ty=0;ty<TH;ty++)for(let tx=0;tx<TW;tx++){
+    const x0=Math.floor(tx*w/TW),x1=Math.max(x0+1,Math.floor((tx+1)*w/TW)),y0=Math.floor(ty*h/TH),y1=Math.max(y0+1,Math.floor((ty+1)*h/TH));
+    let best=0,bestN=0,any=0,opa=0,tot=0;const hist=new Map();
+    for(let y=y0;y<y1;y++)for(let x=x0;x<x1;x++){tot++;const i=(y*w+x)*4;if(d[i+3]<128)continue;opa++;
+      const key=(d[i]<<16)|(d[i+1]<<8)|d[i+2],n=(hist.get(key)||0)+1;hist.set(key,n);
+      if(skip.has(key))continue;if(n>bestN){bestN=n;best=key;any=1}}
+    if(!any&&opa){best=hist.keys().next().value;bestN=1;any=1}
+    const j=(ty*TW+tx)*4;if(!any||opa<tot*.35)continue;
+    out.data[j]=best>>16&255;out.data[j+1]=best>>8&255;out.data[j+2]=best&255;out.data[j+3]=255}
+  g.putImageData(out,0,0);return t}
 function spxMake(m,flip,P){const N=CARS2[m],s=N?N.s:shapeOf(m);
   const cv=document.createElement('canvas');cv.width=s[0].length;cv.height=s.length;const g=cv.getContext('2d');
-  spr(g,s,0,0,flip,P);if(N&&P.v)livery(g,s,0,0,flip,P.v);return cv}
+  spr(g,s,0,0,flip,P);if(N&&P.v)livery(g,s,0,0,flip,P.v);cv.thumb=thumbOf(cv,cv.width,cv.height,P);return cv}
 function spxOf(m,flip,P){const k=m+(flip?1:0)+(P.v||'')+P.y+P.l+P.s+P.n+P.m+P.e+P.d+P.t+P.k+P.g;
   let c=SPX.get(k);if(!c){if(SPX.size>=SPX_MAX)SPX.clear();SPX.set(k,c=spxMake(m,flip,P))}return c}
 function px(g,x,y,img){const sm=g.imageSmoothingEnabled;g.imageSmoothingEnabled=false;g.drawImage(img,Math.round(x),Math.round(y));g.imageSmoothingEnabled=sm}
@@ -444,6 +460,13 @@ function ground(month,wk,dark,snow){
 /* снег на крыше, вывеске и навесах */
 function snowCaps(bTop){const c='#f3f6fc';R(4,bTop-3,176,2,c);for(let x=8;x<176;x+=11)R(x,bTop-4,4,1,c);R(46,bTop-15,92,1,c);R(150,bTop-7,8,1,c);R(160,bTop-5,6,1,c);
   DEPTS.forEach((D,d)=>R(10+d*57,57,48,1,c))}
+/* парковочное место: целый 44-пиксельный спрайт в ячейку 13×8 не влезает, поэтому кладём
+   его уменьшенную копию — силуэт, цвет кузова и раскраска остаются узнаваемыми */
+function parkGlyph(x,y,car,P,snow,blink){const img=spxOf(car.m,false,P),w=img.thumb.width;px(cx,x,y,img.thumb);
+  R(x+1,y+5,w-2,1,'#0e0b1c66');
+  if(car.b){cx.globalAlpha=.45;R(x,y,w,5,'#0e0b1c');cx.globalAlpha=1;if(blink)R(x,y,1,1,'#ff6b6b');R(x+2,y+6,2,1,'#0e0b1c88')}
+  if(snow)R(x+3,y,w-6,1,'#f3f6fc');
+  if(car.svc){R(x+w-2,y-1,2,1,'#c6bfe4');R(x+w+1,y+3,1,2,'#ff8a4c')}}
 function draw(){
   if(!S||!S.fleet||!S.heads)return;syncMovers();
   const L=500,pos=(t%(L*(CYCLE.length-1)))/L,ph=Math.floor(pos),f=pos-ph;
@@ -502,11 +525,10 @@ function draw(){
   const cols=10,rowsAll=Math.ceil(S.spots/cols),rows=Math.min(6,rowsAll),lotY=98-rows*8-2;
   R(186,lotY,132,rows*8+2,'#2b2842');R(186,lotY-1,132,1,'#0e0b1c');
   const roadIds=movers.map(m=>m.id),parked=S.fleet.filter(c=>!roadIds.includes(c.id)).sort((p,q)=>q.b-p.b);
+  const liv=S.custom&&S.custom.livery&&S.custom.livery!=='none'?S.custom.livery:'';
   for(let sI=0;sI<Math.min(S.spots,rows*cols);sI++){const r=sI/cols|0,c=sI%cols,px=188+c*13,py=lotY+2+r*8;
     R(px-1,py,1,6,'#4a4570');
-    const car=parked[sI];if(car){const brk=car.b,P=carPal(car.m);
-      R(px+1,py+1,10,5,brk?'#7a6e58':P.y);R(px+3,py+2,5,3,brk?'#5a4e38':P.d);R(px+8,py+2,1,3,'#9fd3ff');R(px+1,py+6,10,1,'#0e0b1c66');
-      if(brk&&((t>>3)+sI)%2)R(px+5,py,1,1,'#ff6b6b')}}
+    const car=parked[sI];if(car){const P=carPal(car.m);P.v=liv;parkGlyph(px+1,py,car,P,snow,((t>>3)+sI)%2)}}
   const hidden=parked.length-rows*cols;if(hidden>0){cx.fillStyle='#f3ecdc';cx.font='6px monospace';cx.fillText(`+${hidden}`,296,lotY-8)}
   // тротуар, дорога, разметка, переход
   R(0,98,W,4,'#8a83b0');R(0,101,W,1,'#5a5285');R(0,102,W,34,'#2a2740');
