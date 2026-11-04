@@ -162,9 +162,14 @@ function spxMake(m,flip,P){const N=CARS2[m],s=N?N.s:shapeOf(m);
 function spxOf(m,flip,P){const k=m+(flip?1:0)+(P.v||'')+P.y+P.l+P.s+P.n+P.m+P.e+P.d+P.t+P.k+P.g;
   let c=SPX.get(k);if(!c){if(SPX.size>=SPX_MAX)SPX.clear();SPX.set(k,c=spxMake(m,flip,P))}return c}
 function px(g,x,y,img){const sm=g.imageSmoothingEnabled;g.imageSmoothingEnabled=false;g.drawImage(img,Math.round(x),Math.round(y));g.imageSmoothingEnabled=sm}
-function drawMini(el){const g=el.getContext('2d');g.clearRect(0,0,38,17);
-  if(el.dataset.m==='person'){spr(g,PERSON,11,5,false,{b:'#f0c8a0',k:'#4fc7b0'});spr(g,PERSON,20,5,false,{b:'#e8b890',k:'#e66fa8',H:'#b05a2a'});return}
-  const m=el.dataset.m,w=carW(m),x=(38-w)>>1;g.fillStyle='#2a2450';g.fillRect(0,13,38,4);g.fillStyle='#0e0b1c66';g.fillRect(x+2,15,w-4,1);
+/* мини-картинка машины в магазине и в парке: холст подгоняется под ширину спрайта,
+   поэтому кузова в js/cars.js можно расширять — превью не обрежет машину */
+const MINI_H=17;
+function drawMini(el){const car=el.dataset.m!=='person',w=car?Math.max(38,carW(el.dataset.m)+4):38;
+  el.width=w;el.height=MINI_H;el.style.width=w*2+'px';el.style.height=MINI_H*2+'px';
+  const g=el.getContext('2d');g.imageSmoothingEnabled=false;g.clearRect(0,0,w,MINI_H);
+  if(!car){spr(g,PERSON,11,5,false,{b:'#f0c8a0',k:'#4fc7b0'});spr(g,PERSON,20,5,false,{b:'#e8b890',k:'#e66fa8',H:'#b05a2a'});return}
+  const m=el.dataset.m,cw=carW(m),x=(w-cw)>>1;g.fillStyle='#2a2450';g.fillRect(0,13,w,4);g.fillStyle='#0e0b1c66';g.fillRect(x+2,15,cw-4,1);
   drawCar(g,m,x,15,false,el.dataset.liv===undefined?carPal(m):Object.assign(carPal(m),{v:el.dataset.liv==='none'?'':el.dataset.liv}))}
 const shade=(h,k)=>'#'+hx(h).map(v=>Math.max(0,Math.min(255,Math.round(v*k))).toString(16).padStart(2,'0')).join('');
 const HEAD=[
