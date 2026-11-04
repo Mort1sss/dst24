@@ -319,7 +319,7 @@ const CYCLE=['night','dawn','day','day','day','dusk','night'];
 const DARKV={night:1,dawn:.5,day:0,dusk:.5};
 const hx=h=>[1,3,5].map(i=>parseInt(h.slice(i,i+2),16));
 const lerp=(a,b,f)=>{const A=hx(a),B=hx(b);return'#'+A.map((v,i)=>Math.round(v+(B[i]-v)*f).toString(16).padStart(2,'0')).join('')};
-let movers=[],t=0;
+let movers=[],t=0,wetDay=-9;
 function syncMovers(){
   const working=S.fleet.filter(c=>!c.b).sort((a,b)=>MODELS[b.m].mult-MODELS[a.m].mult);
   let n=Math.min(S.drivers,working.length,10);if(strikeOn())n=Math.max(n?1:0,Math.floor(n/2));
@@ -532,10 +532,23 @@ function draw(){
   const hidden=parked.length-rows*cols;if(hidden>0){cx.fillStyle='#f3ecdc';cx.font='6px monospace';cx.fillText(`+${hidden}`,296,lotY-8)}
   // тротуар, дорога, разметка, переход
   R(0,98,W,4,'#8a83b0');R(0,101,W,1,'#5a5285');R(0,102,W,34,'#2a2740');
-  for(let i=0;i<40;i++)R((i*53)%W,103+(i*7)%32,1,1,'#33304a');
+  // швы и заплаты: дорога не должна быть одним серым полотном
+  for(let x=6;x<W;x+=24)R(x,102,1,34,'#262338');
+  for(let y=108;y<134;y+=11)R(0,y,W,1,'#262338');
+  R(46,110,26,7,'#312c46');R(196,124,34,6,'#2f2a44');R(288,106,22,5,'#312c46');R(289,107,20,1,'#3a3452');
   cx.fillStyle='#f7c331';for(let x=-(Math.floor(t)%16);x<W;x+=16)cx.fillRect(x,119,8,1);
+  R(214,104,2,14,'#d8d0e8');R(214,122,2,12,'#d8d0e8');
   for(let y=104;y<134;y+=4)R(222,y,14,2,'#d8d0e8');
   R(0,136,W,2,'#8a83b0');R(0,138,W,12,'#5a5285');for(let x=0;x<W;x+=10)R(x,138,1,12,'#4a4570');
+  R(0,98,W,1,'#a8a0cc');R(0,136,W,1,'#a8a0cc');R(0,102,W,1,'#1e1b30');
+  if(snow){for(let x=8;x<W;x+=44){R(x,96,20,2,'#f3f6fc');R(x+3,95,13,1,'#e8eef8');R(x+28,137,15,2,'#f3f6fc');R(x+31,136,9,1,'#e8eef8')}}
+  // лужи: во время дождя их рисует ground(), после дождя — держатся ещё сутки
+  if(wk==='rain')wetDay=S.day;
+  const wet=S.day-wetDay<=1&&wk!=='rain'&&wk!=='snow';
+  if(wet)PUDDLES.forEach(([x,y,w])=>{if(x>W)return;R(x+1,y,w-2,1,'#1c1a34');R(x,y+1,w,1,'#1c1a34');R(x+1,y+2,w-2,1,'#1c1a34');
+    R(x+2,y+1,w-5,1,lerp('#3a4a70','#26304e',dark))});
+  if(dark>.4&&wet)PUDDLES.forEach(([x,y,w])=>{if(x>W)return;cx.globalCompositeOperation='lighter';
+    for(let k=0;k<3;k++){cx.fillStyle=`rgba(255,236,170,${(.07-k*.02).toFixed(3)})`;cx.fillRect(x+3,y+k,5,1)}cx.globalCompositeOperation='source-over'});
   ground(month,wk,dark,snow);
   // машины с тенями
   const red=(Math.floor(t)%240)>150;
