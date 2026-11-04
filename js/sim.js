@@ -2,7 +2,7 @@
 /* ---- замер баланса ---- */
 /* Только с ?sim в адресе: бот проходит партии без интерфейса и печатает таблицу. Ничего не пишет в localStorage. */
 if(/[?&]sim\b/.test(location.search))(()=>{
-const SIM_V='bot-5';
+const SIM_V='bot-6';
 const mulberry=a=>()=>{a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296};
 const pct=(a,p)=>a.length?[...a].sort((x,y)=>x-y)[Math.min(a.length-1,Math.floor(p*a.length))]:null;
 const SIM_STUBS=['save','saveG','toast','sfx','voice','triggerScene','coachStart','tutorial','drawFaces','pddExam'];
