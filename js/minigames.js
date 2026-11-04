@@ -102,11 +102,11 @@ function rivalEvent(){
   let body,btns;
   if(k==='poach'){const n=Math.min(3,Math.max(1,S.drivers>>2)),cost=n*6000;
     body=`«${esc(R.name)}» обещает вашим водителям золотые горы. ${n} вод. уже собирают вещи.`;
-    btns=[[`Удержать (−${rub(cost)})`,()=>{S.money-=cost;S.dlist.forEach(d=>d.loy=Math.min(100,d.loy+5));return'Водители остались и стали лояльнее.'}],['Отпустить',()=>{S.drivers=Math.max(0,S.drivers-n);R.cars++;return`${n} вод. ушли к конкуренту.`}]]}
+    btns=[[`Удержать (−${rub(cost)})`,()=>{S.money-=cost;S.dlist.forEach(d=>d.loy=Math.min(100,d.loy+5));return'Водители остались и стали лояльнее.'}],['Отпустить',()=>{S.drivers=Math.max(0,S.drivers-n);rivalAdd(R,1);return`${n} вод. ушли к конкуренту.`}]]}
   else if(k==='sale'){body=`«${esc(R.name)}» распродаёт три б/у Kia Rio за 160 000 ₽ все сразу. Обычная цена — 240 000 ₽.`;
     btns=[['Купить три Rio (−160 000 ₽)',()=>{if(S.money<160000)return'Не хватило денег. Машины ушли другому.';if(carsN()+3>S.spots)return'Некуда ставить: стоянка заполнена.';S.money-=160000;for(let i=0;i<3;i++)addCar('rio');R.cars=Math.max(3,R.cars-3);S.cnt.bought=(S.cnt.bought||0)+1;return'Три Kia Rio теперь ваши.'}],['Отказаться',()=>'Конкурент продал машины кому-то ещё.']]}
   else if(k==='war'){body=`«${esc(R.name)}» начал ценовую войну: возит пассажиров почти даром.`;
-    btns=[['Ответить скидками (спрос −10% на 5 дней)',()=>{S.news.push({id:'war',t:'Ценовая война',d:'выручка −10%',demand:.9,days:5});R.cars=Math.max(3,R.cars-2);R.rep-=3;return'Вы ответили. Конкурент потерял пару машин.'}],['Игнорировать',()=>{S.rep=Math.max(0,S.rep-4);R.cars+=2;return'Часть пассажиров ушла к конкуренту. −4 к репутации.'}]]}
+    btns=[['Ответить скидками (спрос −10% на 5 дней)',()=>{S.news.push({id:'war',t:'Ценовая война',d:'выручка −10%',demand:.9,days:5});R.cars=Math.max(3,R.cars-2);R.rep-=3;return'Вы ответили. Конкурент потерял пару машин.'}],['Игнорировать',()=>{S.rep=Math.max(0,S.rep-4);rivalAdd(R,2);return'Часть пассажиров ушла к конкуренту. −4 к репутации.'}]]}
   else if(k==='vip'){body=`«${esc(R.name)}» переманивает ваших бизнес-клиентов: обещает только новые машины и воду в салоне.`;
     btns=[['Рекламная кампания (−20 000 ₽)',()=>{S.money-=20000;S.rep=Math.min(100,S.rep+2);R.rep-=4;return'Клиенты остались с вами. Конкурент недоволен.'}],['Не реагировать',()=>{S.news.push({id:'vipl',t:'Клиенты ушли к конкуренту',d:'выручка −7%',demand:.93,days:4});R.rep+=3;return'Часть бизнес-клиентов ушла на несколько дней.'}]]}
   else{const price=R.cars*55000;body=`Владелец «${esc(R.name)}» устал и предлагает продать вам весь парк: ${R.cars} машин, водителей и стоянку за ${rub(price)}.`;

@@ -30,6 +30,14 @@ function strikeEnds(notes){const days=Math.max(1,S.day-S.strike.day+1),lost=Math
   const al=S.dlist.length?S.dlist.reduce((a,x)=>a+x.loy,0)/S.dlist.length:60,ui=EVENTS[0].findIndex(e=>e.t==='Ультиматум водителей');
   if(al<50&&ui>-1&&Math.random()<.35){S.queue.push({d:0,id:ui,at:S.day+rand(5,9)});const m2='Водители всё ещё недовольны — забастовка может повториться.';notes.push(m2);addLog(m2)}
   if(!scn)triggerScene('strikeEnd');S.strike=null}
+/* ---- рост парка конкурента: у агрессивного (глава 2 сюжета) есть потолок ёмкости рынка ---- */
+const rivalCap=r=>B(15)&&r&&r.aggr?bal('aggr').cap:1e9;
+function rivalAdd(r,n,notes){if(!r||!n)return 0;const cap=rivalCap(r);
+  if(n<0){r.cars+=n;return n}
+  if(r.cars>=cap)return 0;
+  const add=Math.min(n,cap-r.cars);r.cars+=add;
+  if(cap<1e9&&r.cars>=cap&&!r.capped){r.capped=1;if(notes)notes.push(`«${r.name}» упёрся в ёмкость рынка: дальше его парк не растёт.`)}
+  return add}
 function apply(fx={},d){
   fx=Object.assign({},fx);
   if(d===0&&hasHead('lena')&&fx.rep<0)fx.rep=Math.ceil(fx.rep/2);
@@ -50,7 +58,7 @@ function apply(fx={},d){
   if(fx.rel&&d!=null&&S.heads)relAdd(d,fx.rel);
   if(fx.tdebt)S.tdebt=Math.max(0,(S.tdebt||0)+fx.tdebt);
   if(fx.rent)CLASSES.forEach(cl=>{if(S.rents[cl])S.rents[cl]=Math.round(S.rents[cl]*(1+fx.rent/100)/50)*50});
-  if(fx.rival&&S.rivals&&S.rivals.length){const r=[...S.rivals].sort((a,b)=>b.cars-a.cars)[0];r.cars+=fx.rival}
+  if(fx.rival&&S.rivals&&S.rivals.length){const r=[...S.rivals].sort((a,b)=>b.cars-a.cars)[0];rivalAdd(r,fx.rival)}
   if(fx.lot)S.lotOwned=1;
   if(fx.parts)S.parts=Math.max(0,(S.parts||0)+fx.parts);
   if(fx.fix)S.fleet.filter(c=>c.b&&!c.h).slice(0,fx.fix).forEach(c=>c.b=0);
@@ -320,8 +328,12 @@ function endDay(){
   if(S.news.length<2&&Math.random()<.3){const pool=NEWS.filter(n=>!n.ev&&!S.news.some(x=>x.id===n.id));const n=pool[Math.random()*pool.length|0];if(n){S.news.push({id:n.id,days:n.days});notes.push(`Новости города: ${n.t} (${n.d}).`)}}
   // конкурент
   const myCars=totalCars();let poached=0;
-  S.rivals.forEach(r=>{const g={war:.5,poach:.4,prem:.3,calm:.35}[r.style]||.4;if(Math.random()<g)r.cars++;
-    if(myCars>r.cars&&S.mode!=='sandbox'){const gap=Math.min(1,(myCars-r.cars)/20);if(Math.random()<.45*gap)r.cars+=rand(1,2);if(myCars>=(B(4)?bal('poachFrom'):25)&&S.drivers>3&&Math.random()<.06*gap*(r.style==='poach'?2:1)*(B(4)?aggDef().poach:1)){S.drivers--;poached++;S.cnt.poach=(S.cnt.poach||0)+1;notes.push(`«${r.name}» переманил вашего водителя: у лидера рынка все хотят забрать людей.`)}}if(r.aggr&&Math.random()<.6)r.cars++;if(S.rep<40&&Math.random()<.3)r.cars++;
+  S.rivals.forEach(r=>{const g={war:.5,poach:.4,prem:.3,calm:.35}[r.style]||.4,AG=B(15)&&r.aggr?bal('aggr'):null;
+    if(Math.random()<g)rivalAdd(r,1,notes);
+    if(myCars>r.cars&&S.mode!=='sandbox'){const gap=Math.min(1,(myCars-r.cars)/20);if(Math.random()<.45*gap)rivalAdd(r,rand(1,2),notes);
+      if(myCars>=(B(4)?bal('poachFrom'):25)&&S.drivers>3&&Math.random()<.06*gap*(r.style==='poach'?2:1)*(B(4)?aggDef().poach:1)){S.drivers--;poached++;S.cnt.poach=(S.cnt.poach||0)+1;notes.push(`«${r.name}» переманил вашего водителя: у лидера рынка все хотят забрать людей.`)}}
+    if(AG){const room=Math.max(0,1-r.cars/AG.cap);if(Math.random()<.6*room)rivalAdd(r,1,notes)}else if(r.aggr&&Math.random()<.6)r.cars++;
+    if(S.rep<40&&Math.random()<.3)rivalAdd(r,1,notes);
     r.rep=Math.max(30,Math.min(95,r.rep+rand(-2,2)))});
   if(B(4)&&S.mode!=='sandbox'&&featOpen('rival')){
     S.lowDays=!S.war&&rentAvg()<=-bal('warLow')?(S.lowDays||0)+1:0; // во время войны демпинг не копится
@@ -329,7 +341,7 @@ function endDay(){
     else if(S.war&&S.day===S.war.at)notes.push(`«${esc(S.war.by)}» начал ценовую войну: спрос ×${bal('warK')} на ${S.war.len} дн. Подтяните ставки к рынку.`);
     if(!S.war&&S.lowDays>=bal('warDays')&&Math.random()<bal('warP')){const rv=S.rivals.find(r=>r.style==='war')||S.rivals[rand(0,S.rivals.length-1)];S.war={at:S.day+bal('warAt'),len:bal('warLen'),by:rv.name};S.lowDays=0;S.cnt.wars=(S.cnt.wars||0)+1}
     if(S.ctLost&&S.day>S.ctLost.day){const L=S.ctLost;S.ctLost=null;
-      if(Math.random()<bal('lostP')){const rv=S.rivals[rand(0,S.rivals.length-1)];rv.cars+=rand(1,2);rv.rep=Math.min(95,rv.rep+2);addLog(`Контракт с ${esc(L.co)} достался «${esc(rv.name)}».`);notes.push(`Контракт с ${esc(L.co)}, от которого вы отказались, забрал «${esc(rv.name)}».`)}}}
+      if(Math.random()<bal('lostP')){const rv=S.rivals[rand(0,S.rivals.length-1)];rivalAdd(rv,rand(1,2));rv.rep=Math.min(95,rv.rep+2);addLog(`Контракт с ${esc(L.co)} достался «${esc(rv.name)}».`);notes.push(`Контракт с ${esc(L.co)}, от которого вы отказались, забрал «${esc(rv.name)}».`)}}}
   // бензин
   S.fuel=Math.max(.85,Math.min(1.35,S.fuel*(1+rand(-25,30)/1000)));
   // филиалы
@@ -370,7 +382,7 @@ function endDay(){
     const ks=Object.keys(CRISES),k=ks[rand(0,ks.length-1)],len=B(2)&&camp()?Math.min(CRISES[k].days,bal('crisisMax')):CRISES[k].days;
     if(B(2)&&!heavyDays(S.day+1,len))S.nextCrisis=S.day+rand(2,4);
     else{S.crisis={id:k,days:len};S.nextCrisis=B(2)&&camp()?1e9:B(2)&&endl()?S.day+rand(...bal('endCrisisNext')):S.day+rand(45,70);
-    if(k==='fuel')S.fuel=Math.max(S.fuel,1.3);if(k==='giant')S.rivals.forEach(r=>r.cars+=2);if(k==='roads')S.dmods.center=.7;
+    if(k==='fuel')S.fuel=Math.max(S.fuel,1.3);if(k==='giant')S.rivals.forEach(r=>rivalAdd(r,2));if(k==='roads')S.dmods.center=.7;
     notes.unshift(`<b class="neg">КРИЗИС: ${CRISES[k].n}!</b> ${CRISES[k].d}. Продлится ${len} дн.`)}}
   if(crisisOn('fuel'))S.fuel=Math.max(S.fuel,1.3);
   // погода и районы на завтра
