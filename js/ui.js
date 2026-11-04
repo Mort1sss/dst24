@@ -136,10 +136,10 @@ function hideModal(){$('modal').hidden=true;if(typeof updCheck==='function')setT
 /* ---- сводка обновлений: автопоказ после выпуска и история из меню ---- */
 function changeLog(all){
   const list=all?UPDATES:UPDATES.filter(u=>u.v>(G.ver||0));
-  if(!list.length)return;
+  if(!list.length){if(!all){G.ver=BUILD;saveG()}return}
   showModal(`<span class="step">${all?'ИСТОРИЯ ОБНОВЛЕНИЙ':'ОБНОВЛЕНИЕ ИГРЫ'}</span><h2>${esc(list[0].n)}</h2>
     <p class="sub">${all?'Что менялось в игре, выпуск за выпуском.':'Коротко: что изменилось. Всю историю всегда можно открыть в «Меню» → «Что нового».'}</p>
-    ${list.map(u=>`<div class="upd"><h3>${esc(u.n)}${u.v===BUILD?' <span class="tag">СВЕЖЕЕ</span>':''}</h3><ul>${u.items.map(t=>`<li>${esc(t)}</li>`).join('')}</ul></div>`).join('')}
+    ${list.map((u,i)=>`<div class="upd${i?' old':''}"><h3>${esc(u.n)}${u.v===BUILD?' <span class="tag">СВЕЖЕЕ</span>':''}</h3><ul>${u.items.map(t=>`<li>${esc(t)}</li>`).join('')}</ul></div>`).join('')}
     <div class="btns"><button class="btn" id="upOk">${all?'Закрыть':'Забрать и играть'}</button></div>`);
   sfx('click');G.ver=BUILD;saveG();
   $('upOk').onclick=hideModal;
