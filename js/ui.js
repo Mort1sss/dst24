@@ -234,6 +234,8 @@ function render(prev){
   if(S.raid)tick.push(card('down','gai','Рейды ГАИ',`подготовка ${Math.round(S.raid.prep*100)}%`,S.raid.days));
   if((S.tdebt||0)>=4)tick.unshift(card('down','warn',`Отложенные проблемы: ${S.tdebt}/8`,'дешёвые решения копятся'));
   if(taxOn()&&taxDueIn()<=10)tick.unshift(card('down','tax',`Налог через ${taxDueIn()+1} дн.`,`≈${rub(Math.round(S.taxAcc*taxRate()/1000)*1000)}`));
+  if(B(13)&&taxRate()>=.2)tick.unshift(card('down','tax',`Налог ${Math.round(taxRate()*100)}%`,`выручка ${rub(Math.round(txAvg()))}/день на ${S.split?`юрлицо №${S.split+1}`:'парк'}${txSpecK()>1?' · спецрежим':''}`));
+  if(B(13)&&S.watch>S.day)tick.unshift(card('down','tax','Вы «на карандаше» у налоговой',`проверки чаще до дня ${S.watch}`,S.watch-S.day));
   if(satK()<.97)tick.unshift(card('down','down','Рынок насыщен',`выручка с машины ×${satK().toFixed(2)}`));
   {const ri=netRevInfo();if(ri)tick.unshift(card('down','warn',`Выручка ×${ri.k2}${ri.to?` до ${ri.to}`:''}`,'решение города',0,0,'',`${ri.t}: выручка парка ×${ri.k2}${ri.to?` до ${ri.to}`:''}`))}
   if(S.city&&S.city!=='home')tick.unshift(card('','city',cityDef().n));
@@ -305,6 +307,7 @@ const b3=()=>B(3);
 // в renderMgmt локальная B — элемент #mbody, поэтому проверка баланса только через обёртку
 const b7=()=>B(7);
 const b12=()=>B(12);
+const b13=()=>B(13);
 /* карточка смен: bal 3 — вторая смена и усталость (во вкладке «Водители»), раньше — ночная смена (на карте) */
 function shiftCard(dis){
   if(b3()){const mx=bal('shiftMax'),owl=S.dlist.filter(d=>d.t==='night').length;
@@ -429,6 +432,19 @@ function renderMgmt(){
         ${wait?`<div class="specs"><div class="spec"><span>Обещано внести</span><b>${rub(wait)}</b></div><div class="spec"><span>Сроки</span><b>${(S.cashWait||[]).map(w=>`день ${w.at}`).join(', ')}</b></div></div>`:''}
         <div class="btns"><button class="buy" id="cashBtn" ${off||done?'disabled':''}>${done?'Сегодня уже собрано':'Пройтись по должникам'}</button></div>
         <p class="sub">Собранное приходит в кассу в конце дня строкой «Сбор аренды». Риск просчёта отдела сейчас ${Math.round(Math.min(.6,bal('cash').blunder*rm(0))*100)}% на должника: кассир путает суммы, а про должников забывают — меньше всего это бывает, когда «Подключение» не перегружен водителями. Жёсткие требования бьют по лояльности — водители уходят и начинают бастовать.</p></div>`})():''}
+      ${b13()&&tabOpen('fin')?(()=>{const T=bal('tx'),SPL=bal('spl'),avg=txAvg(),rate=taxRate(),nx=txNext(),why=splitOk();
+        return`<div class="card2" style="grid-column:1/-1"><h3>Налоги и камеральные</h3>
+        <div class="specs"><div class="spec"><span>Средняя выручка на юрлицо</span><b>${rub(Math.round(avg))}/день</b></div>
+        <div class="spec"><span>Ставка по шкале</span><b class="${rate>.2?'neg':''}">${Math.round(rate*100)}%${txSpecK()>1?` <span class="sub">перегружает спецрежим ×${T.specK}</span>`:''}</b></div>
+        <div class="spec"><span>До следующей ступени</span><b>${nx?rub(nx):'максимум'}</b></div>
+        <div class="spec"><span>Уплачено за игру</span><b>${rub(S.taxPaidAll||0)}</b></div>
+        <div class="spec"><span>Шанс камералки после декларации</span><b class="${deskP()>.4?'neg':''}">${Math.round(deskP()*100)}%</b></div>
+        <div class="spec"><span>Максимум снятия с кассы</span><b>${Math.round((rate>=.3?.8:rate>=.25?.7:rate>=.2?.6:.5)*100)}%</b></div>
+        <div class="spec"><span>Юрлиц</span><b>${S.split?'№1 + '+S.split:'одно (обычно)'}</b></div></div>
+        <p class="sub">Шкала: ${T.bands.map(([x,k],i)=>i===T.bands.length-1?`свыше ${Math.round(T.bands[i-1][0]/1000)} тыс — ${Math.round(k*100)}%`:`до ${Math.round(x/1000)} тыс — ${Math.round(k*100)}%`).join(', ')}. Свыше ${Math.round(T.spec/1000)} тыс в день — надбавка ×${T.specK}. Дробление на юрлица снижает ставку, но ${SPL.det*100}% риска на каждое: если заметят — доначисление ×${SPL.mult}, репутация −${SPL.rep} и ${SPL.cool} дней контроля.</p>
+        <div class="btns"><button class="buy" id="splitOpen" ${off||why?'disabled':''} title="${esc(why||'')}">Открыть юрлицо · ${rub(splitPrice())}</button>
+        ${S.split?`<button class="buy sm alt" id="splitClose" ${off?'disabled':''}>Закрыть юрлицо · ${rub(Math.round(SPL.cost*.3/100)*100)}</button>`:''}</div>
+        ${S.watch>S.day?`<p class="neg">Вы «на карандаше» у налоговой до дня ${S.watch}: проверки идут чаще и мягче не пройдут.</p>`:''}</div>`})():''}
       <div class="card2"><h3>Банк</h3>
         ${(S.bal>=5)?`<div class="row2 cred"><b class="cg g${cGrade()}">${cGrade()}</b><span>Кредитный рейтинг · счёт ${cSc()>0?'+':''}${cSc()}<br><small class="sub">Как поднять: не уходить в минус, платить по графику, гасить досрочно.</small></span></div>`:''}
         ${[0,1,2].slice(0,(S.bal>=5)&&cGrade()==='A'?3:2).map(i=>{const L=loanOffer(i);return`<div class="row2"><span>${i===2?'Третий кредит: ':''}${rub(L.amount)} на ${L.days} дн. · ${rub(loanPay(L))}/день</span><button class="buy sm tap" data-loan="${i}" ${off||!loanOk(i)?'disabled':''}>Взять</button></div>`}).join('')}
@@ -563,6 +579,8 @@ $('mbody').addEventListener('click',e=>{const b=e.target.closest('button');if(!b
   if(ds.buy){const s=String(ds.buy).split(':');return buy(s[0],s[1]==null?null:+s[1])}
   if(b.id==='hireBtn')return hire(false);
   if(b.id==='cashBtn')return cashRun();
+  if(b.id==='splitOpen')return openSplit();
+  if(b.id==='splitClose')return closeSplit();
   if(b.id==='hireBoost')return hire(true);
   if(ds.sellcar)return sellCar(+ds.sellcar);
   if(ds.svc){if(service(S.fleet.find(c=>c.id===+ds.svc))){addLog('ТО: машина отправлена на плановое обслуживание.');sfx('coin');save();render()}else toast('Не хватает денег');return}

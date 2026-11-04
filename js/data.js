@@ -853,7 +853,7 @@ const totalCars=()=>S.fleet.length+(S.branches||[]).reduce((a,b)=>a+b.cars,0);
 
 /* ---- версия баланса ---- */
 // числа по версиям: партия читает свою версию, нет ключа — берётся ближайшая меньшая; новая настройка = новая запись, старые не менять
-const BAL_NEW=12,BAL={
+const BAL_NEW=13,BAL={
  1:{meet:30,plan:150000,offK:.5,offCap:1e12,loginDay:5000,loginBonus:20000,loginParts:0,loginLoy:0,leaseRet:0},
  2:{start:{normal:1,hard:.9},rev:{normal:1.08,hard:1.1},goal:{normal:175000,hard:175000},star2:1.3,star3:1.7, // подобрано ботом bot-2: «Обычный» ≈55%, «Хардкор» ≈27% побед
   taxDays:[14,28],endTax:60,crisisFirst:[16,21],crisisMin:16,crisisMax:6,endCrisisFirst:[20,30],endCrisisNext:[40,60],inflDay:15,inflPct:[2,3],endInfl:30,
@@ -870,7 +870,10 @@ const BAL_NEW=12,BAL={
  10:{dp:{per:400,cap:8,ttl:9,spawn:[2.1,.85,.02],nightK:1.25,tiredK:.7,rep:[[7,1],[12,2],[18,3]]}},
  11:{staffK:.93,staffCap:25,hire:{cost:8000,boost:12000,min:2,max:3,bmax:4,bstar:.35,cap:4,capRep:25}},
  12:{lz:{days:[36,60,90],down:[1.25,1,.8],pay:[1.18,1,.86],buy:[.28,.32,.35],early:.55,lateK:.08,lateMax:6,cAdj:{A:-.06,B:0,C:.05,D:.12}},
-   cash:{ttl:40,min:6,max:9,now:.7,late:.65,loyNow:2,loyRem:6,loss:.35,share:.08,potMax:20000,blunder:.14,keep:.4}}}; // BAL[4] подобран ботом bot-4: «Обычный» ≈60%, агрегаторы 55/54/60%; BAL[5] (кредитный рейтинг) bot-5: «Обычный» ≈60%, «Хардкор» ≈31%
+   cash:{ttl:40,min:6,max:9,now:.7,late:.65,loyNow:2,loyRem:6,loss:.35,share:.08,potMax:20000,blunder:.14,keep:.4}},
+ 13:{tx:{bands:[[120000,.15],[250000,.2],[450000,.25],[1e12,.3]],spec:300000,specK:1.2},
+   desk:{p:.14,car:.0035,lease:.12,fine:.5,fineCar:9000,cap:3e6},
+   spl:{cost:60000,up:500,det:.1,cool:30,mult:1.6,rep:8,max:3}}}; // BAL[4] подобран ботом bot-4: «Обычный» ≈60%, агрегаторы 55/54/60%; BAL[5] (кредитный рейтинг) bot-5: «Обычный» ≈60%, «Хардкор» ≈31%
 // BAL[6]: brRev — выручка филиала с машины (было 3300); lotBack — доля цены при продаже стоянки; upgVal/brVal — доля цены улучшений и филиалов в оценке парка; prestK — ₽ оценки на очко престижа; rk — пороги званий
 // BAL[6] город: town — k выручки и cap (заказов на всех) по районам; townLead — надбавка лидера; townFloor — нижний предел давки; townMin/townMax — границы множителя парка
 // BAL[7] холдинг (только бесконечный): tree — цены ступеней (cost) и эффекты веток: fin — капитал, ставка кредитов (п.п.), налоги; ppl — лояльность на старте, сотрудники в отделе, медленнее усталость; car — цены автосалона, поломки, ТО и ремонт, подарок-машина
@@ -880,6 +883,7 @@ const BAL_NEW=12,BAL={
 // BAL[11] кадры: staffK — множитель риска отдела за каждого сотрудника (сложный процент), staffCap — потолок штата; hire — вакансия на Авито: cost размещение, boost продвижение, min/max/bmax откликов без и с продвижением, bstar доля «звёзд» при продвижении, cap/capRep — лимит наймов за 7 дней = cap + репутация/capRep
 // BAL[12] лизинг: days — сроки 36/60/90, down — аванс (доля цены машины) под каждый срок, pay — множитель дневного платежа, buy — выкупная доля цены в конце срока, early — штраф за досрочный возврат (доля оставшихся платежей), lateK — пени за день просрочки (доля дневного платежа), lateMax — дней просрочки, после которых машину изымают, cAdj — надбавка к ставке по кредитному рейтингу
 // BAL[12] «Касса вечера»: ttl — секунд на обход должников, min/max — сколько должников в вечере, share — доля вчерашней выручки, которая висит недобором, potMax — потолок недобора за вечер, now — долю долга, которую берёшь сразу, late — шанс, что должник заплатит полностью через пару дней, loyNow/loyRem — удар по лояльности водителей, loss — доля долга, которая сгорает при неудаче, blunder — шанс промаха отдела (умножается на риск «Подключения» rm(0): собрали меньше или вовсе забыли про должника), keep — какая часть суммы остаётся при промахе в мягком варианте
+// BAL[13] налоги: tx.bands — ступеньки [предел среднесуточной выручки на юрлицо, ставка], spec — порог спецрежима, specK — надбавка к ставке сверх порога; desk — камеральная проверка: p базовый шанс, car — прибавка за машину, lease — прибавка за долю лизинга в выручке, fine — доля от ранее уплаченного налога, fineCar — штраф за каждую машину сверх порога, cap — потолок штрафа; spl — дробление: cost открытие юрлица, up ₽/день за каждого, det — прибавка к риску обнаружения за юрлицо, cool — дней «на карандаше», mult — кратность штрафа за дробление, rep — удар по репутации, max — сколько юрлиц можно иметь
 // BAL[10] смена диспетчера: per — ₽ на машину парка за идеальную смену; cap — сколько экипажей выходит на мини-карту (остальные учитываются в награде через activeN); ttl — секунд на заказ; spawn — [старт, пол, ускорение в секунду]; nightK — множитель при второй смене 100%; tiredK — скорость экипажей при усталости 100%; rep — пороги [выполнено, +репутация]
 // BAL[3] подобран ботом bot-3: «Обычный» ≈63%, без смены и ТО ≈50%, смена всегда на максимуме ≈12%
 // balRev: правки баланса из админки действуют только на партии, начатые после них (см. ОНЛАЙН)
@@ -959,7 +963,7 @@ const TAB_HINTS={shop:'Покупайте машины и нанимайте в�
  ach:'Достижения и ваши лучшие результаты.'};
 const tabOpen=k=>!simpleOn()||S.day>=(TAB_DAY[k]||1)||(k==='branch'&&S.rank>=3);
 const featOpen=k=>!simpleOn()||S.day>=(FEATURE_DAY[k]||1);
-const MORNING_PRIO=['boom','lzend','tax','quit','meeting','union','paper','rare','inspect','quest','rival','raid','auction','contract','career','conflict','branch','agency','disp','cash','vac','a2hs'];
+const MORNING_PRIO=['boom','lzend','tax','desk','quit','meeting','union','paper','rare','inspect','quest','rival','raid','auction','contract','career','conflict','branch','agency','disp','cash','vac','a2hs'];
 function advice(){
   const left=S.done.filter(x=>!x).length,working=carsN()-brokenN(),free=working-S.drivers,idle=S.drivers-working;
   if(S.over)return null;
@@ -1148,7 +1152,16 @@ function setAgg(k){if(!B(4)||S.over||S.preview||!AGG[k]||k===(S.agg||'mig'))retu
 const costScale=()=>Math.max(1,Math.pow(totalCars()/8,.6))*inf();
 const negScale=()=>costScale()*(S.day<=7?.6:1);
 const TAX_RATE=.15;
-const taxRate=()=>TAX_RATE*(hq('fin',3)?1-bal('tree',7).fin.tax:1);
+/* ---- прогрессивный налог и камералка (bal 13) ---- */
+// средняя выручка на юрлицо за день: шкала считается по ней, дробление делит её на (юрлиц+1)
+const txAvg=()=>((S&&S.txRev||0)/Math.max(1,(S&&S.txDays)||1))/Math.max(1,((S&&S.split)||0)+1);
+const txBand=(avg=txAvg())=>{const b=bal('tx').bands;for(const[x,k]of b)if(avg<x)return k;return b[b.length-1][1]};
+const txSpecK=()=>{const T=bal('tx');return txAvg()>T.spec?T.specK:1};
+const txNext=()=>{const b=bal('tx').bands,a=txAvg();for(let i=0;i<b.length-1;i++)if(b[i][0]>a)return b[i][0];return null};
+const taxRate=()=>(B(13)?txBand()*txSpecK():TAX_RATE)*(hq('fin',3)?1-bal('tree',7).fin.tax:1);
+// шанс камеральной проверки после декларации: парк, доля лизинга, дробление и «карандаш»
+function deskP(){const A=bal('desk'),rev=Math.max(1,txAvg()),ls=leaseSum();
+  return Math.min(.85,A.p+totalCars()*A.car+(ls>0?A.lease*Math.min(1,ls/rev):0)+((S.split||0)*bal('spl').det)+(S.watch>S.day?.15:0))}
 const isTaxDay=d=>B(2)&&camp()?bal('taxDays').includes(d):d%(B(2)&&endl()?bal('endTax'):90)===0;
 const taxOn=()=>S.mode!=='sandbox'&&!dailyLike()&&(!B(2)||!simpleOn()||tabOpen('fin'));
 const taxDueIn=()=>{if(B(2)&&camp()){const t=bal('taxDays').find(d=>d>=S.day);return t?t-S.day:99}const p=B(2)&&endl()?bal('endTax'):90;return p-((S.day-1)%p)-1};

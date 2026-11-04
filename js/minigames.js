@@ -709,6 +709,38 @@ function cashEnd(){
   sfx(got?'coin':'click');
   $('cwOk').onclick=()=>{hideModal();if(S.morning&&S.morning.length)runMorning()};
 }
+/* ---- камеральная проверка по декларации (bal 13) ---- */
+const deskFine=()=>{const A=bal('desk'),base=(S.taxPaidAll||0)*A.fine+Math.max(0,totalCars()-SAT_CAP())*A.fineCar;
+  return Math.min(A.cap,Math.max(20000,Math.round(base/100)*100))};
+function deskAudit(){
+  if(!B(13)||S.over)return runMorning();
+  S.queueDesk=0;save();
+  const A=bal('desk'),SPL=bal('spl'),cost=Math.round(25000*inf()*(1+totalCars()/60)/100)*100,fine=deskFine(),early=Math.round(fine*.3/100)*100;
+  showModal(`<span class="step">КАМЕРАЛЬНАЯ ПРОВЕРКА</span><h2>Налоговая разбирает декларацию</h2>
+    <p>По последней декларации истребовали документы: путевые листы, договоры с водителями, графики лизинга и кассу. При нарушениях штраф — <b class="neg">${rub(fine)}</b>: доля от уплаченного налога плюс за каждую машину сверх ${SAT_CAP()} в городе.</p>
+    <div class="modes">
+      <button class="mode" id="tdSelf"><b>ПОДАТЬ КАК ЕСТЬ</b><span>Шанс зависит от порядка в «Автопарке», офиса и начальника-юриста. Дробление на юрлица снижает его.</span></button>
+      <button class="mode" id="tdPro"><b>ЮРИСТ ГОТОВИТ ПАКЕТ (−${rub(cost)})</b><span>Дорого, но почти наверняка без штрафа.</span></button>
+      <button class="mode" id="tdPay"><b>ПРИЗНАТЬ И ЗАПЛАТИТЬ ${rub(early)}</b><span>Треть штрафа сейчас: без репутации и без «карандаша».</span></button>
+    </div>`);
+  sfx('alert');
+  const hit=(mult,det)=>{let f=Math.round(fine*mult/100)*100;
+    if(S.money<f){f=Math.round(Math.max(0,S.money)/100)*100}
+    if(f)S.money-=f;S.rep=Math.max(0,S.rep-2);
+    let msg=`Нашли расхождения: штраф ${rub(f)}.`;
+    if(det){const add=Math.round(f*(SPL.mult-1)/100)*100;if(add&&S.money>=add)S.money-=add;S.rep=Math.max(0,S.rep-SPL.rep);S.watch=S.day+SPL.cool;
+      msg+=` Разбили парк на ${S.split+1} юрлиц: доначисление ${rub(add)}, репутация −${SPL.rep}, 30 дней «на карандаше».`}
+    return msg};
+  const fin=(ok,msg)=>{addLog('Камералка: '+msg);sfx(ok?'win':'bad');save();render();
+    showModal(`<h2 class="${ok?'pos':'neg'}">${ok?'Всё сошлось':'Доначислили'}</h2><p>${msg}</p><button class="btn" id="tdOk">Продолжить</button>`);
+    $('tdOk').onclick=()=>{hideModal();runMorning()}};
+  $('tdSelf').onclick=()=>{const p=Math.max(.2,Math.min(.95,.95-rm(1)*.35+(S.upg.office?.1:0)+(hasHead('yurist')?.25:0)-(S.split||0)*.08-(S.watch>S.day?.1:0)));
+    if(Math.random()<p){S.cnt.deskOk=(S.cnt.deskOk||0)+1;fin(true,'Инспекторы сверили всё и не нашли нарушений.')}
+    else fin(false,hit(1,S.split&&Math.random()<.35+.2*S.split))};
+  $('tdPro').onclick=()=>{if(S.money<cost){toast('Не хватает денег на юриста');return}S.money-=cost;
+    const ok=Math.random()<.9;fin(ok,ok?'Юрист сложил пакет так, что придраться не удалось.':`Юрист не успел оформить одну доверенность — ${hit(1,false)}`)};
+  $('tdPay').onclick=()=>{if(S.money<early){toast('Не хватает денег');return}S.money-=early;fin(true,`Добровольно внесли ${rub(early)} — проверки закрыты, репутация цела.`)};
+}
 /* ---- смена диспетчера ---- */
 // оценка «quanto заплатит смена»: парк × ставка × полная точность × вторая смена; спрос районов заранее неизвестен, поэтому в тексте это «около»
 const dispTop=()=>{const dp=bal('dp');return Math.round(activeN()*dp.per*1.2*(1+shN()/100*(dp.nightK-1))*inf()/100)*100};

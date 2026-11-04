@@ -163,6 +163,22 @@ function sellLot(){if(S.over||S.preview||!B(6)||!(S.lotsPaid||[]).length||S.spot
   const p=lotBack(),before=snap();S.money+=p;S.spots-=8;S.lotsPaid.pop();addLog(`База: продано 8 мест стоянки, вернулось ${rub(p)}. Теперь ${S.spots} мест.`);toast(`Стоянка: ${S.spots} мест, +${rub(p)}`);sfx('coin');save();render(before)}
 function buyLot(){if(S.over)return;const p=lotPrice();if(S.money<p){toast('Не хватает денег в кассе');sfx('bad');return}
   const before=snap();S.money-=p;S.spots+=8;S.lotsPaid=(S.lotsPaid||[]).concat(p);addLog(`База: стоянка расширена до ${S.spots} мест.`);toast(`Стоянка: ${S.spots} мест`);sfx('coin');save();render(before)}
+/* ---- дробление бизнеса (bal 13): несколько юрлиц, каждое в своей ступеньки шкалы ---- */
+const splitPrice=()=>Math.round(bal('spl').cost*inf()/1000)*1000;
+const splitOk=()=>{const SPL=bal('spl');if(!B(13)||S.over||S.preview)return'Дробление недоступно';
+  if(S.split>=SPL.max)return`Больше ${SPL.max} юрлиц: налоговая связывает их в один бизнес`;
+  if(!hasHead('yurist')&&!S.upg.office)return'Нужен начальник-юрист или свой офис';
+  if(load01(1)>0)return'Отдел «Автопарк» перегружен — пакет документов на юрлицо некому собирать';
+  if(S.money<splitPrice())return'Не хватает денег на регистрацию';
+  return''};
+function openSplit(){const why=splitOk();if(why){toast(why);sfx('bad');return}
+  const p=splitPrice(),before=snap();S.money-=p;S.split++;
+  addLog(`Налоги: открыто юрлицо №${S.split+1} за ${rub(p)} — выручка делится, ставка считается по средней на юрлицо.`);
+  toast(`Юрлицо №${S.split+1}: ставка теперь по ${rub(Math.round(txAvg()))} в день`);sfx('coin');save();render(before)}
+function closeSplit(){if(!B(13)||S.over||!S.split)return;
+  const SPL=bal('spl'),before=snap();S.split--;S.money-=Math.round(SPL.cost*.3/100)*100;
+  addLog(`Налоги: юрлицо закрыто, ликвидация стоила ${rub(Math.round(SPL.cost*.3/100)*100)}.`);
+  toast('Юрлицо закрыто: риск обнаружения ниже, ставка выше');sfx('click');save();render(before)}
 function staffChange(d,delta){const n=S.staff[d]+delta;if(n<0||n>staffCap()||S.over)return;S.staff[d]=n;addLog(`${DEPTS[d].name}: ${delta>0?'нанят сотрудник':'сотрудник уволен'}. Теперь ${n}.`);sfx('click');save();render()}
 const trainPrice=d=>Math.round(15000*(S.train[d]+1)*inf()/1000)*1000;
 function train(d){if(S.train[d]>=3||S.over)return;const p=trainPrice(d);if(S.money<p){toast('Не хватает денег в кассе');sfx('bad');return}
@@ -363,7 +379,14 @@ function endDay(){
   if(S.rep>75&&S.day%2===0)S.rep--;
   if(S.kpi)S.kpi.acc+=revenue+cRev+adsRev+dpRev+cwRev;
   S.taxAcc=Math.max(0,(S.taxAcc||0)+net);
-  let taxPaid=0;if(taxOn()&&isTaxDay(S.day)&&S.taxAcc>0){taxPaid=Math.round(Math.min(S.taxAcc*taxRate(),Math.max(0,S.money)*.5)/100)*100;S.money-=taxPaid;S.taxAcc=0;notes.unshift(`${B(2)&&camp()?'Налог':'Квартальный налог'} с прибыли: ${rub(taxPaid)}.`)}
+  // bal 13: база под шкалу — средняя выручка в день на юрлицо; содержание юрлиц платится ежедневно
+  if(B(13)){S.txRev=(S.txRev||0)+revenue+cRev+adsRev+dpRev+cwRev;S.txDays=(S.txDays||0)+1;
+    if(S.split){const up=bal('spl').up*S.split;S.money-=up;notes.push(`Отчётность по ${S.split} ${S.split===1?'юрлицу':'юрлицам'}: −${rub(up)}.`)}}
+  let taxPaid=0;if(taxOn()&&isTaxDay(S.day)&&S.taxAcc>0){const rate=taxRate(),capK=rate>=.3?.8:rate>=.25?.7:rate>=.2?.6:.5;
+    taxPaid=Math.round(Math.min(S.taxAcc*rate,Math.max(0,S.money)*capK)/100)*100;S.money-=taxPaid;S.taxAcc=0;
+    if(B(13)){S.taxPaidAll=(S.taxPaidAll||0)+taxPaid;S.txRev=0;S.txDays=0;
+      if(Math.random()<deskP()){S.queueDesk=S.day+rand(1,3);notes.unshift('<b class="neg">По декларации налоговая истребовала документы — ждите камеральную проверку.</b>')}}
+    notes.unshift(`${B(2)&&camp()?'Налог':'Квартальный налог'} с прибыли по ставке ${Math.round(rate*100)}%: ${rub(taxPaid)}.`)}
   if(B(2)&&camp()?S.day===bal('inflDay'):S.day%(B(2)&&endl()?bal('endInfl'):30)===0){const r=rand(...(B(2)&&camp()?bal('inflPct'):[2,4]))/100;S.infl=(S.infl||1)*(1+r);S.mInfl=(S.mInfl||1)*(1+r*.6);notes.push(`Инфляция: цены выросли на ${Math.round(r*100)}%. Рыночные ставки аренды подросли — проверьте ставки во «Финансах».`)}
   if(cOn()){if(S.money<0){cAdd(-1);S.cstreak=0}else if(++S.cstreak>=bal('cStreak')){cAdd(1);S.cstreak=0}
     if(cGrade()!==grade0)notes.unshift(`Кредитный рейтинг: ${grade0} → <b class="${cGrade()<grade0?'pos':'neg'}">${cGrade()}</b>.`)}
@@ -384,7 +407,7 @@ function endDay(){
   if(dpRev)lines.splice(2,0,['Смена диспетчера',rub(dpRev)]);
   if(cwRev)lines.splice(2,0,['Сбор аренды (касса вечера)',rub(cwRev)]);
   if(cPen)lines.push(['Неустойка по контрактам',rub(-cPen)]);
-  if(typeof taxPaid!=='undefined'&&taxPaid)lines.push(['Квартальный налог',rub(-taxPaid)]);
+  if(typeof taxPaid!=='undefined'&&taxPaid)lines.push([B(13)?`Налог по ставке ${Math.round(taxRate()*100)}%`:'Квартальный налог',rub(-taxPaid)]);
   if(invCut)lines.push([`Доля инвесторов (${invShare()}%)`,rub(-invCut)]);
   addLog(`Итог дня: ${net>=0?'+':''}${rub(net)}.`);
   const finished=hasLimit()&&S.day>=dayLimit();S.day++;
@@ -415,6 +438,7 @@ function startDay(){
   let tx=(S.taxAt&&S.taxAt.includes(S.day))||(S.mode==='endless'&&S.day>=S.nextTax);
   if(B(2)&&tx&&(S.crisis||S.raid||S.strike||S.news.some(n=>n.id==='strike')||isTaxDay(S.day))){tx=false;if(S.taxAt&&S.taxAt.includes(S.day))S.taxAt=S.taxAt.map(t=>t===S.day?t+rand(2,4):t);else S.nextTax=S.day+rand(2,4)}
   const rd=S.day>=S.nextRaid&&!S.raid&&(!B(2)||!tx&&heavyGate('nextRaid',3)),un=S.union&&S.day>=S.nextUnion&&(!B(2)||!tx&&!rd&&heavyGate('nextUnion',2));
+  const dk=B(13)&&S.queueDesk&&S.day>=S.queueDesk&&heavyGate('queueDesk',2);
   hvToday=B(2)&&!!(tx||rd||un);
   S.today=[0,1,2].map(nextEvent);
   const m=[];
@@ -422,6 +446,7 @@ function startDay(){
   if(S.day>=S.nextMeeting)m.push('meeting');
   if(S.day>=S.nextInspect)m.push('inspect');
   if(tx)m.push('tax');
+  if(dk)m.push('desk');
   if(rd)m.push('raid');
   if(S.branches.length&&Math.random()<.15)m.push('branch');
   if(un)m.push('union');
@@ -453,7 +478,7 @@ function startDay(){
 function runMorning(){
   if(!S.morning.length||S.over){save();render();return}
   const k=S.morning.shift();save();
-  ({inspect:inspection,rival:rivalEvent,quest:newQuest,meeting:meeting,tax:taxAudit,raid:raidEvent,branch:branchEvent,paper:newspaper,career:careerEvent,a2hs:a2hsEvent,boom:debtBoom,rare:rareEvent,echo:echoEvent,quit:quitEvent,conflict:conflictEvent,union:unionEvent,auction:auction,contract:contractOffer,agency:agencyEvent,netnews:netNewsEv,disp:dispAsk,vac:vacancy,lzend:leaseEnd,cash:cashAsk}[k]||runMorning)();
+  ({inspect:inspection,rival:rivalEvent,quest:newQuest,meeting:meeting,tax:taxAudit,desk:deskAudit,raid:raidEvent,branch:branchEvent,paper:newspaper,career:careerEvent,a2hs:a2hsEvent,boom:debtBoom,rare:rareEvent,echo:echoEvent,quit:quitEvent,conflict:conflictEvent,union:unionEvent,auction:auction,contract:contractOffer,agency:agencyEvent,netnews:netNewsEv,disp:dispAsk,vac:vacancy,lzend:leaseEnd,cash:cashAsk}[k]||runMorning)();
 }
 const fName=i=>G.founders[i]||FOUNDERS[i].name;
 function inspection(){
