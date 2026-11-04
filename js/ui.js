@@ -443,10 +443,11 @@ function renderMgmt(){
         ${wait?`<div class="specs"><div class="spec"><span>Обещано внести</span><b>${rub(wait)}</b></div><div class="spec"><span>Сроки</span><b>${(S.cashWait||[]).map(w=>`день ${w.at}`).join(', ')}</b></div></div>`:''}
         <div class="btns"><button class="buy" id="cashBtn" ${off||done?'disabled':''}>${done?'Сегодня уже собрано':'Пройтись по должникам'}</button></div>
         <p class="sub">Собранное приходит в кассу в конце дня строкой «Сбор аренды». Риск просчёта отдела сейчас ${Math.round(Math.min(.6,bal('cash').blunder*rm(0))*100)}% на должника: кассир путает суммы, а про должников забывают — меньше всего это бывает, когда «Подключение» не перегружен водителями. Жёсткие требования бьют по лояльности — водители уходят и начинают бастовать.</p></div>`})():''}
-      ${b13()&&tabOpen('fin')?(()=>{const T=bal('tx'),SPL=bal('spl'),avg=txAvg(),rate=taxRate(),nx=txNext(),why=splitOk();
+      ${b13()&&tabOpen('fin')?(()=>{const T=txT(),SPL=bal('spl'),avg=txAvg(),rate=taxRate(),nx=txNext(),why=splitOk(),sc=txScale();
         return`<div class="card2" style="grid-column:1/-1"><h3>Налоги и камеральные</h3>
         <div class="specs"><div class="spec"><span>Средняя выручка на юрлицо</span><b>${rub(Math.round(avg))}/день</b></div>
         <div class="spec"><span>Ставка по шкале</span><b class="${rate>.2?'neg':''}">${Math.round(rate*100)}%${txSpecK()>1?` <span class="sub">перегружает спецрежим ×${T.specK}</span>`:''}</b></div>
+        ${sc!==1?`<div class="spec"><span>Ступени для вашей сети</span><b>×${sc<1?sc.toFixed(2):Math.round(sc*100)/100} от базовой шкалы</b></div>`:''}
         <div class="spec"><span>До следующей ступени</span><b>${nx?rub(nx):'максимум'}</b></div>
         <div class="spec"><span>Уплачено за игру</span><b>${rub(S.taxPaidAll||0)}</b></div>
         <div class="spec"><span>Шанс камералки после декларации</span><b class="${deskP()>.4?'neg':''}">${Math.round(deskP()*100)}%</b></div>

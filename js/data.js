@@ -853,7 +853,7 @@ const totalCars=()=>S.fleet.length+(S.branches||[]).reduce((a,b)=>a+b.cars,0);
 
 /* ---- версия баланса ---- */
 // числа по версиям: партия читает свою версию, нет ключа — берётся ближайшая меньшая; новая настройка = новая запись, старые не менять
-const BAL_NEW=15,BAL={
+const BAL_NEW=16,BAL={
  1:{meet:30,plan:150000,offK:.5,offCap:1e12,loginDay:5000,loginBonus:20000,loginParts:0,loginLoy:0,leaseRet:0},
  2:{start:{normal:1,hard:.9},rev:{normal:1.08,hard:1.1},goal:{normal:175000,hard:175000},star2:1.3,star3:1.7, // подобрано ботом bot-2: «Обычный» ≈55%, «Хардкор» ≈27% побед
   taxDays:[14,28],endTax:60,crisisFirst:[16,21],crisisMin:16,crisisMax:6,endCrisisFirst:[20,30],endCrisisNext:[40,60],inflDay:15,inflPct:[2,3],endInfl:30,
@@ -875,7 +875,11 @@ const BAL_NEW=15,BAL={
    desk:{p:.14,car:.0035,lease:.12,fine:.5,fineCar:9000,cap:3e6},
    spl:{cost:60000,up:500,det:.1,cool:30,mult:1.6,rep:8,max:3}},
  14:{rev:{normal:1.03,hard:1.06}},
- 15:{aggr:{cap:29}}}; // BAL[4] подобран ботом bot-4: «Обычный» ≈60%, агрегаторы 55/54/60%; BAL[5] (кредитный рейтинг) bot-5: «Обычный» ≈60%, «Хардкор» ≈31%
+ 15:{aggr:{cap:29}},
+ // BAL[16]: ступени налоговой шкалы умножаются на (машин / ёмкость рынка города), а не висят абсолютными
+ // 120/250/450 тыс. Порог minScale=.25 не даёт крошечному парку попасть во вторую ступень в первый же день.
+ // До этого кампания на 8–15 машинах никогда не доходила до первой ступени — прогрессия работала только у китов.
+ 16:{tx:{scaleByPark:1,minScale:.55}}}; // BAL[4] подобран ботом bot-4: «Обычный» ≈60%, агрегаторы 55/54/60%; BAL[5] (кредитный рейтинг) bot-5: «Обычный» ≈60%, «Хардкор» ≈31%
 // BAL[6]: brRev — выручка филиала с машины (было 3300); lotBack — доля цены при продаже стоянки; upgVal/brVal — доля цены улучшений и филиалов в оценке парка; prestK — ₽ оценки на очко престижа; rk — пороги званий
 // BAL[6] город: town — k выручки и cap (заказов на всех) по районам; townLead — надбавка лидера; townFloor — нижний предел давки; townMin/townMax — границы множителя парка
 // BAL[7] холдинг (только бесконечный): tree — цены ступеней (cost) и эффекты веток: fin — капитал, ставка кредитов (п.п.), налоги; ppl — лояльность на старте, сотрудники в отделе, медленнее усталость; car — цены автосалона, поломки, ТО и ремонт, подарок-машина
@@ -950,8 +954,15 @@ const dayLimit=()=>S.mode==='story'?CHAPTERS[S.chapter||0].days:dailyLike()?7:DA
 const hasLimit=()=>['campaign','story','daily','contest'].includes(S.mode);
 /* ---- что нового: номер сборки и сводка выпусков ---- */
 // BUILD поднимают вместе с кэшем в sw.js (dst24-vN = BUILD=N); UPDATES — короткий рассказ о выпуске для игрока, новые сверху
-const BUILD=44;
+const BUILD=45;
 const UPDATES=[
+ {v:45,n:'Налог теперь настигает не только гигантов',items:[
+  'Ступени шкалы считаются по размеру вашей сети: пороги умножаются на (машин / ёмкость рынка города), а не висят абсолютными 120/250/450 тыс. ₽',
+  'В кампании прогрессия стала видимой: 8 машин и 70 000 ₽ выручки в день — это уже 20 %, а не вечные 15 %, до 30 машин дело раньше просто не доходило',
+  'Крупная сеть перестаёт платить максимальную ставку за свой размер: 2500 машин и 13,4 млн ₽ в сутки дают 20 %, а не 30 %',
+  'В «Финансы → Налоги» появилась строка «Ступени для вашей сети» — видно, во сколько раз сдвинуты пороги',
+  'Мелкие партии в защите: ниже 55 % базовых порогов шкала не опускается, поэтому старт кампании не попадает под вторую ступень в первый же день',
+  'Замер ботом на 150 сидах: «Обычный» 57,3 %, «Хардкор» 28,7 % — цели (55–60 % и 28–32 %) удержаны']},
  {v:44,n:'Филиалы: перестали голодать без водителей',items:[
   'Недоукомплектованный филиал теперь работает на 40–100 % мощности вместо «сколько водителей, столько и машин»: 500 машин и 120 водителей приносят около 13 млн в сутки вместо 5 млн',
   'В карточке филиала видно комплектацию и на сколько процентов он реально работает',
@@ -1215,12 +1226,17 @@ const TAX_RATE=.15;
 /* ---- прогрессивный налог и камералка (bal 13) ---- */
 // средняя выручка на юрлицо за день: шкала считается по ней, дробление делит её на (юрлиц+1)
 const txAvg=()=>((S&&S.txRev||0)/Math.max(1,(S&&S.txDays)||1))/Math.max(1,((S&&S.split)||0)+1);
-const txBand=(avg=txAvg())=>{const b=bal('tx').bands;for(const[x,k]of b)if(avg<x)return k;return b[b.length-1][1]};
-const txSpecK=()=>{const T=bal('tx');return txAvg()>T.spec?T.specK:1};
-const txNext=()=>{const b=bal('tx').bands,a=txAvg();for(let i=0;i<b.length-1;i++)if(b[i][0]>a)return b[i][0];return null};
+// bal 16: ступени шкалы привязаны к размеру сети — порог умножается на (машин / ёмкость рынка города).
+// Без этого кампания на 8–15 машинах никогда не доходила до первой ступени и механика оставалась декорацией.
+// BAL[16] содержит только масштаб, поэтому шкалу из BAL[13] подмешиваем руками: bal берёт одну запись целиком
+const txT=()=>Object.assign({},bal('tx',13),B(16)?bal('tx'):null);
+const txScale=()=>{if(!B(16))return 1;const T=txT();return Math.max(T.minScale,Math.max(1,totalCars())/SAT_CAP())};
+const txBand=(avg=txAvg())=>{const b=txT().bands,s=txScale();for(const[x,k]of b)if(avg<x*s)return k;return b[b.length-1][1]};
+const txSpecK=()=>{const T=txT();return txAvg()>T.spec*txScale()?T.specK:1};
+const txNext=()=>{const b=txT().bands,a=txAvg(),s=txScale();for(let i=0;i<b.length-1;i++)if(b[i][0]*s>a)return Math.round(b[i][0]*s/1000)*1000;return null};
 const taxRate=()=>(B(13)?txBand()*txSpecK():TAX_RATE)*(hq('fin',3)?1-bal('tree',7).fin.tax:1);
 // шанс камеральной проверки после декларации: парк, доля лизинга, дробление и «карандаш»
-function deskP(){const A=bal('desk'),rev=Math.max(1,txAvg()),ls=leaseSum();
+function deskP(){const A=bal('desk'),rev=Math.max(1,txAvg()/txScale()),ls=leaseSum();
   return Math.min(.85,A.p+totalCars()*A.car+(ls>0?A.lease*Math.min(1,ls/rev):0)+((S.split||0)*bal('spl').det)+(S.watch>S.day?.15:0))}
 const isTaxDay=d=>B(2)&&camp()?bal('taxDays').includes(d):d%(B(2)&&endl()?bal('endTax'):90)===0;
 const taxOn=()=>S.mode!=='sandbox'&&!dailyLike()&&(!B(2)||!simpleOn()||tabOpen('fin'));
