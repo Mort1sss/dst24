@@ -167,12 +167,16 @@ function netPatch(k,b){if(netOff||!S.balPatch)return b;const key=S.gid+'|'+S.bal
   const p=S.balPatch,r=k in p?netMerge(b,p[k]):b;netBC.set(key,r);if(netBC.size>400)netBC.clear();return r}
 const netLiveGame=()=>!netOff&&!!S&&!S.preview&&!S.over&&S.mode!=='sandbox'&&!dailyLike()&&(S.bal||1)>=6;
 const netRevK=()=>{if(!S.netRev||!S.netRev.length)return 1;const t=netToday();return netClamp(S.netRev.reduce((a,x)=>x.ends>=t?a*x.k:a,1),.5,1.5)};
+/* ---- решение города, режущее выручку: показываем игроку причину и срок ---- */
+const netRevLive=()=>{if(!S||!Array.isArray(S.netRev))return[];const t=netToday();return S.netRev.filter(x=>x&&x.ends>=t&&+x.k&&+x.k!==1)};
+function netRevInfo(){const l=netRevLive();if(!l.length)return null;const k=netRevK(),e=l.map(x=>String(x.ends)).sort()[0],d=new Date(e+'T12:00:00');
+  return{k,k2:k.toFixed(2).replace('.',','),to:isNaN(d)?'':d.toLocaleDateString('ru-RU',{day:'numeric',month:'long'}),t:esc(String(l[0].t||'Регулирование рынка такси'))}}
 function netDay(){
   if(!NET.url||!Array.isArray(netSt.ev)||!netLiveGame())return false;
   const t=netToday();let news=false;S.netSeen=S.netSeen||{};
   for(const e of netSt.ev){if(!e||S.netSeen[e.id]||!netIn(e,t))continue;const p=e.params||{};
     if(e.kind==='news'){S.netNews=(S.netNews||[]).concat([{t:String(e.title||'').slice(0,80),x:String(e.text||'').slice(0,400)}]);news=true}
-    else if(e.kind==='rev'){const k=netClamp(p.k||1,.5,1.5);S.netRev=(S.netRev||[]).concat([{k,ends:e.ends?String(e.ends).slice(0,10):t}]);addLog(`Новости города: ${esc(String(e.title||'выручка').slice(0,60))} (выручка ×${k}).`)}
+    else if(e.kind==='rev'){const k=netClamp(p.k||1,.5,1.5);S.netRev=(S.netRev||[]).concat([{k,ends:e.ends?String(e.ends).slice(0,10):t,t:String(e.title||'').slice(0,80)}]);addLog(`Новости города: ${esc(String(e.title||'выручка').slice(0,60))} (выручка ×${k}).`)}
     else if(e.kind==='cash'){G.netSeen=G.netSeen||{};if(G.netSeen[e.id]){S.netSeen[e.id]=1;continue}G.netSeen[e.id]=1;saveG();const a=Math.round(netClamp(p.amount,-1e5,1e5));S.money+=a;addLog(`${esc(String(e.title||'Диспетчерская').slice(0,60))}: ${a<0?'−':'+'}${rub(Math.abs(a))}.`)}
     else if(e.kind==='event'){const id=typeof p.id==='string'&&isNaN(+p.id)?p.id:Math.round(+p.id),d=typeof id==='string'?(CHAINS[id]&&CHAINS[id].d):Math.round(+p.d);
       if(!(d>=0&&d<=2)||(typeof id==='string'?!CHAINS[id]:!EVENTS[d][id]))continue;S.queue.push({d,id,at:S.day})}

@@ -235,6 +235,7 @@ function render(prev){
   if((S.tdebt||0)>=4)tick.unshift(card('down','warn',`Отложенные проблемы: ${S.tdebt}/8`,'дешёвые решения копятся'));
   if(taxOn()&&taxDueIn()<=10)tick.unshift(card('down','tax',`Налог через ${taxDueIn()+1} дн.`,`≈${rub(Math.round(S.taxAcc*taxRate()/1000)*1000)}`));
   if(satK()<.97)tick.unshift(card('down','down','Рынок насыщен',`выручка с машины ×${satK().toFixed(2)}`));
+  {const ri=netRevInfo();if(ri)tick.unshift(card('down','warn',`Выручка ×${ri.k2}${ri.to?` до ${ri.to}`:''}`,'решение города',0,0,'',`${ri.t}: выручка парка ×${ri.k2}${ri.to?` до ${ri.to}`:''}`))}
   if(S.city&&S.city!=='home')tick.unshift(card('','city',cityDef().n));
   if(S.crisis)tick.unshift(card('down','crisis',`Кризис: ${CRISES[S.crisis.id].n}`,CRISES[S.crisis.id].d,S.crisis.days,0,' crisis'));
   (S.dnews||[]).forEach(e=>tick.push(card(e.m>1?'up':'down','pin',`${DISTRICTS.find(D=>D.k===e.d).n}: ${e.t}`,`спрос ×${e.m}`)));
@@ -503,7 +504,7 @@ function renderMgmt(){
   else if(uiTab==='city'){
     const rows=[{name:'ДСТ-24 (вы)',cars:totalCars(),rep:S.rep,style:'',me:1}].concat(S.rivals.map(r=>({name:r.name,cars:r.cars,rep:r.rep,style:RIVAL_STYLES[r.style]}))).sort((a,b)=>b.cars-a.cars);
     const R=RANKS[(S.rank||0)+1];
-    B.innerHTML=`<div class="grid"><div class="card2" style="grid-column:1/-1"><h3>Таксопарки города</h3>
+    B.innerHTML=`<div class="grid">${(()=>{const ri=netRevInfo();return ri?`<div class="card2" style="grid-column:1/-1"><h3>${ri.t}</h3><p class="kind">Решение города сокращает выручку всего парка: <b class="neg">×${ri.k2}</b>${ri.to?`, действует до <b>${ri.to}</b>`:''}. От ваших решений не зависит — закончится само.</p></div>`:''})()}<div class="card2" style="grid-column:1/-1"><h3>Таксопарки города</h3>
       <div class="tablewrap"><table><thead><tr><th>#</th><th>Парк</th><th>Машин</th><th>Репутация</th><th>Стиль</th></tr></thead><tbody>
       ${rows.map((r,i)=>`<tr${r.me?' style="outline:3px solid var(--taxi)"':''}><td>${i+1}</td><td>${r.me?'<b>':''}${esc(r.name)}${r.me?'</b>':''}</td><td>${r.cars}</td><td>${r.rep}</td><td>${r.style}</td></tr>`).join('')}</tbody></table></div>
       <p class="sub">Если ваша репутация выше средней у конкурентов, пассажиры чаще выбирают вас: до +8% к спросу.</p></div>
