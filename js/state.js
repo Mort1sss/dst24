@@ -1,7 +1,7 @@
 // Таксопарк «ДСТ-24» — настройки G, состояние S, сохранения, цели, новая игра
 /* ================= ГЛОБАЛЬНЫЕ НАСТРОЙКИ ================= */
 const SKEY='dst24-save-v1', GKEY='dst24-global-v1';
-let G={pins:[null,null,null],founders:FOUNDERS.map(f=>f.name),music:false,sfx:true,ach:{},rec:{days:0,cars:0,money:0,goals:0}};
+let G={pins:[null,null,null],founders:FOUNDERS.map(f=>f.name),music:false,sfx:true,ach:{},rec:{days:0,cars:0,money:0,goals:0},ver:0};
 try{const g=JSON.parse(localStorage.getItem(GKEY));if(g)G=Object.assign(G,g)}catch(e){}
 function saveG(){try{localStorage.setItem(GKEY,JSON.stringify(G))}catch(e){}}
 

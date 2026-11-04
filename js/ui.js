@@ -132,7 +132,18 @@ function pickHead(d,done,setup){
     changeHead(d,b.dataset.k,true);hideModal();done&&done();});
 }
 function showModal(h){$('modalCard').innerHTML=h;$('modal').hidden=false;const m=h.match(/data-face="((?:founder|char|head):[\w]+|cand:\d:\w+)"/);if(m)voice(voiceFor(m[1]))}
-function hideModal(){$('modal').hidden=true}
+function hideModal(){$('modal').hidden=true;if(typeof updCheck==='function')setTimeout(updCheck,500)}
+/* ---- сводка обновлений: автопоказ после выпуска и история из меню ---- */
+function changeLog(all){
+  const list=all?UPDATES:UPDATES.filter(u=>u.v>(G.ver||0));
+  if(!list.length)return;
+  showModal(`<span class="step">${all?'ИСТОРИЯ ОБНОВЛЕНИЙ':'ОБНОВЛЕНИЕ ИГРЫ'}</span><h2>${esc(list[0].n)}</h2>
+    <p class="sub">${all?'Что менялось в игре, выпуск за выпуском.':'Коротко: что изменилось. Всю историю всегда можно открыть в «Меню» → «Что нового».'}</p>
+    ${list.map(u=>`<div class="upd"><h3>${esc(u.n)}${u.v===BUILD?' <span class="tag">СВЕЖЕЕ</span>':''}</h3><ul>${u.items.map(t=>`<li>${esc(t)}</li>`).join('')}</ul></div>`).join('')}
+    <div class="btns"><button class="btn" id="upOk">${all?'Закрыть':'Забрать и играть'}</button></div>`);
+  sfx('click');G.ver=BUILD;saveG();
+  $('upOk').onclick=hideModal;
+}
 
 /* ================= ОТРИСОВКА ИНТЕРФЕЙСА ================= */
 function chips(dl){
@@ -513,7 +524,8 @@ function renderMgmt(){
   else if(uiTab==='style'){
     const C=S.custom;
     B.innerHTML=`<div class="grid">
-      <div class="card2"><h3>Удобство</h3><label class="chk"><input type="checkbox" id="bigT" ${G.big?'checked':''}> Крупный текст</label><label class="chk"><input type="checkbox" id="cbT" ${G.cb?'checked':''}> Режим для дальтоников: синий и оранжевый вместо зелёного и красного, стрелки ▲▼</label></div>
+      <div class="card2"><h3>Удобство</h3><label class="chk"><input type="checkbox" id="bigT" ${G.big?'checked':''}> Крупный текст</label><label class="chk"><input type="checkbox" id="cbT" ${G.cb?'checked':''}> Режим для дальтоников: синий и оранжевый вместо зелёного и красного, стрелки ▲▼</label>
+        <div class="btns"><button class="buy sm alt" id="updBtn">Что нового · выпуск ${BUILD}</button></div></div>
       <div class="card2"><h3>Режим новичка</h3><label class="chk"><input type="checkbox" id="simpleT" ${G.simple!==false?'checked':''}> Открывать возможности постепенно, показывать подсказки и советы</label><p class="sub">Выключите, чтобы сразу видеть все вкладки и события.</p></div>
       <div class="card2"><h3>Название парка</h3><div class="namefield"><input type="text" id="pkName" value="${esc(C.name)}" maxlength="16" aria-label="Название парка"><button class="buy sm" id="pkSave">Сохранить</button></div><p class="sub">До 16 символов. Появится в заголовке, на вывеске и в газете.</p></div>
       <div class="card2"><h3>Цвет машин</h3><div class="btns">${Object.entries(COLORS).map(([k,c])=>{const lk=skinLock('color',k);return `<button class="buy sm ${C.color===k?'':'alt'}" data-color="${k}" ${lk?`disabled title="Откроется за достижение «${achName(lk)}»"`:''}>${lk?'🔒 ':''}${c.body?`<i class="sw" style="background:${c.body}"></i>`:''}${c.n}</button>`}).join('')}</div><p class="sub">Закрытые цвета, логотипы и аватары открываются за достижения.</p></div>
@@ -579,6 +591,7 @@ $('mbody').addEventListener('click',e=>{const b=e.target.closest('button');if(!b
   if(ds.buy){const s=String(ds.buy).split(':');return buy(s[0],s[1]==null?null:+s[1])}
   if(b.id==='hireBtn')return hire(false);
   if(b.id==='cashBtn')return cashRun();
+  if(b.id==='updBtn')return changeLog(true);
   if(b.id==='splitOpen')return openSplit();
   if(b.id==='splitClose')return closeSplit();
   if(b.id==='hireBoost')return hire(true);
@@ -639,6 +652,7 @@ function openMenu(){const inS=S&&!S.preview;
     <button class="mode" id="mnMusic"><b>♪ МУЗЫКА: ${G.music?'ВКЛ':'ВЫКЛ'}</b></button>
     <button class="mode" id="mnSfx"><b>ЗВУКИ: ${G.sfx?'ВКЛ':'ВЫКЛ'}</b></button>
     <button class="mode" id="mnHelp"><b>КАК ИГРАТЬ</b><span>Короткое обучение</span></button>
+    <button class="mode" id="mnUpd"><b>ЧТО НОВОГО</b><span>${(G.ver||0)<BUILD?'не просмотрен выпуск '+BUILD:'история обновлений игры'}</span></button>
     ${inS?'<button class="mode" id="mnPhoto"><b>ФОТО ПАРКА</b><span>Кадр вашего двора</span></button>':''}
     <button class="mode" id="mnSave"><b>СОХРАНЕНИЕ</b><span>Код для переноса прогресса</span></button>
     ${NET.url?`<button class="mode" id="mnNet"><b>ОНЛАЙН</b><span>${online()?esc(netSt.nick||'На связи'):'Вход, облако, рейтинг'}</span></button>`:''}
@@ -649,6 +663,7 @@ function openMenu(){const inS=S&&!S.preview;
   $('mnMusic').onclick=()=>{$('musicBtn').click();openMenu()};
   $('mnSfx').onclick=()=>{$('sfxBtn').click();openMenu()};
   $('mnHelp').onclick=()=>tutorial(0);
+  $('mnUpd').onclick=()=>changeLog(true);
   if($('mnPhoto'))$('mnPhoto').onclick=()=>$('photoBtn').click();
   $('mnSave').onclick=()=>$('saveBtn').click();
   if($('mnNet'))$('mnNet').onclick=()=>openNetModal();

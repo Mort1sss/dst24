@@ -260,6 +260,13 @@ body{background:linear-gradient(180deg,#1f1a3c 0%,#18142f 100%) fixed}
 .newdot{display:inline-block;width:8px;height:8px;background:var(--bad);margin-left:6px;vertical-align:2px}
 .mtab-more{align-self:center;padding:0 12px;color:var(--muted);font-size:14px}
 .hintbox{background:var(--edge);border-left:4px solid var(--d1);padding:8px 12px;font-size:15px;color:var(--ink);max-width:none}
+/* ---- сводка обновлений ---- */
+.upd{background:var(--edge);border-left:4px solid var(--d1);padding:8px 12px;display:grid;gap:6px}
+.upd.old{background:var(--panel-2);border-left-color:var(--muted)}
+.upd h3{font-size:15px;color:var(--taxi)}
+.upd.old h3{color:var(--ink)}
+.upd ul{margin:0;padding-left:18px;display:grid;gap:4px;font-size:15px;color:var(--ink)}
+.upd li::marker{color:var(--muted)}
 .bignet{font-family:var(--f-display);font-size:26px;text-align:center;padding:6px 0}
 .more summary{cursor:pointer;color:var(--taxi);font-size:15px;padding:6px 0}
 .more[open] summary{margin-bottom:8px}

@@ -23,3 +23,10 @@ navigator.serviceWorker&&navigator.serviceWorker.addEventListener('controllercha
     const t=setInterval(()=>{if(netBusy())return;clearInterval(t);swBusy=1;go()},2000);return}
   swBusy=1;toast('Обновляем игру…');go();});
 function checkLoginQuiet(){const k=todayKey();G.login=G.login||{};if(G.login.last===k)return;const y=new Date();y.setDate(y.getDate()-1);const yk=y.getFullYear()+'-'+(y.getMonth()+1)+'-'+y.getDate();const streak=G.login.last===yk?(G.login.streak||0)+1:1;G.login={last:k,streak};G.loginPending={streak};saveG()}
+/* ---- сводка обновлений: игрок видит, что изменилось, и только один раз на выпуск ---- */
+// партия уже шла (значит, игрок не новичок) — показываем текущий выпуск; совсем новому игроку нечего рассказывать
+if(!G.ver){G.ver=S&&!S.preview?BUILD-1:BUILD;saveG()}
+const updDue=()=>(G.ver||0)<BUILD&&!!S&&!S.preview&&!paused&&$('modal').hidden&&!/[?&]sim\b/.test(location.search);
+const updCheck=()=>{if(updDue())changeLog(false)};
+setTimeout(updCheck,1200);
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)setTimeout(updCheck,900)});
