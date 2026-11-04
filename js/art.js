@@ -123,8 +123,9 @@ function wheel(g,x,y,P,spin){g.fillStyle='#0e0b1c';g.fillRect(x+1,y,4,6);g.fillR
   g.fillStyle=P.g;g.fillRect(x+2,y+2,2,2);const sp=[[1,1],[4,1],[4,4],[1,4]][spin&3];g.fillStyle='#c6bfe4';g.fillRect(x+sp[0],y+sp[1],1,1)}
 /* машина на земле: x — левый край, gy — линия земли */
 function drawCar(g,m,x,gy,flip,P,spin=0){P=P||carPal(m);const N=CARS2[m];
-  if(!N){spr(g,shapeOf(m),x,gy-11,flip,P);return}
-  const w=N.s[0].length,y=Math.round(gy-N.wy-6);x=Math.round(x);spr(g,N.s,x,y,flip,P);if(P.v)livery(g,N.s,x,y,flip,P.v);
+  const img=spxOf(m,flip,P),w=img.width;
+  if(!N){px(g,x,gy-11,img);return}
+  const y=Math.round(gy-N.wy-6);x=Math.round(x);px(g,x,y,img);
   N.wh.forEach(c=>{const wx=x+(flip?w-1-c:c)-3+(flip?1:0);g.fillStyle='#0e0b1c';g.fillRect(wx,y+N.wy-1,6,1);g.fillRect(wx-1,y+N.wy,8,2);wheel(g,wx,y+N.wy,P,flip?3-(spin&3):spin)})}
 /* ---- раскраски: перекрашивают пиксели кузова ('y') по узору; координаты c/r — в спрайте без отражения ---- */
 const LIV_RANGE=new WeakMap();
@@ -152,6 +153,15 @@ function livery(g,s,x,y,flip,v){let M=LIV_CACHE.get(s);if(!M)LIV_CACHE.set(s,M=n
 const carPal=m=>{const M=MODELS[m]||MODELS.solaris,C=S&&S.custom&&COLORS[S.custom.color],own=C&&C.body&&!['Комфорт+','Бизнес'].includes(M.cls);const by=own?C.body:M.body;const darkBody=hx(by).reduce((a,v)=>a+v,0)<270;return{y:by,l:darkBody?lerp(by,'#a8a0cc',.4):shade(by,1.16),s:shade(by,.74),n:'#3a4a78',m:'#d8d0e8',e:'#9ff0ff',d:own?C.trim:M.trim,t:M.ev?'#86e06f':'#f7c331',k:['camry','mercedes','monjaro','zeekr','k5','voyah'].includes(m)?'#0b0914':'#1a1530',g:m==='mercedes'?'#e8e2d0':'#a8a0cc',v:S&&S.custom&&S.custom.livery&&S.custom.livery!=='none'?S.custom.livery:''}};
 function spr(g,s,x,y,flip,pal){x=Math.round(x);y=Math.round(y);for(let r=0;r<s.length;r++)for(let c=0;c<s[r].length;c++){const ch=s[r][c];if(ch==='.')continue;
   g.fillStyle=(pal&&pal[ch])||PAL[ch];g.fillRect(x+(flip?s[r].length-1-c:c),y+r,1,1)}}
+/* ---- кэш спрайтов: кузов вместе с раскраской собирается в крохотный offscreen-канвас один раз,
+   дальше в сцену и в «Фото парка» идёт drawImage вместо ~400 fillRect на машину за кадр ---- */
+const SPX=new Map(),SPX_MAX=420;
+function spxMake(m,flip,P){const N=CARS2[m],s=N?N.s:shapeOf(m);
+  const cv=document.createElement('canvas');cv.width=s[0].length;cv.height=s.length;const g=cv.getContext('2d');
+  spr(g,s,0,0,flip,P);if(N&&P.v)livery(g,s,0,0,flip,P.v);return cv}
+function spxOf(m,flip,P){const k=m+(flip?1:0)+(P.v||'')+P.y+P.l+P.s+P.n+P.m+P.e+P.d+P.t+P.k+P.g;
+  let c=SPX.get(k);if(!c){if(SPX.size>=SPX_MAX)SPX.clear();SPX.set(k,c=spxMake(m,flip,P))}return c}
+function px(g,x,y,img){const sm=g.imageSmoothingEnabled;g.imageSmoothingEnabled=false;g.drawImage(img,Math.round(x),Math.round(y));g.imageSmoothingEnabled=sm}
 function drawMini(el){const g=el.getContext('2d');g.clearRect(0,0,38,17);
   if(el.dataset.m==='person'){spr(g,PERSON,11,5,false,{b:'#f0c8a0',k:'#4fc7b0'});spr(g,PERSON,20,5,false,{b:'#e8b890',k:'#e66fa8',H:'#b05a2a'});return}
   const m=el.dataset.m,w=carW(m),x=(38-w)>>1;g.fillStyle='#2a2450';g.fillRect(0,13,38,4);g.fillStyle='#0e0b1c66';g.fillRect(x+2,15,w-4,1);
