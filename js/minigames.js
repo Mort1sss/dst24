@@ -670,10 +670,10 @@ const cashRow=(x,i)=>{const C=bal('cash');
 function cashRun(){
   if(S.over||S.preview||S.cashDay===S.day)return;
   const list=mkDebtors();if(!list.length){toast('Должников нет: все внесли аренду');return}
-  const C=bal('cash');S.cashDay=S.day;S.cashGot=0;S.cashList=list;let left=C.ttl;
+  const C=bal('cash');S.cashDay=S.day;S.cashGot=0;S.cashList=list;S.blund=0;let left=C.ttl;
   showModal(`<span class="step">КАССА ВЕЧЕРА</span><h2>Сбор аренды</h2>
     <p class="mg-timer" id="cwT">⏱ ${left} сек</p>
-    <p class="sub">Собрали: <b id="cwGot">0 ₽</b>. «${Math.round(bal('cash').now*100)}% сейчас» — мягко и сразу, «Подождать» — шанс получить полную сумму через пару дней, «Всё и сейчас» — деньги сегодня, но водители это запоминают.</p>
+    <p class="sub">Собрали: <b id="cwGot">0 ₽</b>. «${Math.round(C.now*100)}% сейчас» — мягко и сразу, «Подождать» — шанс получить полную сумму через пару дней, «Всё и сейчас» — деньги сегодня, но водители это запоминают. Риск просчёта отдела: ${Math.round(Math.min(.6,C.blunder*rm(0))*100)}% на должника.</p>
     <div class="modes" id="cwRows">${list.map((x,i)=>cashRow(x,i)).join('')}</div>`);
   sfx('click');
   $('modalCard').querySelectorAll('[data-cw]').forEach(b=>b.onclick=()=>cashPick(b.dataset.cw));
@@ -681,24 +681,30 @@ function cashRun(){
 }
 function cashPick(v){
   const p=v.split(':'),x=S.cashList[+p[0]],C=bal('cash');if(!x||x.done)return;
-  const d=S.dlist.find(y=>y.id===x.id);x.done=p[1];let msg='',ok=true;
-  if(p[1]==='n'){const got=Math.round(x.amt*C.now/100)*100;S.cashGot+=got;msg=`взяли ${rub(got)} сразу`;if(d)d.loy=Math.max(0,d.loy-C.loyNow)}
+  const d=S.dlist.find(y=>y.id===x.id);x.done=p[1];let msg='',tone='pos';
+  // промах отдела: шанс растёт с риском и загрузкой «Подключения» (rm(0)) — собрали меньше или вовсе забыли про должника
+  if(Math.random()<C.blunder*rm(0)){
+    S.blund=(S.blund||0)+1;tone='neg';
+    if(p[1]==='n'){const got=Math.round(x.amt*C.now*C.keep/100)*100;S.cashGot+=got;msg=`кассир перепутал сумму: взяли только ${rub(got)}`}
+    else if(p[1]==='r'){msg='водитель отказался платить, в отделе не напомнили — сумма потеряна';if(d)d.loy=Math.max(0,d.loy-2)}
+    else msg='о должнике забыли — сумма сгорела'}
+  else if(p[1]==='n'){const got=Math.round(x.amt*C.now/100)*100;S.cashGot+=got;msg=`взяли ${rub(got)} сразу`;if(d)d.loy=Math.max(0,d.loy-C.loyNow)}
   else if(p[1]==='r'){S.cashGot+=x.amt;msg=`вся сумма: ${rub(x.amt)}`;if(d){d.loy=Math.max(0,d.loy-C.loyRem);if(Math.random()<.25){S.rep=Math.max(0,S.rep-1);msg+=', водитель поговорил с городом, репутация −1'}}}
-  else{ok=false;
-    if(Math.random()<C.late*(1.2-rm(0))){const at=S.day+rand(2,4);S.cashWait=(S.cashWait||[]).concat([{n:x.n,amt:x.amt,at}]);msg=`обещал внести ${rub(x.amt)} (день ${at})`}
-    else{const lost=Math.round(x.amt*C.loss/100)*100;S.cashGot+=x.amt-lost;msg=`внёс только ${rub(x.amt-lost)}, ${rub(lost)} сгорело`;if(d)d.loy=Math.max(0,d.loy-1)}}
-  const row=$('cwr'+p[0]);if(row)row.innerHTML=`<b>${esc(x.n)}</b><span class="${ok?'pos':msg.includes('сгорело')?'neg':''}">${msg}</span>`;
+  else if(Math.random()<C.late*(1.2-rm(0))){const at=S.day+rand(2,4);S.cashWait=(S.cashWait||[]).concat([{n:x.n,amt:x.amt,at}]);msg=`обещал внести ${rub(x.amt)} (день ${at})`;tone=''}
+  else{const lost=Math.round(x.amt*C.loss/100)*100;S.cashGot+=x.amt-lost;msg=`внёс только ${rub(x.amt-lost)}, ${rub(lost)} сгорело`;tone='neg';if(d)d.loy=Math.max(0,d.loy-1)}
+  const row=$('cwr'+p[0]);if(row)row.innerHTML=`<b>${esc(x.n)}</b><span class="${tone}">${msg}</span>`;
   const g=$('cwGot');if(g)g.textContent=rub(S.cashGot);sfx('click');
   if(S.cashList.every(x=>x.done))cashEnd();
 }
 function cashEnd(){
   clearInterval(mgTimer);mgTimer=null;
-  const rest=(S.cashList||[]).filter(x=>!x.done).length,got=S.cashGot||0;
+  const rest=(S.cashList||[]).filter(x=>!x.done).length,got=S.cashGot||0,bl=S.blund||0;
   if(rest)S.rep=Math.max(0,S.rep-1);
-  S.cashEarn=(S.cashEarn||0)+got;S.cashList=[];S.cashGot=0;
-  if(got)addLog(`Касса вечера: собрано ${rub(got)}, деньги в вечерней кассе.`);
+  S.cashEarn=(S.cashEarn||0)+got;S.cashList=[];S.cashGot=0;S.blund=0;
+  if(got)addLog(`Касса вечера: собрано ${rub(got)}${bl?`, просчётов отдела: ${bl}`:''}, деньги в вечерней кассе.`);
   showModal(`<span class="step">КАССА ВЕЧЕРА</span><h2>${got?rub(got):'Нечего было брать'}</h2>
-    <p>Собрали ${rub(got)}.${rest?` До ${rest} ${rest<4?'водителей':'водителей'} не дошли — репутация −1.`:''} Деньги придут в кассу в конце дня.</p>
+    <p>Собрали ${rub(got)}.${rest?` До ${rest} ${rest<4?'водителей':'водителей'} не дошли — репутация −1.`:''}${bl?` Просчётов отдела: ${bl} — столько вечеров сорвалось из-за того, что «Подключение» не тянет ${S.drivers} водителей.`:''} Деньги придут в кассу в конце дня.</p>
+    ${bl?`<p class="sub">Помогут сотрудники и обучение отдела «Подключение»: чем меньше на них приходится водителей, тем реже забывают про должника.</p>`:''}
     <button class="btn" id="cwOk">Отлично</button>`);
   sfx(got?'coin':'click');
   $('cwOk').onclick=()=>{hideModal();if(S.morning&&S.morning.length)runMorning()};
