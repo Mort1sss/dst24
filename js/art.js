@@ -118,15 +118,18 @@ const shapeOf=m=>SHAPE_OF[m]||SEDAN;
 const carW=m=>CARS2[m]?CARS2[m].s[0].length:24;
 /* высота фар над верхом «старой» машины 24×11 — по ней ставятся свет фар и стоп-огни */
 const carHo=m=>{const N=CARS2[m];return N?5-N.wy+N.s.findIndex(r=>/[he]/.test(r)):6};
-/* колесо 6×6: шина, диск, ступица и блик, который обегает диск — так видно вращение */
-function wheel(g,x,y,P,spin){g.fillStyle='#0e0b1c';g.fillRect(x+1,y,4,6);g.fillRect(x,y+1,6,4);g.fillStyle='#4a4570';g.fillRect(x+1,y+1,4,4);
-  g.fillStyle=P.g;g.fillRect(x+2,y+2,2,2);const sp=[[1,1],[4,1],[4,4],[1,4]][spin&3];g.fillStyle='#c6bfe4';g.fillRect(x+sp[0],y+sp[1],1,1)}
+/* колесо: шина, диск, ступица и блик, который обегает диск — так видно вращение.
+   размер считаем от ширины кузова, иначе на длинных машинах колёса превращаются в точки */
+const wheelSize=w=>Math.max(6,Math.min(9,Math.round(w*.17)));
+function wheel(g,x,y,P,spin,s=6){g.fillStyle='#0e0b1c';g.fillRect(x+1,y,s-2,s);g.fillRect(x,y+1,s,s-2);g.fillStyle='#4a4570';g.fillRect(x+1,y+1,s-2,s-2);
+  const h=(s>>1)-1;g.fillStyle=P.g;g.fillRect(x+h,y+h,2,2);const sp=[[1,1],[s-2,1],[s-2,s-2],[1,s-2]][spin&3];g.fillStyle='#c6bfe4';g.fillRect(x+sp[0],y+sp[1],1,1)}
 /* машина на земле: x — левый край, gy — линия земли */
 function drawCar(g,m,x,gy,flip,P,spin=0){P=P||carPal(m);const N=CARS2[m];
   const img=spxOf(m,flip,P),w=img.width;
   if(!N){px(g,x,gy-11,img);return}
   const y=Math.round(gy-N.wy-6);x=Math.round(x);px(g,x,y,img);
-  N.wh.forEach(c=>{const wx=x+(flip?w-1-c:c)-3+(flip?1:0);g.fillStyle='#0e0b1c';g.fillRect(wx,y+N.wy-1,6,1);g.fillRect(wx-1,y+N.wy,8,2);wheel(g,wx,y+N.wy,P,flip?3-(spin&3):spin)})}
+  const s=wheelSize(w),wt=gy-s,half=s>>1;
+  N.wh.forEach(c=>{const wx=x+(flip?w-1-c:c)-half+(flip?1:0);g.fillStyle='#0e0b1c';g.fillRect(wx,wt-1,s,1);g.fillRect(wx-1,wt,s+2,2);wheel(g,wx,wt,P,flip?3-(spin&3):spin,s)})}
 /* ---- раскраски: перекрашивают пиксели кузова ('y') по узору; координаты c/r — в спрайте без отражения ---- */
 const LIV_RANGE=new WeakMap();
 function livPix(s,flip,v){const P=new Map();const w=s[0].length;let R=LIV_RANGE.get(s);if(!R){let a=99,b=0;s.forEach((row,r)=>{if(/[ys]/.test(row)&&r>3){a=Math.min(a,r);b=r}});LIV_RANGE.set(s,R=[a,b])}
@@ -517,6 +520,9 @@ function draw(){
   R(240,88,2,14,'#4a4570');R(238,80,6,9,'#0e0b1c');R(239,81,4,3,red?'#ff4d4d':'#3a1a1a');R(239,85,4,3,red?'#1a3a1a':'#86e06f');
   if(dark>.3){cx.globalCompositeOperation='lighter';cx.fillStyle=red?'rgba(255,77,77,.18)':'rgba(134,224,111,.18)';cx.fillRect(235,78,12,12);cx.globalCompositeOperation='source-over'}
   light(241,red?82:86,14,red?'255,77,77':'134,224,111',.9,1);
+  // кузова стали шире — держим дистанцию в ряду, иначе спрайты наползают друг на друга
+  for(const lane of [0,1]){const list=movers.filter(m=>m.lane===lane).sort((a,b)=>a.x-b.x);
+    for(let i=1;i<list.length;i++){const need=list[i-1].x+carW(list[i-1].m)+2;if(list[i].x<need)list[i].x=need}}
   movers.forEach(m=>{const nx=m.x+m.v*SP;
     const cw=carW(m.m),ho=carHo(m.m);
     const stop=red&&((m.lane===0&&m.x+cw<=220&&nx+cw>196)||(m.lane===1&&m.x>=238&&nx<262));
@@ -557,7 +563,8 @@ function drawScene(dark){if(!scn)return;const d=SCN_DUR[scn.type]||150,e=t-scn.t
     R(x-8,y,22,3,'#a8a0cc');R(x-4,y-3,14,3,'#c6bfe4');R(x-1,y-5,8,2,'#9fd3ff');for(let i=0;i<4;i++)R(x-6+i*6,y+1,2,1,Math.floor(e/4+i)%2?'#ffe27a':'#86e06f');
     if(p>.3&&p<.75){cx.globalCompositeOperation='lighter';for(let k=0;k<6;k++){cx.fillStyle=`rgba(160,255,200,${(.08-k*.01).toFixed(3)})`;cx.fillRect(x-2-k*3,y+3+k*10,10+k*6,10)}cx.globalCompositeOperation='source-over'}}
   if(scn.type==='meteor'){for(let i=0;i<6;i++){const k=(e*1.6+i*30)%120,x=40+i*45+k,y=4+k*.4;R(x,y,2,1,'#fff6a8');R(x-3,y-1,3,1,'#fff6a888');R(x-6,y-2,3,1,'#fff6a844')}}
-  if(scn.type==='crash'){const meet=Math.min(1,p*2.2),xa=-30+ease(meet)*125,xb=W+10-ease(meet)*125;
+  if(scn.type==='crash'){const meet=Math.min(1,p*2.2),ax=119-carW('solaris'),bx=119;
+    const xa=-30+ease(meet)*(ax+30),xb=W+10-ease(meet)*(W+10-bx);
     drawCar(cx,'solaris',xa,115,false,null,Math.floor(xa/2));drawCar(cx,'rio',xb,115,true,null,Math.floor(xb/2));
     if(meet>=1){const k=e-d/2.2;for(let i=0;i<10;i++){const a=i/10*6.28,r=(k%40)*.5;if(k<40)R(119+Math.cos(a)*r,109+Math.sin(a)*r*.6,1,1,i%2?'#ffe27a':'#ff8a4c')}
       R(110,90,11,11,'#0e0b1c');R(111,91,9,9,'#f3ecdc');R(115,92,2,5,'#ff4d4d');R(115,98,2,1,'#ff4d4d');
@@ -568,7 +575,7 @@ function drawScene(dark){if(!scn)return;const d=SCN_DUR[scn.type]||150,e=t-scn.t
   if(scn.type==='tow'){const inP=Math.min(1,p*3),outP=Math.max(0,(p-.6)/.4),x=W+10-ease(inP)*110-ease(outP)*(W);
     R(x,104,30,8,'#ff8a4c');R(x+20,98,10,7,'#ff8a4c');R(x+22,99,6,3,'#9fd3ff');R(x+2,112,6,3,'#0e0b1c');R(x+20,112,6,3,'#0e0b1c');R(x-8,100,10,1,'#8a83b0');
     if(Math.floor(e/5)%2)R(x+24,96,3,2,'#ffe27a');
-    if(p>.33)drawCar(cx,'granta',x-32,109+(p<.45?Math.round((.45-p)*40):0),false)}
+    if(p>.33)drawCar(cx,'granta',x-carW('granta'),109+(p<.45?Math.round((.45-p)*40):0),false)}
   if(scn.type==='police'){const x=-40+ease(p)*(W+80);R(x,104,26,8,'#f3ecdc');R(x+6,100,13,4,'#f3ecdc');R(x+8,101,4,2,'#9fd3ff');R(x+13,101,4,2,'#9fd3ff');R(x,107,26,2,'#3a6ab8');
     R(x+3,112,5,3,'#0e0b1c');R(x+18,112,5,3,'#0e0b1c');const on=Math.floor(e/3)%2;light(x+12,99,24,on?'255,60,60':'60,90,255',1);R(x+9,98,3,2,on?'#ff4d4d':'#4d6dff');R(x+13,98,3,2,on?'#4d6dff':'#ff4d4d');
     cx.globalCompositeOperation='lighter';for(let k=1;k<4;k++){cx.fillStyle=`rgba(255,60,60,${(.12/k).toFixed(3)})`;cx.fillRect(x+10-k*2,98-k,2+k*2,2+k*2);cx.fillStyle=`rgba(60,90,255,${(.12/k).toFixed(3)})`;cx.fillRect(x+14-k*2,98-k,2+k*2,2+k*2)}cx.globalCompositeOperation='source-over'}
