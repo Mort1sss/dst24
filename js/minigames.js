@@ -623,6 +623,86 @@ function takeCand(i){
   addLog(`Авито: нанят ${nd.n} — ★${nd.r}, аренда ${rentTxt(nd.req)}.`);
   toast(`${nd.n} вышел на линию`);sfx('coin');syncDrivers();save();render();hideModal();runMorning();
 }
+/* ---- лизинг: конец срока, выкуп или возврат ---- */
+const lzDue=()=>S.fleet.filter(c=>c.lease===0&&c.lzBuy>0);
+function leaseEnd(){
+  const due=lzDue();if(!due.length)return runMorning();
+  const all=due.reduce((a,c)=>a+c.lzBuy,0);
+  showModal(`<span class="step">УТРО · ЛИЗИНГ</span><h2>Срок лизинга истёк</h2>
+    <p>Машин с истёкшим сроком: ${due.length}. Решение за вами: <b>выкупить</b> — машина остаётся в парке и её можно продать, или <b>вернуть</b> компании без штрафа. Пока не решено, за машину берут полный дневной платёж.</p>
+    <div class="modes">${due.map(c=>`<div class="mode"><b>${MODELS[c.m].name} · выкуп ${rub(c.lzBuy)}</b><span>пробег ${km(c.km)} · платёж ${rub(lzPay(c))}/день${S.money<c.lzBuy?' · на выкуп не хватает':''}</span>
+      <div class="btns"><button class="buy sm" data-lz="b${c.id}" ${S.money<c.lzBuy?'disabled':''}>Выкупить</button><button class="buy sm alt" data-lz="r${c.id}">Вернуть</button></div></div>`).join('')}</div>
+    <div class="btns"><button class="buy" id="lzBuyAll" data-lz="a" ${S.money<all?'disabled':''}>Выкупить все · ${rub(all)}</button><button class="buy sm alt" id="lzBackAll" data-lz="e">Вернуть все</button></div>`);
+  sfx('alert');
+  $('modalCard').querySelectorAll('[data-lz]').forEach(b=>b.onclick=()=>lzDecide(b.dataset.lz));
+}
+function lzDecide(v){
+  const due=lzDue();let done=0,back=0;
+  const buy=c=>{if(S.money<c.lzBuy)return false;const p=c.lzBuy;S.money-=p;c.lzBuy=0;c.lzLate=0;done++;addLog(`Лизинг: ${MODELS[c.m].name} выкуплена за ${rub(p)} — машина ваша.`);return true};
+  const ret=c=>{back++;addLog(`Лизинг: ${MODELS[c.m].name} возвращена лизинговой компании.`);S.fleet.splice(S.fleet.indexOf(c),1)};
+  if(v==='a'){if(!due.some(c=>c.lzBuy<=S.money)){toast('Не хватает денег на выкуп');return}due.forEach(buy)}
+  else if(v==='e')due.forEach(ret);
+  else{const c=S.fleet.find(x=>x.id===+v.slice(1));if(!c)return runMorning();(v[0]==='b'?buy:ret)(c)}
+  if(done||back){sfx(done?'coin':'click');save();render()}
+  if(lzDue().length)leaseEnd();else{hideModal();runMorning()}
+}
+/* ---- касса вечера: сбор аренды с должников ---- */
+// недобор — доля вчерашней выручки с потолком: обход кассы должен быть приятной добавкой, а не второй зарплатой парка
+const cashPot=()=>{const C=bal('cash'),rev=S.stat.length?S.stat[S.stat.length-1].rev:Math.max(20000,activeN()*3200);
+  return Math.round(Math.min(rev*C.share,C.potMax)/100)*100};
+// должники — реальные водители: чем ниже лояльность, тем дольше не платит; «звёзды» с арендой ниже рынка платят меньше всех
+function mkDebtors(){const C=bal('cash'),pool=[...S.dlist].sort((a,b)=>a.loy-b.loy),n=Math.min(rand(C.min,C.max),pool.length);
+  if(!n)return[];const pot=cashPot(),out=[];
+  for(let i=0;i<n;i++){const d=pool[i],
+    days=Math.max(1,Math.min(9,Math.round((100-d.loy)/16)+rand(0,2))),
+    why=d.req&&d.req<1?'аренда ниже рынка':d.loy<45?'тянет с кассой, недоволен':S.fleet.some(c=>c.b)?'машина была в ремонте':'ездил мало, платил по факту';
+    out.push({id:d.id,n:d.n,days,amt:Math.max(500,Math.round(pot/n*(0.6+Math.random()*.9)/100)*100),why})}
+  return out}
+function cashAsk(){if(S.over||S.cashDay===S.day)return runMorning();
+  showModal(`<span class="step">УТРО · КАССА</span><h2>Вечерняя сверка аренды</h2>
+    <p>По кассе висит недобор — ориентировочно ${rub(cashPot())}. Часть водителей не внесла аренду, собрать нужно сегодня: вечером касса закрывается. Обход занимает ${bal('cash').ttl} секунд.</p>
+    <div class="btns"><button class="btn" id="cwGo">Идти по водителям</button><button class="btn ghost" id="cwSkip">Отложить до вечера</button></div>`);
+  sfx('alert');
+  $('cwGo').onclick=()=>{hideModal();cashRun()};$('cwSkip').onclick=()=>{hideModal();runMorning()}}
+const cashRow=(x,i)=>{const C=bal('cash');
+  return`<div class="mode" id="cwr${i}"><b>${esc(x.n)} · ${rub(x.amt)}</b><span>${x.why} · просрочка ${x.days} дн.</span>
+    <div class="btns"><button class="buy sm alt" data-cw="${i}:n" title="Заберёте ${Math.round(C.now*100)}% суммы сразу, лояльность чуть просядет">${Math.round(C.now*100)}% сейчас</button><button class="buy sm alt" data-cw="${i}:w" title="Шанс ${Math.round(C.late*100)}%, что внесёт полную сумму через пару дней">Подождать</button><button class="buy sm" data-cw="${i}:r" title="Вся сумма сразу, но лояльность −${C.loyRem} и риск слухов">Всё и сейчас</button></div></div>`};
+function cashRun(){
+  if(S.over||S.preview||S.cashDay===S.day)return;
+  const list=mkDebtors();if(!list.length){toast('Должников нет: все внесли аренду');return}
+  const C=bal('cash');S.cashDay=S.day;S.cashGot=0;S.cashList=list;let left=C.ttl;
+  showModal(`<span class="step">КАССА ВЕЧЕРА</span><h2>Сбор аренды</h2>
+    <p class="mg-timer" id="cwT">⏱ ${left} сек</p>
+    <p class="sub">Собрали: <b id="cwGot">0 ₽</b>. «${Math.round(bal('cash').now*100)}% сейчас» — мягко и сразу, «Подождать» — шанс получить полную сумму через пару дней, «Всё и сейчас» — деньги сегодня, но водители это запоминают.</p>
+    <div class="modes" id="cwRows">${list.map((x,i)=>cashRow(x,i)).join('')}</div>`);
+  sfx('click');
+  $('modalCard').querySelectorAll('[data-cw]').forEach(b=>b.onclick=()=>cashPick(b.dataset.cw));
+  clearInterval(mgTimer);mgTimer=setInterval(()=>{if(paused)return;left--;const t=$('cwT');if(t)t.textContent=`⏱ ${Math.max(0,left)} сек`;if(left<=0)cashEnd()},1000);
+}
+function cashPick(v){
+  const p=v.split(':'),x=S.cashList[+p[0]],C=bal('cash');if(!x||x.done)return;
+  const d=S.dlist.find(y=>y.id===x.id);x.done=p[1];let msg='',ok=true;
+  if(p[1]==='n'){const got=Math.round(x.amt*C.now/100)*100;S.cashGot+=got;msg=`взяли ${rub(got)} сразу`;if(d)d.loy=Math.max(0,d.loy-C.loyNow)}
+  else if(p[1]==='r'){S.cashGot+=x.amt;msg=`вся сумма: ${rub(x.amt)}`;if(d){d.loy=Math.max(0,d.loy-C.loyRem);if(Math.random()<.25){S.rep=Math.max(0,S.rep-1);msg+=', водитель поговорил с городом, репутация −1'}}}
+  else{ok=false;
+    if(Math.random()<C.late*(1.2-rm(0))){const at=S.day+rand(2,4);S.cashWait=(S.cashWait||[]).concat([{n:x.n,amt:x.amt,at}]);msg=`обещал внести ${rub(x.amt)} (день ${at})`}
+    else{const lost=Math.round(x.amt*C.loss/100)*100;S.cashGot+=x.amt-lost;msg=`внёс только ${rub(x.amt-lost)}, ${rub(lost)} сгорело`;if(d)d.loy=Math.max(0,d.loy-1)}}
+  const row=$('cwr'+p[0]);if(row)row.innerHTML=`<b>${esc(x.n)}</b><span class="${ok?'pos':msg.includes('сгорело')?'neg':''}">${msg}</span>`;
+  const g=$('cwGot');if(g)g.textContent=rub(S.cashGot);sfx('click');
+  if(S.cashList.every(x=>x.done))cashEnd();
+}
+function cashEnd(){
+  clearInterval(mgTimer);mgTimer=null;
+  const rest=(S.cashList||[]).filter(x=>!x.done).length,got=S.cashGot||0;
+  if(rest)S.rep=Math.max(0,S.rep-1);
+  S.cashEarn=(S.cashEarn||0)+got;S.cashList=[];S.cashGot=0;
+  if(got)addLog(`Касса вечера: собрано ${rub(got)}, деньги в вечерней кассе.`);
+  showModal(`<span class="step">КАССА ВЕЧЕРА</span><h2>${got?rub(got):'Нечего было брать'}</h2>
+    <p>Собрали ${rub(got)}.${rest?` До ${rest} ${rest<4?'водителей':'водителей'} не дошли — репутация −1.`:''} Деньги придут в кассу в конце дня.</p>
+    <button class="btn" id="cwOk">Отлично</button>`);
+  sfx(got?'coin':'click');
+  $('cwOk').onclick=()=>{hideModal();if(S.morning&&S.morning.length)runMorning()};
+}
 /* ---- смена диспетчера ---- */
 // оценка «quanto заплатит смена»: парк × ставка × полная точность × вторая смена; спрос районов заранее неизвестен, поэтому в тексте это «около»
 const dispTop=()=>{const dp=bal('dp');return Math.round(activeN()*dp.per*1.2*(1+shN()/100*(dp.nightK-1))*inf()/100)*100};

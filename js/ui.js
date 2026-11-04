@@ -304,6 +304,7 @@ function hireCard(){const off=S.over||S.preview,working=carsN()-brokenN(),free=M
 const b3=()=>B(3);
 // в renderMgmt локальная B — элемент #mbody, поэтому проверка баланса только через обёртку
 const b7=()=>B(7);
+const b12=()=>B(12);
 /* карточка смен: bal 3 — вторая смена и усталость (во вкладке «Водители»), раньше — ночная смена (на карте) */
 function shiftCard(dis){
   if(b3()){const mx=bal('shiftMax'),owl=S.dlist.filter(d=>d.t==='night').length;
@@ -338,26 +339,30 @@ function renderMgmt(){
         <div><h3>${M.name}</h3><div class="kind"><span class="cls">${M.cls}</span>${M.kind}</div></div></div>
         ${M.note?`<div class="kind">${M.note}</div>`:''}
         <div class="specs">
-          <div class="spec"><span>${M.lease?'Первый взнос':'Цена'}</span><b>${rub(priceOf(k))}</b></div>
-          ${M.lease?`<div class="spec"><span>Лизинг, ${LEASE_DAYS} дн.</span><b>${rub(M.lease)}/день</b></div>`:`<div class="spec"><span>Пробег</span><b>~${km(M.km0)}</b></div>`}
+          ${M.lease&&b12()?lzTerms().map((d,i)=>{const p=lzPlan(k,i);return`<div class="spec"><span>${d} дн.</span><b>${rub(p.down)} · ${rub(p.pay)}/дн · выкуп ${rub(p.buy)}</b></div>`}).join('')
+          :`<div class="spec"><span>${M.lease?'Первый взнос':'Цена'}</span><b>${rub(priceOf(k))}</b></div>
+          ${M.lease?`<div class="spec"><span>Лизинг, ${LEASE_DAYS} дн.</span><b>${rub(M.lease)}/день</b></div>`:`<div class="spec"><span>Пробег</span><b>~${km(M.km0)}</b></div>`}`}
           <div class="spec"><span>Выручка</span><b>${rub(carRevM(k))}/сут</b></div>
           <div class="spec"><span>Надёжность</span><span class="pips">${[0,1,2,3,4].map(i=>`<i class="${i<rel?'on':''}"></i>`).join('')}</span></div>
           <div class="spec"><span>Ремонт</span><b>${M.repair?rub(M.repair):'по гарантии'}</b></div></div>
         <div class="kind">В парке: ${own}</div>
         ${M.ev?`<div class="kind ${S.upg.charger?'':'neg'}">Не тратит бензин: при дорогом топливе зарабатывает больше; без зарядной станции −30% выручки.</div>`:''}
-        <div class="btns">${S.rank<(M.rank||0)?`<button class="buy" disabled>🔒 Звание «${rankName(M.rank)}»</button>`:`<button class="buy" data-buy="${k}" ${off||S.money<priceOf(k)||full?'disabled':''}>Купить</button>`}</div></div>`}).join('')}
+        ${M.lease&&b12()?`<p class="sub">Короткий срок дороже в день, но машина быстрее становится вашей. Итог с выкупом: ${lzTerms().map((d,i)=>`${d} дн. — ${rub(lzTotal(k,i))}`).join(' · ')}.</p>`:''}
+        <div class="btns">${S.rank<(M.rank||0)?`<button class="buy" disabled>🔒 Звание «${rankName(M.rank)}»</button>`
+          :M.lease&&b12()?lzTerms().map((d,i)=>{const p=lzPlan(k,i);return`<button class="buy${i?' sm alt':''}" data-buy="${k}:${i}" title="аванс ${rub(p.down)} · ${rub(p.pay)} в день · выкуп ${rub(p.buy)}" ${off||S.money<p.down||full?'disabled':''}>${d} дн.</button>`}).join('')
+          :`<button class="buy" data-buy="${k}" ${off||S.money<priceOf(k)||full?'disabled':''}>Купить</button>`}</div></div>`}).join('')}
       ${(()=>{const lk=MODEL_KEYS.filter(k=>tabMatch(MODELS[k],shopTab)&&S.rank<(MODELS[k].rank||0));return lk.length?`<div class="card2 locked"><h3>🔒 Ещё ${lk.length} ${lk.length<5?'модели':'моделей'}</h3><div class="kind">Откроются с новыми званиями: ${lk.map(k=>MODELS[k].name).join(', ')}.</div></div>`:''})()}</div>`;
   }
   else if(uiTab==='fleet'){
     const sorted=[...S.fleet].sort((a,b)=>b.b-a.b||carFail(b)-carFail(a));
-    B.innerHTML=`<p class="sub">Чем больше пробег, тем чаще машина ломается и тем дешевле продаётся. ${(S.bal||1)>=2?`Возврат лизинговой машины стоит ${bal('leaseRet')} дневных платежей, а после ${bal('leaseWearFrom')} дней она ломается чаще.`:'Лизинговую машину можно вернуть без выплаты.'} Сервис чинит до ${repairCap()} машин в день. Тюнинг: Т — тонировка, Ш — шумоизоляция, К — кожаный салон; полный комплект поднимает класс машины, а если класс уже верхний — даёт клубный пакет: +${bal('club').rep} к репутации и ремонты этой машины на ${Math.round(bal('club').repair*100)}% дешевле.${hasHead('master')?' Мастер Ашот делает тюнинг на 30% дешевле.':''}</p>
+    B.innerHTML=`<p class="sub">Чем больше пробег, тем чаще машина ломается и тем дешевле продаётся. ${b12()?`Досрочный возврат лизинговой машины — штраф ${Math.round(bal('lz').early*100)}% от оставшихся платежей; в конце срока её можно выкупить или вернуть бесплатно. Просрочка платежа: пени и изъятие машины через ${bal('lz').lateMax} дн.`:(S.bal||1)>=2?`Возврат лизинговой машины стоит ${bal('leaseRet')} дневных платежей, а после ${bal('leaseWearFrom')} дней она ломается чаще.`:'Лизинговую машину можно вернуть без выплаты.'} Сервис чинит до ${repairCap()} машин в день. Тюнинг: Т — тонировка, Ш — шумоизоляция, К — кожаный салон; полный комплект поднимает класс машины, а если класс уже верхний — даёт клубный пакет: +${bal('club').rep} к репутации и ремонты этой машины на ${Math.round(bal('club').repair*100)}% дешевле.${hasHead('master')?' Мастер Ашот делает тюнинг на 30% дешевле.':''}</p>
       ${toOn()&&S.fleet.some(c=>!c.b&&!c.svc&&toLeft(c)<0)?`<div class="btns"><button class="buy to" data-svcall="1" ${dis}>Все просроченные на ТО</button></div>`:''}
       <div class="tablewrap"><table><thead><tr><th>Машина</th><th>Класс</th><th>Пробег</th><th>Износ</th><th>Статус</th><th>Лизинг</th><th>Тюнинг</th><th></th></tr></thead><tbody>
       ${sorted.map(c=>{const M=MODELS[c.m],wear=Math.min(100,Math.round(carFail(c)/.15*100)),v=carValue(c);
         return `<tr><td>${M.name}</td><td>${c.up?`<b class="pos">${c.up}</b>`:M.cls}</td><td>${km(c.km)}${toOn()?`<div class="kind ${toLeft(c)<0?'neg':''}">${toLeft(c)<0?`ТО просрочено на ${Math.round(-toLeft(c)).toLocaleString('ru-RU')} км`:`ТО через ${Math.round(toLeft(c)).toLocaleString('ru-RU')} км`}</div>`:''}</td><td><div class="bar ${wear<40?'green':''}"><i style="width:${wear}%"></i></div></td>
-        <td class="${c.b?'st-bad':'st-ok'}">${c.h?`задержана, ${c.h} дн.`:c.b?'в ремонте':c.svc?'на ТО':'на ходу'}${toOn()&&!c.b&&!c.svc&&toLeft(c)<1000?`<div><button class="buy sm alt to" data-svc="${c.id}" ${dis||S.money<toPrice()?'disabled':''}>На ТО ${rub(toPrice())}</button></div>`:''}</td><td>${c.lease>0?`ещё ${c.lease} дн.`:'—'}</td>
+        <td class="${c.b?'st-bad':'st-ok'}">${c.h?`задержана, ${c.h} дн.`:c.b?'в ремонте':c.svc?'на ТО':'на ходу'}${toOn()&&!c.b&&!c.svc&&toLeft(c)<1000?`<div><button class="buy sm alt to" data-svc="${c.id}" ${dis||S.money<toPrice()?'disabled':''}>На ТО ${rub(toPrice())}</button></div>`:''}</td><td>${c.lease>0?`ещё ${c.lease} дн.${b12()?` · ${rub(lzPay(c))}/дн${c.lzLate?` <span class="neg">просрочка ${c.lzLate}</span>`:''}`:''}`:b12()&&c.lzBuy>0?'<span class="neg">срок истёк</span>':'—'}</td>
         <td><div class="btns">${Object.entries(TUNE).map(([k,T])=>(c.tune||{})[k]?`<span class="done-tag" title="${T.n}">${T.s}✓</span>`:`<button class="buy sm alt" data-tune="${c.id}:${k}" title="${T.n}: +${Math.round(T.m*100)}% выручки" ${dis}>${T.s} ${rub(tunePrice(k))}</button>`).join('')}</div></td>
-        <td><button class="buy alt sm" data-sellcar="${c.id}" ${dis||c.lease>0&&S.money<leaseRet(c)?'disabled':''}>${c.lease>0?'Вернуть'+(leaseRet(c)?' −'+rub(leaseRet(c)):''):'Продать '+rub(v)}</button></td></tr>`}).join('')}
+        <td>${b12()&&c.lzBuy>0&&c.lease===0?`<button class="buy alt sm" disabled>Выкуп ${rub(c.lzBuy)} утром</button>`:`<button class="buy alt sm" data-sellcar="${c.id}" ${dis||c.lease>0&&S.money<leaseRet(c)?'disabled':''}>${c.lease>0?'Вернуть'+(leaseRet(c)?' −'+rub(leaseRet(c)):''):'Продать '+rub(v)}</button>`}</td></tr>`}).join('')}
       </tbody></table></div>`;
   }
   else if(uiTab==='depts'){
@@ -408,6 +413,22 @@ function renderMgmt(){
           <input type="range" data-cls="${i}" min="${Math.round(m*.8/100)*100}" max="${Math.round(m*1.3/100)*100}" step="100" value="${r}" ${dis} aria-label="Ставка ${cl}">
           <div class="row2 sub"><span>Рынок ${rub(m)}</span><span id="rd_${i}" class="${dv>0?'neg':dv<0?'pos':''}">${dv?(dv>0?'+':'')+dv+'%':'по рынку'}</span></div></div>`}).join('')}</div>
         <p class="kind" id="rentInfo">${rentInfo()}</p></div>
+      ${b12()?(()=>{const L=S.fleet.filter(c=>c.lease>0||c.lzBuy>0),due=L.filter(c=>c.lease===0),late=L.filter(c=>c.lzLate),
+        sum=L.reduce((a,c)=>a+lzPay(c),0),buy=L.reduce((a,c)=>a+(c.lzBuy||0),0),left=L.reduce((a,c)=>a+Math.max(0,c.lease),0),adj=Math.round((bal('lz').cAdj[cGrade()]||0)*100);
+        return`<div class="card2"><h3>Лизинговый портфель</h3>
+        <div class="specs"><div class="spec"><span>Машин в лизинге</span><b>${L.length}</b></div>
+        <div class="spec"><span>Платёж в день</span><b>${rub(sum)}</b></div>
+        <div class="spec"><span>Дней до конца сроков</span><b>${left}</b></div>
+        <div class="spec"><span>Выкупная сумма</span><b>${rub(buy)}</b></div></div>
+        ${due.length?`<p class="neg">Срок истёк у машин: ${due.length}. Утром выбирайте: выкуп или возврат.</p>`:''}
+        ${late.length?`<p class="neg">Просрочка ${Math.max(...late.map(c=>c.lzLate))} дн.: пени ${rub(Math.round(sum*bal('lz').lateK/100)*100)} в день. Через ${bal('lz').lateMax} дн. лизинговая компания заберёт машину.</p>`:''}
+        <p class="sub">Ваша надбавка к ставке по кредитному рейтингу ${cGrade()}: ${adj?(adj>0?'+':'')+adj+'%':'без надбавки'}. Короткий срок дороже в день, но машина быстрее становится вашей.</p></div>`})():''}
+      ${b12()&&featOpen('cash')?(()=>{const wait=(S.cashWait||[]).reduce((a,w)=>a+w.amt,0),done=S.cashDay===S.day;
+        return`<div class="card2"><h3>Сбор аренды</h3>
+        <p class="kind">${done?'Сегодня вы уже обошли должников — вечером касса закроется.':'Часть водителей задерживает аренду. Обход занимает '+bal('cash').ttl+' секунд: где-то взять меньшее сразу, где-то подождать полную сумму, где-то потребовать жёстко.'}</p>
+        ${wait?`<div class="specs"><div class="spec"><span>Обещано внести</span><b>${rub(wait)}</b></div><div class="spec"><span>Сроки</span><b>${(S.cashWait||[]).map(w=>`день ${w.at}`).join(', ')}</b></div></div>`:''}
+        <div class="btns"><button class="buy" id="cashBtn" ${off||done?'disabled':''}>${done?'Сегодня уже собрано':'Пройтись по должникам'}</button></div>
+        <p class="sub">Собранное приходит в кассу в конце дня строкой «Сбор аренды». Жёсткие требования бьют по лояльности — водители уходят и начинают бастовать.</p></div>`})():''}
       <div class="card2"><h3>Банк</h3>
         ${(S.bal>=5)?`<div class="row2 cred"><b class="cg g${cGrade()}">${cGrade()}</b><span>Кредитный рейтинг · счёт ${cSc()>0?'+':''}${cSc()}<br><small class="sub">Как поднять: не уходить в минус, платить по графику, гасить досрочно.</small></span></div>`:''}
         ${[0,1,2].slice(0,(S.bal>=5)&&cGrade()==='A'?3:2).map(i=>{const L=loanOffer(i);return`<div class="row2"><span>${i===2?'Третий кредит: ':''}${rub(L.amount)} на ${L.days} дн. · ${rub(loanPay(L))}/день</span><button class="buy sm tap" data-loan="${i}" ${off||!loanOk(i)?'disabled':''}>Взять</button></div>`}).join('')}
@@ -539,8 +560,9 @@ $('mtabs').addEventListener('click',e=>{const g=e.target.closest('[data-mg]');if
 $('mbody').addEventListener('click',e=>{const b=e.target.closest('button');if(!b||b.disabled)return;ensureAudio();const ds=b.dataset;
   if(ds.tab){shopTab=ds.tab;renderMgmt();return}
   if(S.preview)return;
-  if(ds.buy)return buy(ds.buy);
+  if(ds.buy){const s=String(ds.buy).split(':');return buy(s[0],s[1]==null?null:+s[1])}
   if(b.id==='hireBtn')return hire(false);
+  if(b.id==='cashBtn')return cashRun();
   if(b.id==='hireBoost')return hire(true);
   if(ds.sellcar)return sellCar(+ds.sellcar);
   if(ds.svc){if(service(S.fleet.find(c=>c.id===+ds.svc))){addLog('ТО: машина отправлена на плановое обслуживание.');sfx('coin');save();render()}else toast('Не хватает денег');return}

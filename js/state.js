@@ -16,7 +16,19 @@ const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',
 const carsN=()=>S.fleet.length, brokenN=()=>S.fleet.filter(c=>c.b).length;
 const countM=(...ms)=>S.fleet.filter(c=>ms.includes(c.m)).length;
 const activeN=()=>Math.min(S.drivers,carsN()-brokenN());
-const leaseSum=()=>S.fleet.reduce((a,c)=>a+(c.lease>0?MODELS[c.m].lease:0),0);
+/* ---- лизинг: срок на выбор, аванс, дневной платёж, выкуп (bal 12) ---- */
+// у партий до BAL[12] срок один (60 дн.), платёж — ставка модели без инфляции
+const lzTerm=c=>B(12)&&c.lzT!=null?bal('lz').days[c.lzT]:LEASE_DAYS;
+// дневной платёж: пока идёт срок — и после его конца, пока машина не выкуплена и не возвращена
+const lzPay=c=>{const M=MODELS[c.m];if(!M.lease)return 0;
+  if(!B(12))return c.lease>0?M.lease:0;
+  return c.lzBuy>0||c.lease>0?Math.round(M.lease*(c.lzK||1)*inf()/100)*100:0};
+const leaseSum=()=>S.fleet.reduce((a,c)=>a+lzPay(c),0);
+// что получится по деньгам, если подписать машину m на срок t: аванс, платёж в день (ставка × срок × рейтинг), выкуп в конце
+function lzPlan(m,t){const P=priceOf(m),LZ=bal('lz'),k=LZ.pay[t]*(1+(LZ.cAdj[cGrade()]||0));
+  return{days:LZ.days[t],down:Math.round(P*LZ.down[t]/500)*500,pay:Math.round(MODELS[m].lease*k*inf()/100)*100,buy:Math.round(P*LZ.buy[t]/500)*500,k:+k.toFixed(3)}}
+// итог за весь срок: аванс + платежи + выкуп
+const lzTotal=(m,t)=>{const p=lzPlan(m,t);return p.down+p.pay*p.days+p.buy};
 /* ---- кредитный рейтинг (bal 5) ---- */
 const cOn=()=>B(5)&&(!simpleOn()||S.day>=TAB_DAY.fin),cSc=()=>cOn()?S.cscore||0:0;
 const cGrade=(c=cSc())=>c>=bal('cA')?'A':c>=0?'B':c>bal('cD')?'C':'D';
@@ -65,8 +77,9 @@ const rm=d=>rmAt(d,S.staff[d]);
 const repairMult=()=>inf()*(hq('car',3)?1-bal('tree',7).car.svc:1)*(hasHead('master')?.85:1)*(hasHead('petrovich')?.7:1)*(S.upg.tire?.65:1)*newsMod('repair');
 const failMult=()=>(cityDef().fail||1)*dif().fail*(hasHead('sanya')?.65:1)*(S.upg.diag?.7:1)*(hq('car',2)?1-bal('tree',7).car.fail:1)*season(dateOf(S.day)).fail*newsMod('fail');
 const repairCap=()=>2+2*S.staff[2]+(hasHead('olga')?3:0)+(hasHead('robot')?5:0)+(S.upg.lift?2:0);
-const leaseWear=c=>c.lease>0&&B(2)?Math.min(bal('leaseWearMax'),1+bal('leaseWearK')*Math.max(0,LEASE_DAYS-c.lease-bal('leaseWearFrom'))):1;
-const leaseRet=c=>bal('leaseRet')*MODELS[c.m].lease;
+const leaseWear=c=>c.lease>0&&B(2)?Math.min(bal('leaseWearMax'),1+bal('leaseWearK')*Math.max(0,lzTerm(c)-c.lease-bal('leaseWearFrom'))):1;
+// досрочный возврат: штраф от оставшихся платежей; в конце срока машина отдаётся бесплатно
+const leaseRet=c=>B(12)?Math.round(Math.max(0,c.lease)*lzPay(c)*bal('lz').early/100)*100:bal('leaseRet')*MODELS[c.m].lease;
 /* ---- плановое ТО (bal 3) ---- */
 const toLeft=c=>{if(c.to==null)c.to=c.km+bal('toKm');return c.to-c.km};
 const toOn=()=>B(3)&&(!simpleOn()||S.day>=TAB_DAY.base),toOver=c=>toOn()?Math.max(0,-toLeft(c)):0;
@@ -78,7 +91,7 @@ const shN=()=>B(3)?(S.shift2||0):(S.night||0);
 function service(c){if(!B(3)||!c||c.svc||c.b||S.over||S.preview)return false;const p=toPrice();if(S.money<p)return false;S.money-=p;c.svc=1;return true}
 function serviceOverdue(){let n=0;S.fleet.filter(c=>B(3)&&toLeft(c)<0&&!c.b&&!c.svc).sort((a,b)=>toLeft(a)-toLeft(b)).forEach(c=>{if(service(c))n++});
   if(n){addLog(`ТО: на плановое обслуживание отправлено машин: ${n}.`);toast(`На ТО: ${n}`);sfx('coin');save();render()}else{toast('Нет денег или просроченных машин');sfx('bad')}}
-const carValue=c=>{const M=MODELS[c.m];if(c.lease>0)return 0;return Math.round(M.resale*Math.max(.25,1-Math.max(0,c.km-M.km0)/300000)/500)*500};
+const carValue=c=>{const M=MODELS[c.m];if(c.lease>0||B(12)&&c.lzBuy>0)return 0;return Math.round(M.resale*Math.max(.25,1-Math.max(0,c.km-M.km0)/300000)/500)*500};
 const isBad=fx=>!!fx&&((fx.hold||0)>0||(fx.tdebt||0)>0||(fx.rel||0)<0||(fx.loy||0)<0||(fx.rep||0)<0||(fx.drivers||0)<0||(fx.broken||0)>0||(fx.cars||0)<0||(fx.news&&(NEWS.find(n=>n.id===fx.news)||{}).demand<1));
 
 /* ================= ЦЕЛИ (бесконечный режим) ================= */
@@ -193,7 +206,7 @@ function blankState(mode){
     alloc:{center:30,sleep:40,air:15,rail:15},dmods:{center:1,sleep:1,air:1,rail:1},townAlloc:{},dnews:[],night:0,shift2:0,fat:0,weather:[],investors:[],union:false,unionDays:0,nextUnion:0,
     nextAuction:7,nextContract:rand(9,13),nextAgency:rand(10,15),contracts:[],lines:{},ads:null,school:[],agency:[],stat:[],wk:{rev:0,net:0,breaks:0,fines:0,fails:[]},
     custom:Object.assign({name:'ДСТ-24',color:'yellow',logo:'checker',avatar:0,livery:'none'},G.custom||{}),
-    parts:10,crisis:null,nextCrisis:rand(25,40),extraHeads:[[],[],[]],moodMod:[0,0,0],nextCareer:rand(18,24),nextConflict:rand(14,20),lastParty:-99,strike:null,owned:{},dispDay:0,dispEarn:0,vac:null,cands:[],hireLog:[],
+    parts:10,crisis:null,nextCrisis:rand(25,40),extraHeads:[[],[],[]],moodMod:[0,0,0],nextCareer:rand(18,24),nextConflict:rand(14,20),lastParty:-99,strike:null,owned:{},dispDay:0,dispEarn:0,vac:null,cands:[],hireLog:[],cashDay:0,cashEarn:0,cashWait:[],cashList:[],cashGot:0,
     agg:'mig',aggAt:-99,aggNext:0,aggLast:0,lowDays:0,cscore:0,cstreak:0,war:null,ctLost:null,infl:1,mInfl:1,taxAcc:0,kpi:null,kpiStreak:0,kpiFails:0,tdebt:0,rel:{},relCd:{},city:'home',hold:null,gid:'',balPatch:null,balRev:0,goalBal:null,migBal:null,netSeen:{},netRev:[],seed:0};
 }
 function fixState(v){const b=blankState(v.mode||'campaign');const o=Object.assign(b,v);o.bal=v.bal||1;
