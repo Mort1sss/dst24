@@ -192,7 +192,10 @@ function openBranch(){
 }
 function branchAct(i,a){const b=S.branches[i];if(!b||S.over)return;const before=snap();
   if(a==='car'){if(S.money<75000){toast('Не хватает денег');return}S.money-=75000;b.cars++;toast(`«${b.n}»: +1 машина`)}
-  if(a==='hire'){if(S.money<6000){toast('Не хватает денег');return}S.money-=6000;const n=Math.random()<.7?(Math.random()<.3?2:1):0;b.drivers+=n;toast(n?`«${b.n}»: +${n} вод.`:'Никто не откликнулся')}
+  if(a==='hire'||a==='hire10'||a==='hire50'){const n=a==='hire'?1:a==='hire10'?10:50,pr=n*6000;
+    if(S.money<pr){toast('Не хватает денег');return}S.money-=pr;let got=0;
+    for(let k=0;k<n;k++)got+=Math.random()<.7?(Math.random()<.3?2:1):0;b.drivers+=got;
+    toast(got?`«${b.n}»: +${got} вод. из ${n}`:`«${b.n}»: на ${n} вакансий никто не откликнулся`)}
   if(a==='mgr'){const c=40000*b.mgr;if(b.mgr>=3)return;if(S.money<c){toast('Не хватает денег');return}S.money-=c;b.mgr++;toast(`«${b.n}»: директор филиала прошёл обучение`)}
   sfx('coin');save();render(before)}
 function branchEvent(){

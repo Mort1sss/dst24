@@ -344,11 +344,13 @@ function endDay(){
       if(Math.random()<bal('lostP')){const rv=S.rivals[rand(0,S.rivals.length-1)];rivalAdd(rv,rand(1,2));rv.rep=Math.min(95,rv.rep+2);addLog(`Контракт с ${esc(L.co)} достался «${esc(rv.name)}».`);notes.push(`Контракт с ${esc(L.co)}, от которого вы отказались, забрал «${esc(rv.name)}».`)}}}
   // бензин
   S.fuel=Math.max(.85,Math.min(1.35,S.fuel*(1+rand(-25,30)/1000)));
-  // филиалы
-  let brNet=0;S.branches.forEach(b=>{const act=Math.min(b.cars,b.drivers);
+  // филиалы: недоукомплектованный филиал платит от 40 до 100 % мощности, а не пропорционально водителям.
+  // правило сознательно без привязки к BAL — его получают и старые партии, иначе сеть из 500 машин
+  // с 120 водителями наказывалась бы вчетверо только за то, что найм идёт по одному человеку за клик
+  let brNet=0;S.branches.forEach(b=>{const eff=Math.min(1,(b.drivers||0)/Math.max(1,b.cars)),act=b.cars*(.4+.6*eff);
     const rev=act*(B(6)?bal('brRev'):3300)*b.bonus*(.5+S.rep/100)*demand*(.85+.05*b.mgr),cost=3000+b.cars*600+b.mgr*1500;let br=0;for(let i=0;i<b.cars;i++)if(Math.random()<.03*dif().fail)br+=7000;
     let lv=0;for(let i=0;i<b.drivers;i++)if(Math.random()<.01)lv++;b.drivers-=lv;
-    const net=Math.round((rev-cost-br)/100)*100;b.last=net;brNet+=net});
+    b.eff=eff;const net=Math.round((rev-cost-br)/100)*100;b.last=net;brNet+=net});
   // профсоюз
   const avgLoy=S.dlist.length?S.dlist.reduce((a,x)=>a+x.loy,0)/S.dlist.length:60;
   if(!S.union){if(avgLoy<40){S.unionDays++;if(S.unionDays>=3){S.union=true;S.nextUnion=S.day+1;notes.push('<b class="neg">Водители создали профсоюз! Скоро будут требования.</b>')}}else S.unionDays=0}
