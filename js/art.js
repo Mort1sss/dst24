@@ -562,8 +562,16 @@ function draw(){
   movers.forEach(m=>{const nx=m.x+m.v*SP;
     const cw=carW(m.m),ho=carHo(m.m);
     const stop=red&&((m.lane===0&&m.x+cw<=220&&nx+cw>196)||(m.lane===1&&m.x>=238&&nx<262));
-    if(!stop)m.x=nx;if(m.x>W+4)m.x=-cw-4;if(m.x<-cw-4)m.x=W+4;const x=Math.round(m.x),y=m.lane?121:104;
+    if(!stop)m.x=nx;if(m.x>W+4)m.x=-cw-4;if(m.x<-cw-4)m.x=W+4;const x=Math.round(m.x);
+    // подвеска: кузов слегка идёт по неровностям, у каждого экипажа свой ритм
+    const y=(m.lane?121:104)+(Math.abs(Math.sin((m.x+m.id*23)/26))>.86?1:0);
     shadow(x,y+11,cw);drawCar(cx,m.m,x,y+11,m.lane===1,carPal(m.m),Math.floor(m.x/2));
+    // поворотник к переходу и вспышка стопов, когда машина встаёт на красный
+    const near=m.lane===0?x+cw>196&&x+cw<224:x<250&&x>214;
+    if(near&&!stop&&Math.floor(t/8+m.id)%2)R(m.lane===0?x+cw-3:x+2,y+5,2,1,'#f7a331');
+    if(stop&&Math.floor(t/6)%2){cx.fillStyle='rgba(255,60,60,.55)';cx.fillRect(m.lane===0?x-2:x+cw,y+ho-1,2,2)}
+    // дворники в дождь: тёмная палочка ходит по лобовому
+    if(wk==='rain'){const wx=m.lane===0?x+cw-6:x+3,ph=Math.floor(t/7+m.id)%2;R(wx+ph,y+ho-1,1,2,'#0e0b1c')}
     if(wk==='rain'&&!stop&&chance(.15))emit('spl',x+(m.lane===0?4:cw-4),y+11,m.lane===0?-.4:.4,-.6,10,'#9fd3ff');
     if(!stop&&!MODELS[m.m].ev&&(Math.floor(t+m.id*7)%9)<2){const ex=m.lane===0?x-2:x+cw+1;R(ex,y+7,2,1,'#a8a0cc66');if(cold&&chance(.5))emit('puff',ex,y+7,m.lane===0?-.15:.15,-.04,50,'#e8eef8')}
     if(dark>.35){cx.globalCompositeOperation='lighter';const dir=m.lane===0?1:-1,hx0=m.lane===0?x+cw:x-1;
