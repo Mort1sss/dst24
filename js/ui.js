@@ -546,7 +546,9 @@ function renderMgmt(){
         <div class="spec"><span>Комплектация</span><b class="${b.drivers>=b.cars?'pos':b.drivers>=b.cars*.5?'':'neg'}">${Math.round(Math.min(1,b.drivers/Math.max(1,b.cars))*100)}% · работает на ${Math.round((.4+.6*Math.min(1,b.drivers/Math.max(1,b.cars)))*100)}% мощности</b></div>
         <div class="spec"><span>Директор филиала</span><b>ур. ${b.mgr}/3</b></div>${b.bonus>1?`<div class="spec"><span>Бонус района</span><b>+${Math.round((b.bonus-1)*100)}%</b></div>`:''}
         <div class="spec"><span>Вчера чистыми</span><b class="${b.last>=0?'pos':'neg'}">${b.last>=0?'+':''}${rub(b.last)}</b></div></div>
-        <div class="btns"><button class="buy sm" data-br="${i}:car" ${dis}>+Машина 75 000</button><button class="buy sm" data-br="${i}:hire" ${dis}>Найм 6 000</button>
+        <div class="btns"><button class="buy sm" data-br="${i}:car" ${dis}>+Машина 75 000</button>
+        <button class="buy sm" data-br="${i}:car10" ${dis}>+10 машин · 750 000</button><button class="buy sm" data-br="${i}:car50" ${dis}>+50 машин · 3 750 000</button>
+        <button class="buy sm" data-br="${i}:hire" ${dis}>Найм 6 000</button>
         <button class="buy sm" data-br="${i}:hire10" ${dis}>Найм 10 · 60 000</button><button class="buy sm" data-br="${i}:hire50" ${dis}>Найм 50 · 300 000</button>
         ${b.mgr<3?`<button class="buy sm alt" data-br="${i}:mgr" ${dis}>Обучить директора ${rub(40000*b.mgr)}</button>`:''}</div></div>`).join('')}
       <div class="card2"><h3>Новый филиал «${site.n}»</h3><p class="kind">3 машины и 3 водителя на старте.${site.bonus>1?` Район приносит +${Math.round((site.bonus-1)*100)}% выручки.`:''}</p>
