@@ -401,7 +401,7 @@ function endDay(){
     if(B(13)){S.taxPaidAll=(S.taxPaidAll||0)+taxPaid;S.txRev=0;S.txDays=0;
       if(Math.random()<deskP()){S.queueDesk=S.day+rand(1,3);notes.unshift('<b class="neg">По декларации налоговая истребовала документы — ждите камеральную проверку.</b>')}}
     notes.unshift(`${B(2)&&camp()?'Налог':'Квартальный налог'} с прибыли по ставке ${Math.round(rate*100)}%: ${rub(taxPaid)}.`)}
-  if(B(2)&&camp()?S.day===bal('inflDay'):S.day%(B(2)&&endl()?bal('endInfl'):30)===0){const r=rand(...(B(2)&&camp()?bal('inflPct'):[2,4]))/100;S.infl=(S.infl||1)*(1+r);S.mInfl=(S.mInfl||1)*(1+r*.6);notes.push(`Инфляция: цены выросли на ${Math.round(r*100)}%. Рыночные ставки аренды подросли — проверьте ставки во «Финансах».`)}
+  if(B(2)&&camp()?S.day===bal('inflDay'):S.day%(B(2)&&endl()?bal('endInfl'):30)===0){const r=rand(...(B(2)&&camp()?bal('inflPct'):[2,4]))/100;S.infl=(S.infl||1)*(1+r);S.mInfl=(S.mInfl||1)*(1+r);notes.push(`Инфляция: цены выросли на ${Math.round(r*100)}%. Рыночные ставки аренды подросли — проверьте ставки во «Финансах».`)}
   if(cOn()){if(S.money<0){cAdd(-1);S.cstreak=0}else if(++S.cstreak>=bal('cStreak')){cAdd(1);S.cstreak=0}
     if(cGrade()!==grade0)notes.unshift(`Кредитный рейтинг: ${grade0} → <b class="${cGrade()<grade0?'pos':'neg'}">${cGrade()}</b>.`)}
   S.stat.push({d:S.day,rev:revenue+cRev+adsRev+dpRev+cwRev,net,money:Math.round(S.money),cars:totalCars(),rep:S.rep});S.stat=S.stat.slice(-90);
@@ -425,7 +425,7 @@ function endDay(){
   if(invCut)lines.push([`Доля инвесторов (${invShare()}%)`,rub(-invCut)]);
   addLog(`Итог дня: ${net>=0?'+':''}${rub(net)}.`);
   const finished=hasLimit()&&S.day>=dayLimit();S.day++;
-  if(S.mode==='endless'){const R=G.rec;R.days=Math.max(R.days,S.day-1);R.cars=Math.max(R.cars,carsN());R.money=Math.max(R.money,S.money);R.goals=Math.max(R.goals,S.goal);saveG()}
+  if(S.mode==='endless'){const R=G.rec;R.days=Math.max(R.days,S.day-1);R.cars=Math.max(R.cars,totalCars());R.money=Math.max(R.money,S.money);R.goals=Math.max(R.goals,S.goal);saveG()}
   save();cloudPush();
   if(S.money<0){S.debt=(S.debt||0)+1;if(S.debt<5)notes.unshift(`<b class="neg">Касса в минусе! Если за ${5-S.debt} дн. не выйти в плюс, парк закроют за долги. Можно взять кредит во вкладке «Деньги» → «Финансы».</b>`)}else S.debt=0;
   const lose=S.mode!=='sandbox'&&((S.money<0&&S.debt>=5)||S.rep<=0||S.drivers===0);

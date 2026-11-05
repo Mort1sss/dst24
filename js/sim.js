@@ -24,6 +24,13 @@ function simBuy(){
   // кампании нужны ровно 15 машин — докупаем до цели, не глядя на окупаемость
   let need=S.mode==='campaign'?GOAL_CARS:0;if(C===1)need=Math.max(...S.rivals.map(r=>r.cars))+2;if(C===3)need=35;
   if(C===3&&!S.branches.length&&S.rank>=3&&S.money>=branchSite(0).price+60000)openBranch();
+  // bot-7: в бесконечном режиме филиалы — главная поздняя экономика; без них замер видел только спираль основного парка
+  if(endl()&&S.rank>=3){const site=branchSite(S.branches.length);
+    if(S.branches.length<5&&S.money>=site.price+300000)openBranch();
+    // укомплектовать дешевле, чем растить: сначала водители, потом машины пачкой по 10, и только на свободные деньги — по 50
+    S.branches.forEach((b,i)=>{if(b.drivers<b.cars&&S.money>=400000)branchAct(i,'hire50');
+      else if(b.drivers>=b.cars&&S.money>=4e6)branchAct(i,'car50');
+      else if(b.drivers>=b.cars&&S.money>=900000)branchAct(i,'car10')})}
   const cap=S.mode==='campaign'?GOAL_CARS:need||1e9,force=n<need;
   // в бесконечном режиме сверяемся с реальным чистым доходом последних 7 дней на машину
   const st7=S.stat.slice(-7),avg=st7.length?st7.reduce((a,x)=>a+x.net,0)/st7.length:0;
@@ -64,6 +71,9 @@ function simRun(cfg,seed,stopDay){
     if(r.goalDay===null&&(C?C.goal(S):goalMet()))r.goalDay=day;
     const lose=S.mode!=='sandbox'&&((S.money<0&&S.debt>=5)||S.rep<=0||S.drivers===0),fin=hasLimit()&&day>=dayLimit();
     if(lose||fin||day===stopDay||(S.mode==='endless'&&i===cap-1)){r.money=Math.round(S.money);r.cars=carsN();r.rep=S.rep;r.profit=Math.round(profit());r.poach=S.cnt.poach||0;r.tr=TRIAL[S.city]?TRIAL[S.city].v():0;r.wars=S.cnt.wars||0;r.cs=S.cscore||0;
+      // сеть целиком: филиалы живут по своим правилам, и без них замер бесконечного режима слепой
+      r.total=totalCars();r.br=(S.branches||[]).length;r.brCars=(S.branches||[]).reduce((a,b)=>a+b.cars,0);r.brDrv=(S.branches||[]).reduce((a,b)=>a+b.drivers,0);
+      if(lose)r.died=S.day;
       if(lose)r.why=S.money<0?'банкротство':S.rep<=0?'репутация':'водители';
       else if(fin){r.win=C?!!C.goal(S):goalMet()&&carsN()>=GOAL_CARS&&S.rep>=50;if(!r.win)r.why='не взята цель'}
       else r.why='стоп';r.cars=carsN();r.rep=S.rep;
@@ -79,6 +89,7 @@ function simBatch(cfg){
     winPct:+(100*rs.filter(r=>r.win).length/cfg.seeds).toFixed(1),
     lose:{банкротство:why['банкротство']||0,репутация:why['репутация']||0,водители:why['водители']||0,'не взята цель':why['не взята цель']||0,завис:(why['завис']||0)},
     cashP10:pct(cash,.1),cashP50:pct(cash,.5),cashP90:pct(cash,.9),carsP50:pct(rs.map(r=>r.cars||0),.5),repP50:pct(rs.map(r=>r.rep||0),.5),taxP50:pct(rs.map(r=>r.tax),.5),crisesP50:pct(rs.map(r=>r.crises),.5),goalMedian:pct(gd,.5),goalP30:pct(gd,.3),
+    totalP50:pct(rs.map(r=>r.total||0),.5),brP50:pct(rs.map(r=>r.br||0),.5),brCarsP50:pct(rs.map(r=>r.brCars||0),.5),brDrvP50:pct(rs.map(r=>r.brDrv||0),.5),diedP50:pct(rs.filter(r=>r.died).map(r=>r.died),.5),
     profitP50:pct(rs.map(r=>r.profit||0),.5),poachP50:pct(rs.map(r=>r.poach||0),.5),warsP50:pct(rs.map(r=>r.wars||0),.5),trialP50:pct(rs.map(r=>r.tr||0),.5),trialP90:pct(rs.map(r=>r.tr||0),.9),cscoreP50:pct(rs.map(r=>r.cs||0),.5),gradeP50:cGrade(pct(rs.map(r=>r.cs||0),.5)),fatP50:pct(rs.map(r=>r.fat),.5),failsP50:pct(rs.map(r=>r.fails),.5),goalBy25Pct:+(100*gd.filter(d=>d<25).length/cfg.seeds).toFixed(1),heavyMax:rs.reduce((a,r)=>Math.max(a,r.heavy),0),profits:rs.map(r=>[r.seed,r.profit||0]),stuck,errors}}
 const simFlat=r=>Object.assign({},r,{lose:Object.entries(r.lose).map(([k,v])=>k+':'+v).join(' '),errors:r.errors.length});
 /* подмена всего на время прогона и возврат в finally */

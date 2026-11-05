@@ -4,7 +4,7 @@ function gameOver(){
   if(!S.over)recordResult('банкрот');
   S.over=true;save();render();
   const why=S.money<0?'Касса ушла в минус. Парк закрыли за долги.':S.rep<=0?'Агрегатор отключил парк за низкий рейтинг.':'Все водители разошлись. Машины стоят во дворе.';
-  showModal(`<h2>Парк закрыт</h2><p>${why}</p><p class="note">Продержались дней: ${S.day-1}. Машин было: ${carsN()}.${S.mode==='endless'?` Выполнено целей: ${S.goal}.`:''}</p><button class="btn" id="again">Попробовать снова</button>`);
+  showModal(`<h2>Парк закрыт</h2><p>${why}</p><p class="note">Продержались дней: ${S.day-1}. Машин было: ${totalCars()}.${S.mode==='endless'?` Выполнено целей: ${S.goal}.`:''}</p><button class="btn" id="again">Попробовать снова</button>`);
   $('again').onclick=pickMode;
 }
 function finale(){
@@ -44,7 +44,7 @@ function pickMode(){
     ${holdG().earned?`<p class="note">Холдинг: очков свободно ${holdFree()} из ${holdG().earned}, франшиз ${holdG().fr.length}. Бонусы дерева действуют в новых партиях бесконечного режима.</p>`:''}
     <label class="chk"><input type="checkbox" id="simpleChk" ${G.simple!==false?'checked':''}> Режим новичка: возможности открываются постепенно, подсказки и советы</label><div class="modes">
     <button class="mode" id="mCamp"><b>КАМПАНИЯ</b><span>${DAYS} дней. Цель: ${GOAL_CARS} машин, прибыль или касса (зависит от сложности) и репутация 50+.</span></button>
-    <button class="mode" id="mEnd"><b>БЕСКОНЕЧНЫЙ РЕЖИМ</b><span>Без лимита дней и машин. Цели идут одна за другой.</span></button>
+    <button class="mode" id="mEnd"><b>БЕСКОНЕЧНЫЙ РЕЖИМ</b><span>Без лимита дней, цели идут одна за другой. Облако и лидерборд держат сеть до 1000 машин.</span></button>
     <button class="mode" id="mDaily"><b>ИСПЫТАНИЕ ДНЯ</b><span>«${DAILY_SC[dailyIdx()].n}»: ${DAILY_SC[dailyIdx()].d} 7 дней, одно испытание для всех.${G.daily&&G.daily.key===todayKey()?` Ваш рекорд сегодня: ${G.daily.best.toLocaleString('ru-RU')} очков.`:''}</span></button>
     ${netContest()?`<button class="mode" id="mContest"><b>СОРЕВНОВАНИЕ НЕДЕЛИ</b><span>«${esc(DAILY_SC[netCt(netContest()).sc].n)}»: ${esc(DAILY_SC[netCt(netContest()).sc].d)} 7 дней, одинаковые условия у всех игроков.</span></button>`:''}
     <button class="mode" id="mSand"><b>ПЕСОЧНИЦА</b><span>Бесконечные деньги, проиграть нельзя. Просто стройте парк мечты.</span></button>
@@ -248,6 +248,8 @@ function render(prev){
   if(B(13)&&taxRate()>=.2)tick.unshift(card('down','tax',`Налог ${Math.round(taxRate()*100)}%`,`выручка ${rub(Math.round(txAvg()))}/день на ${S.split?`юрлицо №${S.split+1}`:'парк'}${txSpecK()>1?' · спецрежим':''}`));
   if(B(13)&&S.watch>S.day)tick.unshift(card('down','tax','Вы «на карандаше» у налоговой',`проверки чаще до дня ${S.watch}`,S.watch-S.day));
   if(satK()<.97)tick.unshift(card('down','down','Рынок насыщен',`выручка с машины ×${satK().toFixed(2)}`));
+  // сервер держит сеть до 1000 машин: выше — облако и лидерборд молча перестают принимать игру
+  {const tc=totalCars();if(tc>=950)tick.unshift(card('down','warn',tc>1000?'Облако не принимает сеть':`Облако: ${tc} из 1000 машин`,tc>1000?'сейв и рекорды замирают — сократите сеть':'дальше сервер не сохранит игру и не засчитает рекорд'))}
   {const ri=netRevInfo();if(ri)tick.unshift(card('down','warn',`Выручка ×${ri.k2}${ri.to?` до ${ri.to}`:''}`,'решение города',0,0,'',`${ri.t}: выручка парка ×${ri.k2}${ri.to?` до ${ri.to}`:''}`))}
   if(S.city&&S.city!=='home')tick.unshift(card('','city',cityDef().n));
   if(S.crisis)tick.unshift(card('down','crisis',`Кризис: ${CRISES[S.crisis.id].n}`,CRISES[S.crisis.id].d,S.crisis.days,0,' crisis'));

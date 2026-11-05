@@ -508,13 +508,13 @@ function quitEvent(){const d=[0,1,2].find(x=>relOf(x)<=-5);if(d===undefined)retu
 }
 function headBonus(d){const k=S.heads[d].key;S.relCd=S.relCd||{};if(S.day-(S.relCd[k]||-99)<15)return toast(`Премию можно дать через ${15-(S.day-(S.relCd[k]||-99))} дн.`);
   const c=Math.round(10000*inf());if(S.money<c)return toast('Не хватает денег');const before=snap();S.money-=c;S.relCd[k]=S.day;relAdd(d,2);addLog(`Премия начальнику: ${S.heads[d].name} доволен(а).`);toast('Отношения улучшились');sfx('coin');save();render(before)}
-function sellFranchise(){const nw=B(7),pts=prestPts(),h=holdG(),op=Object.entries(CITIES).filter(([k,C])=>!holdCityOpen(k)&&holdCityOpen(k,1)).map(([,C])=>C.n);
+function sellFranchise(){const nw=B(7),pts=prestPts(),raw=prestPtsRaw(),h=holdG(),op=Object.entries(CITIES).filter(([k,C])=>!holdCityOpen(k)&&holdCityOpen(k,1)).map(([,C])=>C.n);
   const ex=valExtra(),to=prestige()+pts,nx=[5,10].find(x=>x>to),f1=x=>x.toFixed(1).replace('.',',');
   holdTrials();
   showModal(`<span class="step">ФРАНШИЗА</span><h2>Продать парк и начать в новом городе?</h2>
     <p>Парк «${esc(parkName())}» оценён в <b>${rub(valuation())}</b>${nw?'':ex.length?` (машины, касса, репутация + ${ex.map(x=>`${x[0].toLowerCase()} ${rub(Math.round(x[1]/1000)*1000)}`).join(', ')})`:''}.</p>
     ${nw?`<p><b class="pos">Вы получите:</b> <b>${pts}</b> очк. холдинга (свободно было ${holdFree()}, станет ${holdFree()+pts}).</p>
-    <p class="note">${valRows().map(x=>`${x[0].toLowerCase()} ${f1(x[2])}`).join(' · ')} = ${pts} (дробная часть отбрасывается, минимум 1)</p>
+    <p class="note">${valRows().map(x=>`${x[0].toLowerCase()} ${f1(x[2])}`).join(' · ')} = ${raw}${raw>pts?` → потолок ${PREST_MAX} очк. за продажу`:''} (дробная часть отбрасывается, минимум 1)</p>
     <p class="note">Франшиза останется в холдинге: в начале каждой новой партии бесконечного режима она перечисляет ${Math.round(bal('royK',7)*100)}% оценки (всего до ${rub(bal('royCap',7))}). Очки тратятся в дереве владельца.${op.length?` Откроются города: ${op.join(', ')}.`:''}</p>`
     :`<p><b class="pos">Вы получите:</b> <b>${pts}</b> очк. престижа (было ${prestige()}, станет ${to}) — навсегда.</p>
     <ul class="note">${prestList(prestige(),to).map(x=>`<li>${x[0]}: ${x[1]}</li>`).join('')}</ul>
