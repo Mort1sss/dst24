@@ -4,7 +4,7 @@
 const NET={url:'https://rqliljvgabjefmkfefxb.supabase.co',key:'sb_publishable_duTc_qYnmM6pGsWrrF4fiA_vcPcOqJK',mail:'mort1sss.github.io'};
 const NKEY='dst24-net-v1';
 // потолок разовой награды: столько же разрешает форма админки, сверх — игрок видит, что сумму урезали
-const GRANT_MAX=1e6;
+const GRANT_MAX=1e9;
 let netSt={};try{netSt=JSON.parse(localStorage.getItem(NKEY))||{}}catch(e){}
 const netSave=()=>{try{localStorage.setItem(NKEY,JSON.stringify(netSt))}catch(e){}};
 const online=()=>!!NET.url&&!!netSt.tok;

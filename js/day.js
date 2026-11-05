@@ -401,7 +401,7 @@ function endDay(){
     if(B(13)){S.taxPaidAll=(S.taxPaidAll||0)+taxPaid;S.txRev=0;S.txDays=0;
       if(Math.random()<deskP()){S.queueDesk=S.day+rand(1,3);notes.unshift('<b class="neg">По декларации налоговая истребовала документы — ждите камеральную проверку.</b>')}}
     notes.unshift(`${B(2)&&camp()?'Налог':'Квартальный налог'} с прибыли по ставке ${Math.round(rate*100)}%: ${rub(taxPaid)}.`)}
-  if(B(2)&&camp()?S.day===bal('inflDay'):S.day%(B(2)&&endl()?bal('endInfl'):30)===0){const r=rand(...(B(2)&&camp()?bal('inflPct'):[2,4]))/100;S.infl=(S.infl||1)*(1+r);S.mInfl=(S.mInfl||1)*(1+r);notes.push(`Инфляция: цены выросли на ${Math.round(r*100)}%. Рыночные ставки аренды подросли — проверьте ставки во «Финансах».`)}
+  if(B(2)&&camp()?S.day===bal('inflDay'):S.day%(B(2)&&endl()?bal('endInfl'):30)===0){const r=rand(...(B(2)&&camp()?bal('inflPct'):[2,4]))/100,mk=endl()?1:.6;S.infl=(S.infl||1)*(1+r);S.mInfl=(S.mInfl||1)*(1+r*mk);notes.push(`Инфляция: цены выросли на ${Math.round(r*100)}%. Рыночные ставки аренды подросли — проверьте ставки во «Финансах».`)}
   if(cOn()){if(S.money<0){cAdd(-1);S.cstreak=0}else if(++S.cstreak>=bal('cStreak')){cAdd(1);S.cstreak=0}
     if(cGrade()!==grade0)notes.unshift(`Кредитный рейтинг: ${grade0} → <b class="${cGrade()<grade0?'pos':'neg'}">${cGrade()}</b>.`)}
   S.stat.push({d:S.day,rev:revenue+cRev+adsRev+dpRev+cwRev,net,money:Math.round(S.money),cars:totalCars(),rep:S.rep});S.stat=S.stat.slice(-90);
