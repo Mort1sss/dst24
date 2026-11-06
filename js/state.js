@@ -99,9 +99,11 @@ const shN=()=>B(3)?(S.shift2||0):(S.night||0);
 function service(c){if(!B(3)||!c||c.svc||c.b||S.over||S.preview)return false;const p=toPrice();if(S.money<p)return false;S.money-=p;c.svc=1;return true}
 function serviceOverdue(){let n=0;S.fleet.filter(c=>B(3)&&toLeft(c)<0&&!c.b&&!c.svc).sort((a,b)=>toLeft(a)-toLeft(b)).forEach(c=>{if(service(c))n++});
   if(n){addLog(`ТО: на плановое обслуживание отправлено машин: ${n}.`);toast(`На ТО: ${n}`);sfx('coin');save();render()}else{toast('Нет денег или просроченных машин');sfx('bad')}}
-// продажа: 50-60 % покупной цены по рынку дня; исчерпавшая ресурс машина уходит на утилизацию за 6 %
+// продажа: машина любого возраста и пробега уходит за 50-60 % покупной цены — как сегодня рынок.
+// Ресурс решает, работает ли машина, а не сколько за неё дадут: в 49-м выпуске я добавил утилизацию за 6 %,
+// и это была не задуманная механика, а отклонение от правила «откатала — продай за половину-шесть десятых»
 const carValue=c=>{const M=MODELS[c.m];if(c.lease>0||B(12)&&c.lzBuy>0)return 0;
-  return Math.round(priceOf(c.m)*(carDead(c)?.06:resellK())/500)*500};
+  return Math.round(priceOf(c.m)*resellK()/500)*500};
 const isBad=fx=>!!fx&&((fx.hold||0)>0||(fx.tdebt||0)>0||(fx.rel||0)<0||(fx.loy||0)<0||(fx.rep||0)<0||(fx.drivers||0)<0||(fx.broken||0)>0||(fx.cars||0)<0||(fx.news&&(NEWS.find(n=>n.id===fx.news)||{}).demand<1));
 
 /* ================= ЦЕЛИ (бесконечный режим) ================= */

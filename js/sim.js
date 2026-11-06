@@ -141,6 +141,9 @@ function simRun(cfg,seed,stopDay){
     if(lose||fin||day===stopDay||(S.mode==='endless'&&i===cap-1)){r.money=Math.round(S.money);r.cars=carsN();r.rep=S.rep;r.profit=Math.round(profit());r.poach=S.cnt.poach||0;r.tr=TRIAL[S.city]?TRIAL[S.city].v():0;r.wars=S.cnt.wars||0;r.cs=S.cscore||0;
       // сеть целиком: филиалы живут по своим правилам, и без них замер бесконечного режима слепой
       r.total=totalCars();r.br=(S.branches||[]).length;r.brCars=(S.branches||[]).reduce((a,b)=>a+b.cars,0);r.brDrv=(S.branches||[]).reduce((a,b)=>a+b.drivers,0);r.gi=S.goal;
+      // сколько машин в конце партии действительно доели свой ресурс — без этого «срок эксплуатации» можно включить и не заметить
+      r.dead=S.fleet.filter(carDead).length;r.worn=S.fleet.filter(c=>carWear(c)>.7).length;r.maxWear=S.fleet.length?Math.round(100*Math.max(...S.fleet.map(carWear))):0;
+      {const ks=S.fleet.map(c=>c.km).sort((x,y)=>x-y);r.maxKm=ks.length?ks[ks.length-1]:0;r.medKm=ks.length?ks[Math.floor(ks.length/2)]:0;r.age=S.fleet.length?Math.round(S.fleet.reduce((a,c)=>a+(S.day-(c.bought||1)),0)/S.fleet.length):0}
       // сутки как их видит игровое окно «ИТОГИ ДНЯ»: выручка и чистыми за последний день партии
       {const st=S.stat[S.stat.length-1]||{};r.rev=Math.round(st.rev||0);r.net=Math.round(st.net||0);r.drv=S.drivers}
       if(lose)r.died=S.day;
@@ -159,7 +162,7 @@ function simBatch(cfg){
     winPct:+(100*rs.filter(r=>r.win).length/cfg.seeds).toFixed(1),
     lose:{банкротство:why['банкротство']||0,репутация:why['репутация']||0,водители:why['водители']||0,'не взята цель':why['не взята цель']||0,завис:(why['завис']||0)},
     cashP10:pct(cash,.1),cashP50:pct(cash,.5),cashP90:pct(cash,.9),carsP50:pct(rs.map(r=>r.cars||0),.5),repP50:pct(rs.map(r=>r.rep||0),.5),taxP50:pct(rs.map(r=>r.tax),.5),crisesP50:pct(rs.map(r=>r.crises),.5),goalMedian:pct(gd,.5),goalP30:pct(gd,.3),
-    totalP50:pct(rs.map(r=>r.total||0),.5),brP50:pct(rs.map(r=>r.br||0),.5),brCarsP50:pct(rs.map(r=>r.brCars||0),.5),brDrvP50:pct(rs.map(r=>r.brDrv||0),.5),diedP50:pct(rs.filter(r=>r.died).map(r=>r.died),.5),giP50:pct(rs.map(r=>r.gi||0),.5),revP50:pct(rs.map(r=>r.rev||0),.5),netP50:pct(rs.map(r=>r.net||0),.5),drvP50:pct(rs.map(r=>r.drv||0),.5),
+    totalP50:pct(rs.map(r=>r.total||0),.5),brP50:pct(rs.map(r=>r.br||0),.5),brCarsP50:pct(rs.map(r=>r.brCars||0),.5),brDrvP50:pct(rs.map(r=>r.brDrv||0),.5),diedP50:pct(rs.filter(r=>r.died).map(r=>r.died),.5),giP50:pct(rs.map(r=>r.gi||0),.5),deadP50:pct(rs.map(r=>r.dead||0),.5),wornP50:pct(rs.map(r=>r.worn||0),.5),maxWearP90:pct(rs.map(r=>r.maxWear||0),.9),medKmP50:pct(rs.map(r=>r.medKm||0),.5),maxKmP90:pct(rs.map(r=>r.maxKm||0),.9),revP50:pct(rs.map(r=>r.rev||0),.5),netP50:pct(rs.map(r=>r.net||0),.5),drvP50:pct(rs.map(r=>r.drv||0),.5),
     profitP50:pct(rs.map(r=>r.profit||0),.5),poachP50:pct(rs.map(r=>r.poach||0),.5),warsP50:pct(rs.map(r=>r.wars||0),.5),trialP50:pct(rs.map(r=>r.tr||0),.5),trialP90:pct(rs.map(r=>r.tr||0),.9),cscoreP50:pct(rs.map(r=>r.cs||0),.5),gradeP50:cGrade(pct(rs.map(r=>r.cs||0),.5)),fatP50:pct(rs.map(r=>r.fat),.5),failsP50:pct(rs.map(r=>r.fails),.5),goalBy25Pct:+(100*gd.filter(d=>d<25).length/cfg.seeds).toFixed(1),heavyMax:rs.reduce((a,r)=>Math.max(a,r.heavy),0),profits:rs.map(r=>[r.seed,r.profit||0]),stuck,errors}}
 const simFlat=r=>Object.assign({},r,{lose:Object.entries(r.lose).map(([k,v])=>k+':'+v).join(' '),errors:r.errors.length});
 /* подмена всего на время прогона и возврат в finally */
