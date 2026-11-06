@@ -86,8 +86,11 @@ const leaseRet=c=>B(12)?Math.round(Math.max(0,c.lease)*lzPay(c)*bal('lz').early/
 const toLeft=c=>{if(c.to==null)c.to=c.km+bal('toKm');return c.to-c.km};
 const toOn=()=>B(3)&&(!simpleOn()||S.day>=TAB_DAY.base),toOver=c=>toOn()?Math.max(0,-toLeft(c)):0;
 const toPrice=()=>Math.round(bal('toCost')*inf()*(hq('car',3)?1-bal('tree',7).car.svc:1)/100)*100;
-/* ---- срок эксплуатации: остаточный ресурс от заводского пробега; у б/у машин он заведомо меньше ---- */
-const carLife=c=>MODELS[c.m].km0>0?300000:450000;
+/* ---- срок эксплуатации: остаточный ресурс от заводского пробега; у б/у машин он заведомо меньше ----
+   300/450 тыс. км машина не наматывает ни в одной нормальной партии: на 800-й день одометр медианной машины 199 тыс.
+   Поэтому в бесконечном режиме ресурс короче (BAL[19]), а кампания и сюжет остаются на старых числах — там и так никто
+   не доживает до старости, и трогать их ради этого нечем */
+const carLife=c=>endl()&&B(19)&&bal('life')?(MODELS[c.m].km0>0?bal('life').used:bal('life').new):(MODELS[c.m].km0>0?300000:450000);
 const carWear=c=>Math.min(1,Math.max(0,(c.km-MODELS[c.m].km0)/carLife(c)));
 const carDead=c=>c.km-MODELS[c.m].km0>=carLife(c);
 // рынок подержанных: доля покупной цены прыгает между 50 и 60 % день ко дню

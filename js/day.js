@@ -263,7 +263,10 @@ function endDay(){
   const parkN=carsN(),parking=Math.round((Math.min(parkN,30)*PARKING+Math.max(0,parkN-30)*Math.round(PARKING*.7))*inf()*(S.lotOwned?.4:1)), lease=leaseSum(), pay=payroll(), loans=loanSum(), office=Math.round(OFFICE*inf()*(ownHas('office')?.95:1));
   if(hol){notes.push(`Праздник: ${hol[1]}! Спрос ×${hol[0]}.`);if(hol[1]==='Новогодняя ночь'&&active>0)S.cnt.nye=1}
   if(moodNote)notes.push(moodNote);
-  working.slice(0,crews).forEach(c=>c.km+=rand(300,450));
+  {const onDuty=working.slice(0,crews);onDuty.forEach(c=>c.km+=rand(300,450));
+    // стоянка тоже старит: машина без водителя не едет, но время идёт. Только бесконечный режим (BAL[19]) —
+    // иначе «парк про запас» бесплатен, а он и есть главная причина, почему ресурс не наступал
+    if(endl()&&B(19)&&bal('life')){const ik=bal('life').idle;working.forEach(c=>{if(onDuty.indexOf(c)<0)c.km+=ik})}}
   // водители: рейтинг, опыт, лояльность, штрафы
   const careIds=new Set();let drvFines=0;const devR=rentDev();
   crewD.slice(0,crews).forEach((dr,i)=>{const T=TRAITS[dr.t];

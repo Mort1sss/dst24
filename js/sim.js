@@ -8,6 +8,8 @@ const pct=(a,p)=>a.length?[...a].sort((x,y)=>x-y)[Math.min(a.length-1,Math.floor
 const SIM_STUBS=['save','saveG','toast','sfx','voice','triggerScene','coachStart','tutorial','drawFaces','pddExam'];
 const SIM_PRI=['chGo','dpSkip','lzBuyAll','lzBackAll','cwGo','cwOk','vc0','iHonest','rdNone','txSelf','tdSelf','tdOk','unRent','ctNo','agNo','crNo','cfA','bmBurn','qtGo','a2Ok','ppOk','qOk','ecOk','lotDone','st_grow','iOk','next'];
 let simOpen=false,simTax=false;
+/* продажа с указанием причины: sellCar один на все правила, и без метки «почему парк молодой» не разобраться */
+function simSell(c,why){if(!c)return;S.cnt=S.cnt||{};const b=S.cnt.soldBy=S.cnt.soldBy||{};b[why]=(b[why]||0)+1;sellCar(c.id)}
 /* кнопка по умолчанию в открытом окне: по списку, иначе первая бесплатная, иначе первая */
 function simPump(){const card=$('modalCard');
   for(const id of SIM_PRI){const b=card.querySelector('#'+id);if(b&&!b.disabled){b.click();return true}}
@@ -37,18 +39,20 @@ function simBuy(cfg){cfg=cfg||{};
   if(!T){const old=S.fleet.filter(c=>carWear(c)>.85).length, need=Math.min(old,S.fleet.length?2:0);
    for(let k=0;k<need;k++){const m=MK.filter(x=>!MODELS[x].lease&&(MODELS[x].rank||0)<=S.rank).sort((a,b)=>priceOf(a)-priceOf(b))[0];
      if(m&&S.money>priceOf(m)+200000&&carsN()<S.spots)buy(m)}
-   S.fleet.filter(carDead).slice(0,4).forEach(c=>{if(S.money>priceOf(c.m))sellCar(c.id)});}
+   S.fleet.filter(carDead).slice(0,4).forEach(c=>{if(S.money>priceOf(c.m))simSell(c,'dead');});}
   // bot-12: парк больше, чем водителей, — это пустые места, полная стоянка и ноль выручки. Разумный владелец излишек
   // продаёт; без этого правила замер бесконечного режима видит не экономику, а самоубийство покупками
+  // bot-16: продаём самую БЕСПОЛЕЗНУЮ машину, а не самую уставшую. Работяга с 70 % износа кормит парк, а машина без
+  // водителя не изнашивается вовсе — бракуя первых, бот делал весь парк вечно молодым, и ресурс «не наступал»
   if(endl()&&!T){const surplus=carsN()-(S.drivers+8);
-    if(surplus>0)S.fleet.slice().filter(c=>c.lease<=0||S.money>leaseRet(c)).sort((a,b)=>carWear(b)-carWear(a)).slice(0,Math.min(surplus,2)).forEach(c=>sellCar(c.id))}
+    if(surplus>0)S.fleet.slice().filter(c=>c.lease<=0||S.money>leaseRet(c)).sort((a,b)=>carRev(a)-carRev(b)).slice(0,Math.min(surplus,2)).forEach(c=>simSell(c,'surplus'))}
   if(g12&&!T&&g12.buy&&countM(...g12.buy)<g12.n){const ms=g12.buy.filter(m=>MODELS[m]&&m!==ban&&(MODELS[m].rank||0)<=S.rank&&carsN()<S.spots&&S.money>priceOf(m)+reserve());
     if(ms.length)buy(ms.sort((a,b)=>priceOf(a)-priceOf(b))[0])}
   // замену готовим заранее: продаём по одной машине в день и только когда парку есть на что опереться
   if(ban&&!T){const bad=S.fleet.filter(c=>c.m===ban);
     if(bad.length){const rep=MK.filter(m=>!MODELS[m].lease&&(MODELS[m].rank||0)<=S.rank).sort((a,b)=>priceOf(a)-priceOf(b))[0];
       const bought=!!rep&&carsN()<S.spots&&S.money>priceOf(rep)+reserve();if(bought)buy(rep);
-      if(bought||carsN()>bad.length)sellCar(bad[0].id)}}
+      if(bought||carsN()>bad.length)simSell(bad[0],'goal')}}
   // bot-8: сервис должен успевать за парком — иначе замер видит очередь в гараже, а не экономику
   // bot-12: норма берётся из brkRate() — фактических поломок за неделю. Старая оценка «carFail × failMult» не видит
   // вторую смену, погоду и усталость: на 400-й день бот думал, что хватает одного механика, пока стояло 34 машины в ремонте
@@ -92,7 +96,7 @@ function simBuy(cfg){cfg=cfg||{};
         else if(want>=1&&S.money>=car*1.15)branchAct(i,'car')}
       left-=totalCars()-c0})}
   // цель ниже текущего размера — сбрасываем парк до неё (филиал по частям не ужимается, там потолок задан покупкой)
-  if(T&&n>T){const over=n-T;S.fleet.slice().filter(c=>c.lease<=0||S.money>leaseRet(c)).sort((a,b)=>carWear(b)-carWear(a)).slice(0,Math.min(over,2)).forEach(c=>sellCar(c.id))}
+  if(T&&n>T){const over=n-T;S.fleet.slice().filter(c=>c.lease<=0||S.money>leaseRet(c)).sort((a,b)=>carWear(b)-carWear(a)).slice(0,Math.min(over,2)).forEach(c=>simSell(c,'target'))}
   const cap=T||(S.mode==='campaign'?GOAL_CARS:need||1e9),force=T?n<T:n<need;
   // в бесконечном режиме сверяемся с реальным чистым доходом последних 7 дней на машину
   const st7=S.stat.slice(-7),avg=st7.length?st7.reduce((a,x)=>a+x.net,0)/st7.length:0;
@@ -125,6 +129,9 @@ function simDesks(){
 function simRun(cfg,seed,stopDay){
   Math.random=mulberry(seed);let clock=Date.UTC(2026,10,1,12);Date.now=()=>clock;
   const r={seed,fat:0,fails:0,win:false,why:'',money:0,goalDay:null,heavy:0,stuck:0,tax:0,crises:0};let crisis0=null;
+  // накопительно за партию: сколько машин ХОТЬ РАЗ доели ресурс и хоть раз перешагнули 70 % износа.
+  // Снимок в конце партии ничего не показывает: умирающую машину бот продаёт в тот же день
+  let deadEver=0,wornEver=0;const seenD=new Set(),seenW=new Set();
   S=null;G.tutDone=1;G.a2hs=1;G.loginPending=0;G.simple=cfg.simple;simOpen=false;G.hold=null;G.holdMig=1;
   newGame(cfg.mode,[0,1,2].map(d=>({key:HEADS[d][0].key,name:HEADS[d][0].name})),{diff:cfg.diff,chapter:cfg.chapter||0,city:cfg.city,hold:cfg.hold});
   if(simOpen)simPump();
@@ -136,6 +143,7 @@ function simRun(cfg,seed,stopDay){
     if(simTax)r.tax++;if(S.crisis&&S.crisis!==crisis0)r.crises++;crisis0=S.crisis;
     simBuy(cfg);simShift(cfg.strat);simDesks();
     const day=S.day;endDay();r.fails=S.cnt.brk||0;r.fat=S.fat||0;clock+=864e5;
+    S.fleet.forEach(c=>{if(carDead(c)&&!seenD.has(c.id)){seenD.add(c.id);deadEver++}if(carWear(c)>.7&&!seenW.has(c.id)){seenW.add(c.id);wornEver++}});
     if(r.goalDay===null&&(C?C.goal(S):goalMet()))r.goalDay=day;
     const lose=S.mode!=='sandbox'&&((S.money<0&&S.debt>=5)||S.rep<=0||S.drivers===0),fin=hasLimit()&&day>=dayLimit();
     if(lose||fin||day===stopDay||(S.mode==='endless'&&i===cap-1)){r.money=Math.round(S.money);r.cars=carsN();r.rep=S.rep;r.profit=Math.round(profit());r.poach=S.cnt.poach||0;r.tr=TRIAL[S.city]?TRIAL[S.city].v():0;r.wars=S.cnt.wars||0;r.cs=S.cscore||0;
@@ -143,6 +151,7 @@ function simRun(cfg,seed,stopDay){
       r.total=totalCars();r.br=(S.branches||[]).length;r.brCars=(S.branches||[]).reduce((a,b)=>a+b.cars,0);r.brDrv=(S.branches||[]).reduce((a,b)=>a+b.drivers,0);r.gi=S.goal;
       // сколько машин в конце партии действительно доели свой ресурс — без этого «срок эксплуатации» можно включить и не заметить
       r.dead=S.fleet.filter(carDead).length;r.worn=S.fleet.filter(c=>carWear(c)>.7).length;r.maxWear=S.fleet.length?Math.round(100*Math.max(...S.fleet.map(carWear))):0;
+      r.deadEver=deadEver;r.wornEver=wornEver;r.soldBy=S.cnt&&S.cnt.soldBy||{};
       {const ks=S.fleet.map(c=>c.km).sort((x,y)=>x-y);r.maxKm=ks.length?ks[ks.length-1]:0;r.medKm=ks.length?ks[Math.floor(ks.length/2)]:0;r.age=S.fleet.length?Math.round(S.fleet.reduce((a,c)=>a+(S.day-(c.bought||1)),0)/S.fleet.length):0}
       // сутки как их видит игровое окно «ИТОГИ ДНЯ»: выручка и чистыми за последний день партии
       {const st=S.stat[S.stat.length-1]||{};r.rev=Math.round(st.rev||0);r.net=Math.round(st.net||0);r.drv=S.drivers}
@@ -162,7 +171,7 @@ function simBatch(cfg){
     winPct:+(100*rs.filter(r=>r.win).length/cfg.seeds).toFixed(1),
     lose:{банкротство:why['банкротство']||0,репутация:why['репутация']||0,водители:why['водители']||0,'не взята цель':why['не взята цель']||0,завис:(why['завис']||0)},
     cashP10:pct(cash,.1),cashP50:pct(cash,.5),cashP90:pct(cash,.9),carsP50:pct(rs.map(r=>r.cars||0),.5),repP50:pct(rs.map(r=>r.rep||0),.5),taxP50:pct(rs.map(r=>r.tax),.5),crisesP50:pct(rs.map(r=>r.crises),.5),goalMedian:pct(gd,.5),goalP30:pct(gd,.3),
-    totalP50:pct(rs.map(r=>r.total||0),.5),brP50:pct(rs.map(r=>r.br||0),.5),brCarsP50:pct(rs.map(r=>r.brCars||0),.5),brDrvP50:pct(rs.map(r=>r.brDrv||0),.5),diedP50:pct(rs.filter(r=>r.died).map(r=>r.died),.5),giP50:pct(rs.map(r=>r.gi||0),.5),deadP50:pct(rs.map(r=>r.dead||0),.5),wornP50:pct(rs.map(r=>r.worn||0),.5),maxWearP90:pct(rs.map(r=>r.maxWear||0),.9),medKmP50:pct(rs.map(r=>r.medKm||0),.5),maxKmP90:pct(rs.map(r=>r.maxKm||0),.9),revP50:pct(rs.map(r=>r.rev||0),.5),netP50:pct(rs.map(r=>r.net||0),.5),drvP50:pct(rs.map(r=>r.drv||0),.5),
+    totalP50:pct(rs.map(r=>r.total||0),.5),brP50:pct(rs.map(r=>r.br||0),.5),brCarsP50:pct(rs.map(r=>r.brCars||0),.5),brDrvP50:pct(rs.map(r=>r.brDrv||0),.5),diedP50:pct(rs.filter(r=>r.died).map(r=>r.died),.5),giP50:pct(rs.map(r=>r.gi||0),.5),deadP50:pct(rs.map(r=>r.dead||0),.5),wornP50:pct(rs.map(r=>r.worn||0),.5),deadEverP50:pct(rs.map(r=>r.deadEver||0),.5),wornEverP50:pct(rs.map(r=>r.wornEver||0),.5),soldBy:rs.reduce((a,r)=>{for(const k in r.soldBy)a[k]=(a[k]||0)+r.soldBy[k];return a},{}),maxWearP90:pct(rs.map(r=>r.maxWear||0),.9),medKmP50:pct(rs.map(r=>r.medKm||0),.5),maxKmP90:pct(rs.map(r=>r.maxKm||0),.9),revP50:pct(rs.map(r=>r.rev||0),.5),netP50:pct(rs.map(r=>r.net||0),.5),drvP50:pct(rs.map(r=>r.drv||0),.5),
     profitP50:pct(rs.map(r=>r.profit||0),.5),poachP50:pct(rs.map(r=>r.poach||0),.5),warsP50:pct(rs.map(r=>r.wars||0),.5),trialP50:pct(rs.map(r=>r.tr||0),.5),trialP90:pct(rs.map(r=>r.tr||0),.9),cscoreP50:pct(rs.map(r=>r.cs||0),.5),gradeP50:cGrade(pct(rs.map(r=>r.cs||0),.5)),fatP50:pct(rs.map(r=>r.fat),.5),failsP50:pct(rs.map(r=>r.fails),.5),goalBy25Pct:+(100*gd.filter(d=>d<25).length/cfg.seeds).toFixed(1),heavyMax:rs.reduce((a,r)=>Math.max(a,r.heavy),0),profits:rs.map(r=>[r.seed,r.profit||0]),stuck,errors}}
 const simFlat=r=>Object.assign({},r,{lose:Object.entries(r.lose).map(([k,v])=>k+':'+v).join(' '),errors:r.errors.length});
 /* подмена всего на время прогона и возврат в finally */
