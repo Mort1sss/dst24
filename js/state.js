@@ -10,6 +10,8 @@ let S, uiTab='shop', shopTab='all';
 const $=id=>document.getElementById(id);
 const rub=n=>(n<0?'−':'')+Math.abs(Math.round(n)).toLocaleString('ru-RU')+' ₽';
 const km=n=>Math.round(n/1000).toLocaleString('ru-RU')+' тыс. км';
+// форма слова для числа: 1 машина, 3 машины, 28 машин — в совете счётчики машин встречаются часто
+const carWord=n=>n%10===1&&n%100!==11?'машина':n%10>=2&&n%10<=4&&(n%100<12||n%100>14)?'машины':'машин';
 const rand=(a,b)=>a+Math.floor(Math.random()*(b-a+1));
 const shuffle=a=>{for(let i=a.length-1;i>0;i--){const j=Math.random()*(i+1)|0;[a[i],a[j]]=[a[j],a[i]]}return a};
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));

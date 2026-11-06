@@ -124,7 +124,9 @@ function sellCar(id){
   toast(c.lease>0?'Машина возвращена в лизинг':`Продано за ${rub(v)}`);sfx('coin');save();render(before);
 }
 const hireUsed=()=>{if(!S.hireLog)S.hireLog=[];S.hireLog=S.hireLog.filter(d=>S.day-d<7);return S.hireLog.length};
-const hireCap=()=>{const H=bal('hire');return H.cap+Math.floor(S.rep/H.capRep)};
+// пропускная способность найма за 7 дней: база + узнаваемость (репутация) + отдел «Подключение» (BAL[18]).
+// Без отдела парк был обречён стоять на 25-30 машинах: филиал нанимает 50 кликом, а парк — 6 человек в неделю
+const hireCap=()=>{const H=bal('hire');return Math.max(1,H.cap+Math.floor(S.rep/H.capRep)+(B(18)?(S.staff[0]-1)*H.hrPerStaff:0))};
 const candName=()=>DNAMES[rand(0,DNAMES.length-1)]+' '+'АБВГДЕЖЗИКЛМНОПРСТУФХ'[rand(0,19)]+'.';
 /* отклики: слабый просит аренду выше рынка, «звезда» — ниже; рейтинг и ставка ходят вместе */
 function mkCands(boost){

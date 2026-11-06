@@ -54,6 +54,12 @@ function simBuy(cfg){cfg=cfg||{};
   // вторую смену, погоду и усталость: на 400-й день бот думал, что хватает одного механика, пока стояло 34 машины в ремонте
   {const breaks=brkRate(),need=Math.max(1,Math.min(staffCap(),Math.ceil((breaks-3)/3)));
    if(S.staff[2]<need&&S.money>STAFF_PAY*need*10)staffChange(2,need-S.staff[2])}
+  // bot-14: отдел «Подключение» — это пропускная способность найма (BAL[18]). Без него замер большого парка
+  // показывает не экономику, а затычку: вольются 6-7 человек в неделю и всё, парк стоит.
+  // Правило включено только в бесконечном режиме: в кампании те же сотрудники отдела подняли бы «Обычный»
+  // с 57,3 % до 66,7 %, и выпуск перестал бы быть сравнимым с 49-м
+  {const need0=endl()?Math.max(1,Math.min(staffCap(),Math.ceil(S.drivers/8))):S.staff[0];
+   if(S.staff[0]<need0&&S.money>STAFF_PAY*need0*10)staffChange(0,need0-S.staff[0])}
   if(S.debt>=2&&S.loans.length<maxLoans()&&(!simpleOn()||tabOpen('fin')))takeLoan(0);
   const C=S.mode==='story'?S.chapter||0:-1,hz=S.mode==='endless'?120:dayLimit()-S.day,n=totalCars();
   const mg=k=>k<=15?0:Math.round(Math.pow(k-15,1.3)*70*inf()/100)*100;
@@ -101,7 +107,11 @@ function simBuy(cfg){cfg=cfg||{};
       return force||hz*(carRevM(m)*(.5+S.rep/100)-PARKING*inf()*(S.lotOwned?.4:1)-(mg(n+1)-mg(n)))-(lz?M.lease*Math.min(hz,LEASE_DAYS):0)>priceOf(m)+lot};
     const m=[eco,ls].find(m=>m&&S.money>=fund(priceOf(m)+lot)&&pays(m));
     if(m){if(lot)buyLot();if(carsN()<S.spots)buy(m)}}
-  if(!S.hired&&carsN()-brokenN()>S.drivers&&S.money>=HIRE_COST+20000)hire()}
+  // нехватка больше пяти экипажей — вакансия с продвижением: 20 000 ₽ вместо 8 000 ₽, но откликов 3-4 вместо 2-3.
+  // Только в бесконечном режиме: в кампании это правило поднимало «Обычный» с 57,3 % до 66,7 %, и замер стал бы
+  // про сравнение ботов, а не про баланс игры
+  {const gap=carsN()-brokenN()-S.drivers,H=bal('hire'),big=endl()&&gap>5;
+   if(!S.hired&&gap>0&&S.money>=(big?H.cost+H.boost:H.cost)+20000)hire(big)}}
 /* bot-3: вторая смена и ТО; strat: 'none' — смена 0 и без ТО, 'max' — смена на максимуме, ТО как у основного */
 function simShift(strat){if(!B(3))return;
   S.shift2=strat==='none'?0:strat==='max'?bal('shiftMax'):S.fat<50?30:0;

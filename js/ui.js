@@ -316,11 +316,12 @@ function hireCard(){const off=S.over||S.preview,working=carsN()-brokenN(),free=M
     ${B(11)?`<div class="spec"><span>Найм за 7 дней</span><b class="${full?'neg':'pos'}">${used} из ${cap}</b></div>`:''}</div>
     <div class="btns"><button class="buy" id="hireBtn" ${S.hired||off||S.money<cost||full?'disabled':''}>${S.hired?'Вакансия уже размещена':full?'Лимит найма на неделю':'Разместить'}</button>
     ${B(11)?`<button class="buy alt" id="hireBoost" ${S.hired||off||S.money<H.cost+H.boost||full?'disabled':''}>С продвижением · ${rub(H.cost+H.boost)}</button>`:''}</div>
-    ${B(11)?'<p class="sub">Продвижение даёт больше откликов и больше «звёзд», но кандидаты дороже. Собеседование — утром.</p>':''}</div>`}
+    ${B(11)?`<p class="sub">Продвижение даёт больше откликов и больше «звёзд», но кандидаты дороже. Собеседование — утром.${full&&b18()?` Лимит поднимает отдел «Подключение»: каждый сотрудник сверх одного — +${H.hrPerStaff} найма в неделю.`:''}</p>`:''}</div>`}
 const b3=()=>B(3);
 // в renderMgmt локальная B — элемент #mbody, поэтому проверка баланса только через обёртку
 const b7=()=>B(7);
 const b12=()=>B(12);
+const b18=()=>B(18);
 const b13=()=>B(13);
 /* карточка смен: bal 3 — вторая смена и усталость (во вкладке «Водители»), раньше — ночная смена (на карте) */
 function shiftCard(dis){
@@ -397,6 +398,7 @@ function renderMgmt(){
         <div class="row2"><span>Риск провалов</span><b class="${r<=.8?'pos':r>1?'neg':''}">×${r.toFixed(2)}${S.staff[d]<staffCap()?` <span class="sub">→ ×${rmAt(d,S.staff[d]+1).toFixed(2)}</span>`:''}</b></div>
         ${load01(d)>0?`<p class="neg" style="font-size:14px">Отдел перегружен: ${d===0?'много водителей':'много машин'} на ${S.staff[d]} сотр. Наймите людей.</p>`:''}
         ${d===2?`<p class="sub">Чинит до ${repairCap()} машин в день.</p>`:''}
+        ${d===0&&b18()?`<p class="sub">Через отдел проходит до <b>${hireCap()}</b> наймов в неделю: каждый сотрудник сверх одного — +${bal('hire').hrPerStaff}. Пока лимит выбран, парк стоит на месте, а филиал нанимает пачкой.</p>`:''}
       </div></div>`}).join('')}</div>
       <div class="dcard" style="--dc:var(--taxi)"><div class="dh">УЧРЕДИТЕЛИ — ПРИЕЗЖАЮТ С ПРОВЕРКАМИ</div><div class="db">
         <div class="dept3">${FOUNDERS.map((F,i)=>`<div class="who"><canvas class="face big" width="16" height="16" data-face="founder:${i}"></canvas><div style="display:grid;gap:4px;flex:1;min-width:0"><input type="text" id="fn${i}" value="${esc(fName(i))}" maxlength="40" aria-label="Имя учредителя"><span class="perk">${F.about}</span></div></div>`).join('')}</div>
