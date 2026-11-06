@@ -76,7 +76,7 @@ function rmAt(d,n){
 const rm=d=>rmAt(d,S.staff[d]);
 const repairMult=()=>inf()*(hq('car',3)?1-bal('tree',7).car.svc:1)*(hasHead('master')?.85:1)*(hasHead('petrovich')?.7:1)*(S.upg.tire?.65:1)*newsMod('repair');
 const failMult=()=>(cityDef().fail||1)*dif().fail*(hasHead('sanya')?.65:1)*(S.upg.diag?.7:1)*(hq('car',2)?1-bal('tree',7).car.fail:1)*season(dateOf(S.day)).fail*newsMod('fail');
-const repairCap=()=>2+2*S.staff[2]+(hasHead('olga')?3:0)+(hasHead('robot')?5:0)+(S.upg.lift?2:0);
+const repairCap=()=>3+3*S.staff[2]+(hasHead('olga')?3:0)+(hasHead('robot')?8:0)+(S.upg.lift?3:0);
 const leaseWear=c=>c.lease>0&&B(2)?Math.min(bal('leaseWearMax'),1+bal('leaseWearK')*Math.max(0,lzTerm(c)-c.lease-bal('leaseWearFrom'))):1;
 // досрочный возврат: штраф от оставшихся платежей; в конце срока машина отдаётся бесплатно
 const leaseRet=c=>B(12)?Math.round(Math.max(0,c.lease)*lzPay(c)*bal('lz').early/100)*100:bal('leaseRet')*MODELS[c.m].lease;
@@ -84,17 +84,32 @@ const leaseRet=c=>B(12)?Math.round(Math.max(0,c.lease)*lzPay(c)*bal('lz').early/
 const toLeft=c=>{if(c.to==null)c.to=c.km+bal('toKm');return c.to-c.km};
 const toOn=()=>B(3)&&(!simpleOn()||S.day>=TAB_DAY.base),toOver=c=>toOn()?Math.max(0,-toLeft(c)):0;
 const toPrice=()=>Math.round(bal('toCost')*inf()*(hq('car',3)?1-bal('tree',7).car.svc:1)/100)*100;
-const carFail=c=>MODELS[c.m].fail*(1+Math.max(0,c.km-MODELS[c.m].km0)/150000)*leaseWear(c)*(B(3)?Math.min(3,1+toOver(c)/2000):1);
+/* ---- срок эксплуатации: остаточный ресурс от заводского пробега; у б/у машин он заведомо меньше ---- */
+const carLife=c=>MODELS[c.m].km0>0?300000:450000;
+const carWear=c=>Math.min(1,Math.max(0,(c.km-MODELS[c.m].km0)/carLife(c)));
+const carDead=c=>c.km-MODELS[c.m].km0>=carLife(c);
+// рынок подержанных: доля покупной цены прыгает между 50 и 60 % день ко дню
+const resellK=()=>{const x=Math.sin((S.day||1)*12.9898)*43758.5453;return .5+.1*(x-Math.floor(x))};
+const carFail=c=>MODELS[c.m].fail*(1+Math.max(0,c.km-MODELS[c.m].km0)/260000)*(1+carWear(c)*carWear(c)*1.5)*leaseWear(c)*(B(3)?Math.min(3,1+toOver(c)/2000):1);
 // вред усталости 0…1: до fatFrom% почти не мешает
 const fatK=f=>Math.max(0,(f||0)-bal('fatFrom'))/(100-bal('fatFrom'));
 const shN=()=>B(3)?(S.shift2||0):(S.night||0);
 function service(c){if(!B(3)||!c||c.svc||c.b||S.over||S.preview)return false;const p=toPrice();if(S.money<p)return false;S.money-=p;c.svc=1;return true}
 function serviceOverdue(){let n=0;S.fleet.filter(c=>B(3)&&toLeft(c)<0&&!c.b&&!c.svc).sort((a,b)=>toLeft(a)-toLeft(b)).forEach(c=>{if(service(c))n++});
   if(n){addLog(`ТО: на плановое обслуживание отправлено машин: ${n}.`);toast(`На ТО: ${n}`);sfx('coin');save();render()}else{toast('Нет денег или просроченных машин');sfx('bad')}}
-const carValue=c=>{const M=MODELS[c.m];if(c.lease>0||B(12)&&c.lzBuy>0)return 0;return Math.round(M.resale*Math.max(.25,1-Math.max(0,c.km-M.km0)/300000)/500)*500};
+// продажа: 50-60 % покупной цены по рынку дня; исчерпавшая ресурс машина уходит на утилизацию за 6 %
+const carValue=c=>{const M=MODELS[c.m];if(c.lease>0||B(12)&&c.lzBuy>0)return 0;
+  return Math.round(priceOf(c.m)*(carDead(c)?.06:resellK())/500)*500};
 const isBad=fx=>!!fx&&((fx.hold||0)>0||(fx.tdebt||0)>0||(fx.rel||0)<0||(fx.loy||0)<0||(fx.rep||0)<0||(fx.drivers||0)<0||(fx.broken||0)>0||(fx.cars||0)<0||(fx.news&&(NEWS.find(n=>n.id===fx.news)||{}).demand<1));
 
 /* ================= ЦЕЛИ (бесконечный режим) ================= */
+// экипажи всей сети: филиал выпускает на линию столько людей, сколько в нём водителей
+const crewsNet=()=>activeN()+(S.branches||[]).reduce((a,b)=>a+Math.min(b.drivers,b.cars),0);
+// самая дешёвая машина, которую парк может купить прямо сейчас — линейка «сколько стоит рост» для наград
+const cheapM=()=>MODEL_KEYS.filter(m=>!MODELS[m].lease&&(MODELS[m].rank||0)<=S.rank).sort((a,b)=>priceOf(a)-priceOf(b))[0]||MODEL_KEYS[0];
+const carPay=(cnt,k)=>Math.round(Math.max(1,cnt)*priceOf(cheapM())*k/1000)*1000;
+/* рублёвый порог «накопить» замораживаем на входе в цель: без этого инфляция отодвигает план быстрее, чем игрок к нему идёт */
+function goalNum(i,calc){S.goalFix=S.goalFix||{};if(S.goalFix[i]==null)S.goalFix[i]=calc();return S.goalFix[i]}
 const GOALS=[
  {t:'Довести парк до 10 машин',v:()=>carsN(),n:10,rw:{money:20000}},
  {t:'Вывести на линию 10 экипажей',v:activeN,n:10,rw:{money:25000}},
@@ -103,22 +118,40 @@ const GOALS=[
  {t:'Накопить 400 000 ₽ в кассе',v:()=>S.money,n:400000,rw:{rep:3}},
  {t:'Поднять репутацию до 75',v:()=>S.rep,n:75,rw:{money:40000}},
  {t:'Довести парк до 15 машин',v:()=>carsN(),n:15,rw:{money:50000}},
- {t:'Собрать две Камри',v:()=>countM('camry'),n:2,rw:{money:40000,rep:2}},
- {t:'Избавиться от всех Грант',v:()=>countM('granta')===0?1:0,n:1,rw:{rep:5}},
- {t:'Купить машину бизнес-класса',v:()=>S.fleet.filter(c=>carCls(c)==='Бизнес').length,n:1,rw:{money:60000}},
- {t:'Открыть тариф «Минивэн»: 2 Carnival',v:()=>countM('carnival'),n:2,rw:{money:50000,rep:2}},
+ {t:'Собрать две Камри',v:()=>countM('camry'),n:2,rw:{money:40000,rep:2},buy:['camry']},
+ {t:'Избавиться от всех Грант',v:()=>countM('granta')===0?1:0,n:1,rw:{rep:5},sell:'granta'},
+ {t:'Купить машину бизнес-класса',v:()=>S.fleet.filter(c=>carCls(c)==='Бизнес').length,n:1,rw:{money:60000},buy:MODEL_KEYS.filter(m=>MODELS[m].cls==='Бизнес')},
+ {t:'Открыть тариф «Минивэн»: 2 Carnival',v:()=>countM('carnival'),n:2,rw:{money:50000,rep:2},buy:['carnival']},
  {t:'Вывести на линию 18 экипажей',v:activeN,n:18,rw:{money:70000}},
  {t:'Довести парк до 25 машин',v:()=>carsN(),n:25,rw:{money:100000}},
 ];
 /* ---- цель «Собрать N авто …»: модель крутится по номеру цели (BAL[8].collect); начатая до миграции цель остаётся старой ---- */
 const gv=n=>((S&&S.goalBal)||S.bal||1)>=n;
-function collectGoal(gi,n,rw){const L=(bal('collect')||[]).filter(g=>Array.isArray(g)&&g.length&&MODELS[g[0]]),g=L.length?L[gi%L.length]:['camry'];
-  return{t:`Собрать ${n} авто «${MODELS[g[0]].name}»`,v:()=>countM(...g),n,rw}}
+const collList=gi=>{const L=(bal('collect')||[]).filter(g=>Array.isArray(g)&&g.length&&MODELS[g[0]]);return L.length?L[gi%L.length]:['camry']};
+function collectGoal(gi,n,rw){const g=collList(gi);
+  return{t:`Собрать ${n} авто «${MODELS[g[0]].name}»`,v:()=>countM(...g),n,rw,buy:g}}
 // ранние табличные цели №7 и №10 тоже были про одну модель — под BAL[8] становятся ротацией
 const GOAL_ROT={7:()=>collectGoal(0,2,{money:40000,rep:2}),10:()=>collectGoal(4,2,{money:50000,rep:2})};
+/* BAL[17]: рост сети считается всей сетью (парк упёрся в места, поздний рост — это филиалы), а награда — доля от живой цены
+   покупки: «+120 000 ₽» на 20-й день это два автомобиля, на 400-й — четверть. Проценты не обесцениваются, и цепочка перестаёт
+   обрываться: прежняя упиралась в «соберите 2 Весты» и дальше не пускала ни игрока, ни замер */
+function endGoal(i){
+  const E=bal('endGoal'),k=i-GOALS.length,L=k>>2;
+  switch(k%4){
+    case 0:{const n=E.size[0]+E.size[1]*L,prev=L?n-E.size[1]:n-GOALS[12].n;
+      return{t:`Довести сеть до ${n} машин`,v:()=>totalCars(),n,rw:{money:carPay(n-prev,E.sizeK)}}}
+    case 1:{const n=goalNum(i,()=>Math.round((E.cash[0]+E.cash[1]*L)*inf()/10000)*10000);
+      return{t:`Накопить ${rub(n)} в кассе`,v:()=>S.money,n,rw:{rep:4}}}
+    case 2:{const n=E.collect[0]+E.collect[1]*L,m=collList(L);
+      return collectGoal(L,n,{money:Math.round(n*Math.max(...m.map(priceOf))*E.reb/1000)*1000})}
+    default:{const n=E.crews[0]+E.crews[1]*L,prev=L?n-E.crews[1]:n-GOALS[11].n;
+      return{t:`Выпустить на линию ${n} экипажей`,v:crewsNet,n,rw:{money:carPay(n-prev,E.crewK),rep:2}}}
+  }
+}
 function goalAt(i){
   if(i<GOALS.length)return gv(8)&&GOAL_ROT[i]?GOAL_ROT[i]():GOALS[i];
-  const k=i-GOALS.length,L=k>>2;
+  if(gv(17))return endGoal(i);
+  const k=i-GOALS.length,L=k>>2; // партии до BAL[17] доигрывают текущую цель по старым числам
   switch(k%4){
     case 0:{const n=30+10*L;return{t:`Довести парк до ${n} машин`,v:()=>carsN(),n,rw:{money:120000+30000*L}}}
     case 1:{const n=800000+400000*L;return{t:`Накопить ${rub(n)} в кассе`,v:()=>S.money,n,rw:{rep:4}}}
@@ -204,7 +237,7 @@ function blankState(mode){
     nextRival:rand(6,9),nextInspect:rand(3,6),quest:null,nextQuest:3,queue:[],hist:[[],[],[]],cnt:{},ach:{},morning:[],
     diff:'normal',dlist:[],dseq:0,fuel:1,raid:null,nextRaid:rand(10,16),nextTax:rand(35,50),branches:[],strategy:null,nextMeeting:bal('meet',BAL_NEW),rank:0,lastMonth:-99,chapter:0,
     alloc:{center:30,sleep:40,air:15,rail:15},dmods:{center:1,sleep:1,air:1,rail:1},townAlloc:{},dnews:[],night:0,shift2:0,fat:0,weather:[],investors:[],union:false,unionDays:0,nextUnion:0,
-    nextAuction:7,nextContract:rand(9,13),nextAgency:rand(10,15),contracts:[],lines:{},ads:null,school:[],agency:[],stat:[],wk:{rev:0,net:0,breaks:0,fines:0,fails:[]},
+    nextAuction:7,nextContract:rand(9,13),nextAgency:rand(10,15),contracts:[],lines:{},ads:null,school:[],agency:[],stat:[],wk:{rev:0,net:0,breaks:0,fines:0,fails:[]},goalFix:null,
     custom:Object.assign({name:'ДСТ-24',color:'yellow',logo:'checker',avatar:0,livery:'none'},G.custom||{}),
     parts:10,crisis:null,nextCrisis:rand(25,40),extraHeads:[[],[],[]],moodMod:[0,0,0],nextCareer:rand(18,24),nextConflict:rand(14,20),lastParty:-99,strike:null,owned:{},dispDay:0,dispEarn:0,vac:null,cands:[],hireLog:[],cashDay:0,cashEarn:0,cashWait:[],cashList:[],cashGot:0,blund:0,
     agg:'mig',aggAt:-99,aggNext:0,aggLast:0,lowDays:0,cscore:0,cstreak:0,war:null,ctLost:null,infl:1,mInfl:1,taxAcc:0,txRev:0,txDays:0,taxPaidAll:0,split:0,watch:0,queueDesk:0,kpi:null,kpiStreak:0,kpiFails:0,tdebt:0,rel:{},relCd:{},city:'home',hold:null,gid:'',balPatch:null,balRev:0,goalBal:null,migBal:null,netSeen:{},netRev:[],seed:0};

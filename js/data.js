@@ -850,19 +850,23 @@ const RANKS=[
  {n:'Король такси',need:()=>rkOk(5),get txt(){return rkTxt(5)},unlock:'+10% к выручке'}];
 const RANK_BONUS=[1,1,1,1,1.05,1.1];
 const totalCars=()=>S.fleet.length+(S.branches||[]).reduce((a,b)=>a+b.cars,0);
+// сколько машин реально ломается в сутки: оценка «carFail × failMult» не видит погоду, вторую смену и усталость,
+// поэтому берётся максимум из расчёта и факта последних семи дней — иначе совет и замер недооценивают очередь в гараж
+const brkRate=()=>{const s=(S.stat||[]).slice(-7),obs=s.length?s.reduce((a,x)=>a+(x.brk||0),0)/s.length:0;
+  return Math.max(S.fleet.reduce((a,c)=>a+carFail(c)*failMult(),0),obs)};
 
 /* ---- версия баланса ---- */
 // числа по версиям: партия читает свою версию, нет ключа — берётся ближайшая меньшая; новая настройка = новая запись, старые не менять
-const BAL_NEW=16,BAL={
+const BAL_NEW=17,BAL={
  1:{meet:30,plan:150000,offK:.5,offCap:1e12,loginDay:5000,loginBonus:20000,loginParts:0,loginLoy:0,leaseRet:0},
- 2:{start:{normal:1,hard:.9},rev:{normal:1.08,hard:1.1},goal:{normal:175000,hard:175000},star2:1.3,star3:1.7, // подобрано ботом bot-2: «Обычный» ≈55%, «Хардкор» ≈27% побед
+ 2:{start:{normal:1,hard:.9},rev:{normal:1.08,hard:1.1},goal:{normal:270000,hard:300000},star2:1.3,star3:1.7, // подобрано ботом bot-2: «Обычный» ≈55%, «Хардкор» ≈27% побед
   taxDays:[14,28],endTax:60,crisisFirst:[16,21],crisisMin:16,crisisMax:6,endCrisisFirst:[20,30],endCrisisNext:[40,60],inflDay:15,inflPct:[2,3],endInfl:30,
   meet:15,plan:75000,offK:.125,offCap:15000,loginDay:2500,loginBonus:0,loginParts:3,loginLoy:3,leaseRet:5,leaseWearFrom:20,leaseWearK:.04,leaseWearMax:2},
  3:{rev:{normal:1.06,hard:1.08},shiftMax:60,shiftRev:.6,fatUp:18,fatDown:8,fatFrom:50,fatFail:2,fatFine:.6,fatLoy:6,fatLeaveAt:70,fatLeaveP:.2,toKm:8000,toCost:1500},
  4:{agg:{mig:{fee:.2,ord:1,poach:1},bee:{fee:.15,ord:.98,poach:.5},shash:{fee:.22,ord:1.12,poach:1}},grossK:.8,beeSkip:['comm','lowprio','backup'],shashR:4.75,shashOrd:.95,shashDrop:.005,aggGap:7,aggIdle:.5,
   warLow:.1,warDays:3,warP:.4,warAt:2,warLen:5,warK:.9,poachFrom:15,lostP:.25},
  5:{cA:4,cC:-1,cD:-4,cMax:10,cOk:2,cEarly:1,cStreak:10,cAmt:{A:1.5,C:.7},cRate:{A:-.05,C:.1},cOver:{D:1.5},cLoans:{A:3,B:2,C:2,D:1},cThird:100000,cHold:10},
- 6:{brRev:5200,lotBack:.5,upgVal:.5,brVal:.7,prestK:6e5,rk:[[0,0,0],[16,0,0],[22,65,0],[32,70,0],[50,75,1],[80,80,2]],town:{center:{k:1.1,cap:14},station:{k:1.05,cap:12},airport:{k:1.2,cap:8},sleep:{k:.95,cap:24},univer:{k:1,cap:14},industry:{k:.9,cap:30}},townLead:.05,townFloor:.6,townMin:.6,townMax:1.25},
+ 6:{brRev:2600,lotBack:.5,upgVal:.5,brVal:.7,prestK:6e5,rk:[[0,0,0],[16,0,0],[22,65,0],[32,70,0],[50,75,1],[80,80,2]],town:{center:{k:1.1,cap:14},station:{k:1.05,cap:12},airport:{k:1.2,cap:8},sleep:{k:.95,cap:24},univer:{k:1,cap:14},industry:{k:.9,cap:30}},townLead:.05,townFloor:.6,townMin:.6,townMax:1.25},
  7:{tree:{cost:[1,2,3,4],fin:{cap:.25,loan:.03,tax:.1},ppl:{loy:10,staff:1,fat:.2},car:{price:.08,fail:.05,svc:.15,gift:'monjaro'}},royK:.01,royCap:150000,royFin4:1.5,
   trials:{home:[2e6,4e6,7e6],capital:[30,45,60],resort:[1e6,2e6,3.5e6],north:[40,70,100],port:[800000,1800000,3500000],science:[10,18,25]},goldPts:2},
  8:{collect:[['vesta'],['moskvich'],['solaris','solarisNew'],['rio'],['octavia'],['tiggo'],['jolion'],['camry'],['evolute'],['carnival'],['monjaro'],['mercedes'],['zeekr']]},
@@ -871,15 +875,18 @@ const BAL_NEW=16,BAL={
  11:{staffK:.93,staffCap:25,hire:{cost:8000,boost:12000,min:2,max:3,bmax:4,bstar:.35,cap:4,capRep:25}},
  12:{lz:{days:[36,60,90],down:[1.25,1,.8],pay:[1.18,1,.86],buy:[.28,.32,.35],early:.55,lateK:.08,lateMax:6,cAdj:{A:-.06,B:0,C:.05,D:.12}},
    cash:{ttl:40,min:6,max:9,now:.7,late:.65,loyNow:2,loyRem:6,loss:.35,share:.08,potMax:20000,blunder:.14,keep:.4}},
- 13:{tx:{bands:[[120000,.15],[250000,.2],[450000,.25],[1e12,.3]],spec:300000,specK:1.2},
-   desk:{p:.14,car:.0035,lease:.12,fine:.5,fineCar:9000,cap:3e6},
-   spl:{cost:60000,up:500,det:.1,cool:30,mult:1.6,rep:8,max:3}},
+ 13:{tx:{bands:[[120000,.15],[250000,.2],[450000,.25],[1e12,.25]],spec:300000,specK:1.1},
+   desk:{p:.1,car:.0035,lease:.12,fine:.5,fineCar:9000,cap:3e6},
+   spl:{cost:60000,up:500,det:.1,cool:20,mult:1.6,rep:8,max:3}},
  14:{rev:{normal:1.03,hard:1.06}},
  15:{aggr:{cap:29}},
  // BAL[16]: ступени налоговой шкалы умножаются на (машин / ёмкость рынка города), а не висят абсолютными
  // 120/250/450 тыс. Порог minScale=.25 не даёт крошечному парку попасть во вторую ступень в первый же день.
  // До этого кампания на 8–15 машинах никогда не доходила до первой ступени — прогрессия работала только у китов.
- 16:{tx:{scaleByPark:1,minScale:.55}}}; // BAL[4] подобран ботом bot-4: «Обычный» ≈60%, агрегаторы 55/54/60%; BAL[5] (кредитный рейтинг) bot-5: «Обычный» ≈60%, «Хардкор» ≈31%
+ 16:{tx:{scaleByPark:1,minScale:.55}},
+ // BAL[17] — цепочка целей бесконечного режима. size/crews/collect/cash: [старт, шаг на уровень];
+ // sizeK/crewK/reb — доля от живой цены покупки, которую цель возвращает наградой; cash — ₽ с поправкой на инфляцию, замороженные при входе в цель
+ 17:{endGoal:{size:[45,20],sizeK:.12,crews:[35,15],crewK:.1,collect:[4,3],reb:.25,cash:[600000,300000]}}}; // BAL[4] подобран ботом bot-4: «Обычный» ≈60%, агрегаторы 55/54/60%; BAL[5] (кредитный рейтинг) bot-5: «Обычный» ≈60%, «Хардкор» ≈31%
 // BAL[6]: brRev — выручка филиала с машины (было 3300); lotBack — доля цены при продаже стоянки; upgVal/brVal — доля цены улучшений и филиалов в оценке парка; prestK — ₽ оценки на очко престижа; rk — пороги званий
 // BAL[6] город: town — k выручки и cap (заказов на всех) по районам; townLead — надбавка лидера; townFloor — нижний предел давки; townMin/townMax — границы множителя парка
 // BAL[7] холдинг (только бесконечный): tree — цены ступеней (cost) и эффекты веток: fin — капитал, ставка кредитов (п.п.), налоги; ppl — лояльность на старте, сотрудники в отделе, медленнее усталость; car — цены автосалона, поломки, ТО и ремонт, подарок-машина
@@ -937,6 +944,8 @@ const RIVAL_POOL=['Рыжий кот','Глобус','Шустрый','Мете�
 
 /* ---- филиалы ---- */
 const BRANCH_SITES=[{n:'Северный',price:250000,bonus:1},{n:'Южный',price:280000,bonus:1},{n:'Аэропорт',price:400000,bonus:1.25},{n:'Восточный',price:320000,bonus:1},{n:'Западный',price:350000,bonus:1.05}];
+// филиал — район, а не второй парк: районов пять, машин в каждом не больше 120
+const BRANCH_MAX=5,BR_CAR_CAP=120,BR_CAR_PRICE=75000;
 const branchSite=i=>BRANCH_SITES[i]||{n:'Филиал №'+(i+1),price:400000+50000*(i-4),bonus:1};
 
 /* ---- сюжет ---- */
@@ -954,8 +963,17 @@ const dayLimit=()=>S.mode==='story'?CHAPTERS[S.chapter||0].days:dailyLike()?7:DA
 const hasLimit=()=>['campaign','story','daily','contest'].includes(S.mode);
 /* ---- что нового: номер сборки и сводка выпусков ---- */
 // BUILD поднимают вместе с кэшем в sw.js (dst24-vN = BUILD=N); UPDATES — короткий рассказ о выпуске для игрока, новые сверху
-const BUILD=48;
+const BUILD=49;
 const UPDATES=[
+ {v:49,n:'Бесконечный режим: баланс сети',items:[
+  'У машин появился ресурс: 300 000 км у подержанных и 450 000 км у новых. Исчерпанная машина не выходит на линию, ломается чаще и продаётся за 6 % — вечный парк из двадцатилетних «Солярисов» больше не работает',
+  'Рост сети давит на выручку всей сети, а не только парка: филиалы теперь тоже чувствуют насыщение рынка (при 600 машинах в сети — ×0,61 к выручке района). В карточке филиала появилась строка «Рынок сети»',
+  'Административные расходы платит основной парк: раньше управление начислялось на все машины вместе с филиалами, и парк из 200 машин отдавал за чужие филиалы больше 2 млн ₽ в сутки',
+  'Филиалы ограничены: 5 районов, не больше 120 машин в районе, машина — 75 000 ₽ с инфляцией, содержание 400 ₽ в сутки. Выручка района снижена до 2 600 ₽ в сутки на машину — филиал перестал быть принтером денег',
+  'Цепочка целей переписана под новую экономику: рост считается всей сетью, экипажи — по сети, награды — доля от живой цены покупки (четверть от стоимости собранных машин), а порог «накопить» замораживается при входе в цель и не убегает от инфляции',
+  'Механики считаются по фактическому потоку поломок за неделю, а не по расчётной оценке: совет в «Отделах» теперь говорит, сколько машин ломается на самом деле',
+  'Замер ботом: кампания 57,3 % на «Обычном» и 30,0 % на «Хардкоре», сюжет 44/67/75/85 — как в 48-м выпуске. Бесконечный режим, 40 партий: на 120-й день сеть 128 машин и 23 цели, на 400-й — 493 машины, 38 целей, касса 1,8 млн ₽, банкротств нет',
+  'Давление осталось там, где оно заслуженное: та же партия без планового ТО и второй смены тонет в 11 случаях из 40, в среднем на 310-й день']},
  {v:48,n:'Диспетчерская может выдать до миллиарда',items:[
   'Потолок разовой награды поднят с 1 000 000 ₽ до 1 000 000 000 ₽: раньше крупные компенсации приходили урезанными, и игрок видел «Диспетчерская урезала награду до 1 000 000 ₽», а остаток терялся',
   'Награды сверх 10 000 000 ₽ админпанель теперь просит подтвердить — защитный потолок снят, и лишний ноль стал дороже',
@@ -1065,7 +1083,8 @@ function advice(){
   if(S.parts===0&&S.day>3&&!S.over&&S.money>40000)return{t:'Склад запчастей пуст — каждый ремонт обходится дороже. Докупите запчасти во вкладке «База».',tab:'base'};
   if(S.money<0)return{t:'Касса в минусе! Ничего не покупайте. Поднимите ставки аренды или возьмите кредит во вкладке «Финансы».',tab:'fin'};
   if(left&&S.day<=2)return{t:`В каждом отделе ждёт задача — осталось ${left}. Под каждым вариантом видно, что он даст: зелёное — хорошо, красное — плохо, «риск» — может пойти не так.`};
-  if(brokenN()>repairCap())return{t:`В ремонте ${brokenN()} машин, а сервис чинит только ${repairCap()} в день. Наймите механика во вкладке «Отделы».`,tab:'depts'};
+  if(brokenN()>repairCap()){const brk=brkRate(),need=Math.max(1,Math.min(staffCap(),Math.ceil((brk-3)/3)))-S.staff[2],per=carsN()?S.fleet.reduce((a,c)=>a+carRev(c),0)/carsN()*(.5+S.rep/100)*satK():0,gain=Math.round(Math.max(0,Math.min(brk-repairCap(),brokenN()))*per/100)*100;
+    return{t:`В ремонте ${brokenN()} машин, сервис чинит ${repairCap()} в сутки, а ломается ${Math.round(brk)}. Наймите ${need>0?`ещё ${need} механик${need===1?'а':'ов'}`:'механиков'} во вкладке «Отделы»: это +${rub(gain)} в сутки.`,tab:'depts'}}
   if(free>0)return{t:`${free} ${free===1?'машина стоит':'машины стоят'} без водителя. Разместите вакансию в «Автосалоне» — это 8 000 ₽.`,tab:'shop'};
   if(idle>0&&S.money>60000)return{t:`${idle} ${idle===1?'водитель сидит':'водителя сидят'} без машины и скоро уйдут. Купите машину в «Автосалоне».`,tab:'shop'};
   if(S.rep<45)return{t:'Репутация низкая — из-за неё падает выручка. Выбирайте варианты с «+реп» и не экономьте на пассажирах.'};
@@ -1159,7 +1178,8 @@ const AVATARS=[{skin:'#e8b890',hair:'#2a1a10',style:0,shirt:'#2e2a40'},{skin:'#f
  {skin:'#f5d0b0',hair:'#e8c860',style:3,acc:'glasses',shirt:'#f7c331'},{skin:'#e8b890',hair:'#8a8a8a',style:2,acc:'mustache',shirt:'#1c1a24'},{skin:'#f0c8a0',hair:'#3a2418',style:0,acc:'cap',cap:'#f7c331',shirt:'#ff8a4c'}];
 
 /* ---- склад, кризисы, карьера, экзамен, корпоратив, покупки, скины ---- */
-const partsCap=()=>S.upg.warehouse?90:30;
+// склад растёт вместе с парком: 12 % машин на складе, со «Складом» — 30 %
+const partsCap=()=>Math.round((S.upg.warehouse?Math.max(90,.3*carsN()):Math.max(30,.12*carsN()))/5)*5;
 const partPrice=()=>Math.round((crisisOn('parts')?6000:3000)*inf()/10)*10;
 const CRISES={parts:{n:'Дефицит запчастей',d:'без склада ремонт ×1,8, запчасти вдвое дороже',days:10},
  fuel:{n:'Скачок цен на бензин',d:'бензин +30%, водители уходят чаще',days:8},
@@ -1274,8 +1294,12 @@ const heavyDays=(from,len)=>{for(let d=from;d<from+len;d++)if(isTaxDay(d)||audit
 const heavyGate=(key,len)=>heavyDays(S.day,len)||(S[key]=S.day+rand(2,4),false);
 /* ---- насыщение рынка и расходы большого парка ---- */
 const SAT_CAP=()=>Math.round(30*(cityDef().demand||1));
-const satK=()=>{const n=carsN(),c=SAT_CAP();return n<=c?1:Math.pow(c/n,.4)};
-const mgmtCost=()=>{if(S.mode==='sandbox')return 0;const n=totalCars();return n<=15?0:Math.round(Math.pow(n-15,1.3)*70*inf()*(ownHas('driver')?.95:1)/100)*100};
+const satK=()=>{const n=carsN(),c=SAT_CAP();return n<=c?1:Math.pow(c/n,.28)};
+// рынок всей сети: каждый новый район добавляет ёмкость, но не удваивает её — иначе филиалы печатают деньги без потолка
+const netCap=()=>SAT_CAP()*(1+.5*(S&&S.branches?S.branches.length:0));
+const satNet=()=>{const n=totalCars(),c=netCap();return n<=c?1:Math.pow(c/n,.28)};
+// управление считается по основному парку: филиалы не должны обременять парк, у каждого свой директор и своя строка расходов
+const mgmtCost=()=>{if(S.mode==='sandbox')return 0;const n=carsN();return n<=15?0:Math.round(Math.pow(n-15,1.12)*70*inf()*(ownHas('driver')?.95:1)/100)*100};
 /* ---- города франшизы ---- */
 const CITIES={home:{n:'Родной город',d:'обычные условия'},
  capital:{n:'Столица',d:'спрос +15%, но машины на 20% дороже и пробки: поломок +10%',need:1,demand:1.15,price:1.2,fail:1.1},

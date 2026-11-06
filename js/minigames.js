@@ -186,17 +186,20 @@ function raidEvent(){
 /* ---- филиалы ---- */
 function openBranch(){
   if(S.rank<3){toast('Филиалы откроются на звании «Владелец сети»');return}
+  if(S.branches.length>=BRANCH_MAX){toast(`Все районы заняты: филиалов в городе ${BRANCH_MAX}`);return}
   const site=branchSite(S.branches.length);if(S.money<site.price){toast('Не хватает денег в кассе');sfx('bad');return}
   const before=snap();S.money-=site.price;S.branches.push({n:site.n,cars:3,drivers:3,mgr:1,bonus:site.bonus,last:0});
   addLog(`Открыт филиал «${site.n}»: 3 машины и 3 водителя.`);toast(`Филиал «${site.n}» открыт!`);sfx('win');save();render(before);
 }
 function branchAct(i,a){const b=S.branches[i];if(!b||S.over)return;const before=snap();
-  if(a==='car'||a==='car10'||a==='car50'){const n=a==='car'?1:a==='car10'?10:50,pr=n*75000;
+  if(a==='car'||a==='car10'||a==='car50'){const n=a==='car'?1:a==='car10'?10:50,pr=Math.round(n*BR_CAR_PRICE*inf()/1000)*1000;
+    if(b.cars+n>BR_CAR_CAP){toast(`В районе «${b.n}» можно не больше ${BR_CAR_CAP} машин`);return}
     if(S.money<pr){toast('Не хватает денег');return}S.money-=pr;b.cars+=n;
     toast(`«${b.n}»: +${n} ${n===1?'машина':'машин'}`)}
   if(a==='hire'||a==='hire10'||a==='hire50'){const n=a==='hire'?1:a==='hire10'?10:50,pr=n*6000;
+    if(b.drivers>=b.cars){toast(`Водителей в «${b.n}» уже ${b.drivers} — столько же, сколько машин`);return}
     if(S.money<pr){toast('Не хватает денег');return}S.money-=pr;let got=0;
-    for(let k=0;k<n;k++)got+=Math.random()<.7?(Math.random()<.3?2:1):0;b.drivers+=got;
+    for(let k=0;k<n;k++)got+=Math.random()<.7?(Math.random()<.3?2:1):0;b.drivers=Math.min(b.cars,b.drivers+got);
     toast(got?`«${b.n}»: +${got} вод. из ${n}`:`«${b.n}»: на ${n} вакансий никто не откликнулся`)}
   if(a==='mgr'){const c=40000*b.mgr;if(b.mgr>=3)return;if(S.money<c){toast('Не хватает денег');return}S.money-=c;b.mgr++;toast(`«${b.n}»: директор филиала прошёл обучение`)}
   sfx('coin');save();render(before)}

@@ -222,7 +222,7 @@ function endDay(){
   syncDrivers();
   const fat0=B(3)?S.fat||0:0;
   if(B(3)&&S.upg.mech){const m=S.fleet.filter(c=>!c.b&&!c.svc&&toLeft(c)<0).sort((a,b)=>toLeft(a)-toLeft(b))[0];if(m)m.svc=1}
-  const working=S.fleet.filter(c=>!c.b&&!c.svc).sort((a,b)=>carRev(b)-carRev(a));
+  const working=S.fleet.filter(c=>!c.b&&!c.svc&&!carDead(c)).sort((a,b)=>carRev(b)-carRev(a));
   const crewD=[...S.dlist].sort((a,b)=>drvQ(b)-drvQ(a));
   const active=Math.min(S.drivers,working.length), factor=0.5+S.rep/100;
   const notes=[];
@@ -257,7 +257,8 @@ function endDay(){
   let cwRev=B(12)?(S.cashEarn||0):0;if(cwRev)S.cashEarn=0;
   if(B(12)&&S.cashWait&&S.cashWait.length){const dueW=S.cashWait.filter(w=>w.at<=S.day);S.cashWait=S.cashWait.filter(w=>w.at>S.day);
     if(dueW.length){const wSum=dueW.reduce((a,w)=>a+w.amt,0);cwRev+=wSum;notes.push(`Должники внесли обещанное: ${rub(wSum)} (${dueW.map(w=>w.n).join(', ')}).`)}}
-  const parking=Math.round(carsN()*PARKING*inf()*(S.lotOwned?.4:1)), lease=leaseSum(), pay=payroll(), loans=loanSum(), office=Math.round(OFFICE*inf()*(ownHas('office')?.95:1));
+  // стоянка ступенькой: первые 30 машин по полной, дальше дешевле — иначе парковка одна съедает маржу большого парка
+  const parkN=carsN(),parking=Math.round((Math.min(parkN,30)*PARKING+Math.max(0,parkN-30)*Math.round(PARKING*.7))*inf()*(S.lotOwned?.4:1)), lease=leaseSum(), pay=payroll(), loans=loanSum(), office=Math.round(OFFICE*inf()*(ownHas('office')?.95:1));
   if(hol){notes.push(`Праздник: ${hol[1]}! Спрос ×${hol[0]}.`);if(hol[1]==='Новогодняя ночь'&&active>0)S.cnt.nye=1}
   if(moodNote)notes.push(moodNote);
   working.slice(0,crews).forEach(c=>c.km+=rand(300,450));
@@ -279,14 +280,15 @@ function endDay(){
     if(avg>4.85){S.rep=Math.min(100,S.rep+1);notes.push(`Средний рейтинг водителей ${avg.toFixed(2)} — пассажиры довольны, +1 к репутации.`)}
     else if(avg<4.65){S.rep=Math.max(0,S.rep-1);notes.push(`Средний рейтинг водителей ${avg.toFixed(2)} — низковат, −1 к репутации.`)}}
   // ремонт: мощность сервиса
-  let cap=repairCap();S.fleet.filter(c=>c.b&&!c.h).forEach(c=>{if(cap>0){c.b=0;cap--}});
+  let cap=repairCap();S.fleet.filter(c=>c.b&&!c.h&&!carDead(c)).forEach(c=>{if(cap>0){c.b=0;cap--}});
   S.fleet.forEach(c=>{if(c.h){c.h--;if(c.h<=0){c.h=0;c.b=0}}});
-  const stuck=S.fleet.filter(c=>c.b&&!c.h).length;if(stuck)notes.push(`Сервис не успел починить ${stuck} маш. — очередь. Нужно больше механиков.`);
+  const stuck=S.fleet.filter(c=>c.b&&!c.h&&!carDead(c)).length;if(stuck)notes.push(`Сервис не успел починить ${stuck} маш. — очередь. Нужно больше механиков.`);
+  const deadN=S.fleet.filter(carDead).length;if(deadN)notes.push(`<span class="neg">Ресурс исчерпан у ${deadN} маш.: они не выходят на линию и не чинятся — продайте их.</span>`);
   // ночные поломки
   let repair=0,breaks=0;const fm=failMult(),rmul=repairMult(),names={};
   const fmx=fm*Wt.fail*(B(3)?1+fatK(fat0)*bal('fatFail'):1+(S.night||0)/100*.3)*(S.lines.delivery?1.04:1);
   let usedParts=0,noParts=0;
-  S.fleet.forEach(c=>{if(!c.b&&!c.svc&&Math.random()<carFail(c)*fmx*(careIds.has(c.id)?.6:1)*(crisisOn('roads')?1.25:1)){c.b=1;breaks++;let pm=1;if(MODELS[c.m].repair){if(S.parts>0){S.parts--;usedParts++;pm=.6}else{noParts++;pm=crisisOn('parts')?1.8:1.3}}repair+=MODELS[c.m].repair*rmul*pm*(c.club?1-bal('club').repair:1);names[MODELS[c.m].name]=(names[MODELS[c.m].name]||0)+1}});
+  S.fleet.forEach(c=>{if(!c.b&&!c.svc&&!carDead(c)&&Math.random()<carFail(c)*fmx*(careIds.has(c.id)?.6:1)*(crisisOn('roads')?1.25:1)){c.b=1;breaks++;let pm=1;if(MODELS[c.m].repair){if(S.parts>0){S.parts--;usedParts++;pm=.45}else{noParts++;pm=crisisOn('parts')?1.8:1.3}}repair+=MODELS[c.m].repair*rmul*pm*(c.club?1-bal('club').repair:1);names[MODELS[c.m].name]=(names[MODELS[c.m].name]||0)+1}});
   repair=Math.round(repair/100)*100;
   if(usedParts)notes.push(`Со склада ушло запчастей: ${usedParts}. Осталось ${S.parts}.`);if(noParts)notes.push(`<span class="neg">На складе нет запчастей — ${noParts} ремонт(а) обошлись дороже.</span>`);
   S.fleet.forEach(c=>{if(c.svc){c.svc=0;c.to=c.km+bal('toKm')}});
@@ -348,7 +350,7 @@ function endDay(){
   // правило сознательно без привязки к BAL — его получают и старые партии, иначе сеть из 500 машин
   // с 120 водителями наказывалась бы вчетверо только за то, что найм идёт по одному человеку за клик
   let brNet=0;S.branches.forEach(b=>{const eff=Math.min(1,(b.drivers||0)/Math.max(1,b.cars)),act=b.cars*(.4+.6*eff);
-    const rev=act*(B(6)?bal('brRev'):3300)*b.bonus*(.5+S.rep/100)*demand*(.85+.05*b.mgr),cost=3000+b.cars*600+b.mgr*1500;let br=0;for(let i=0;i<b.cars;i++)if(Math.random()<.03*dif().fail)br+=7000;
+    const rev=act*(B(6)?bal('brRev'):3300)*b.bonus*(.5+S.rep/100)*demand*(.85+.05*b.mgr)*satNet(),cost=3000+b.cars*400+b.mgr*1500;let br=0;for(let i=0;i<b.cars;i++)if(Math.random()<.03*dif().fail)br+=7000;
     let lv=0;for(let i=0;i<b.drivers;i++)if(Math.random()<.01)lv++;b.drivers-=lv;
     b.eff=eff;const net=Math.round((rev-cost-br)/100)*100;b.last=net;brNet+=net});
   // профсоюз
@@ -404,7 +406,7 @@ function endDay(){
   if(B(2)&&camp()?S.day===bal('inflDay'):S.day%(B(2)&&endl()?bal('endInfl'):30)===0){const r=rand(...(B(2)&&camp()?bal('inflPct'):[2,4]))/100,mk=endl()?1:.6;S.infl=(S.infl||1)*(1+r);S.mInfl=(S.mInfl||1)*(1+r*mk);notes.push(`Инфляция: цены выросли на ${Math.round(r*100)}%. Рыночные ставки аренды подросли — проверьте ставки во «Финансах».`)}
   if(cOn()){if(S.money<0){cAdd(-1);S.cstreak=0}else if(++S.cstreak>=bal('cStreak')){cAdd(1);S.cstreak=0}
     if(cGrade()!==grade0)notes.unshift(`Кредитный рейтинг: ${grade0} → <b class="${cGrade()<grade0?'pos':'neg'}">${cGrade()}</b>.`)}
-  S.stat.push({d:S.day,rev:revenue+cRev+adsRev+dpRev+cwRev,net,money:Math.round(S.money),cars:totalCars(),rep:S.rep});S.stat=S.stat.slice(-90);
+  S.stat.push({d:S.day,rev:revenue+cRev+adsRev+dpRev+cwRev,net,money:Math.round(S.money),cars:totalCars(),rep:S.rep,brk:breaks});S.stat=S.stat.slice(-90);
   if(S.mode==='endless'&&B(7)&&!S.preview)holdDay(revenue,nightK);
   S.wk.rev+=revenue+cRev+adsRev+dpRev+cwRev;S.wk.net+=net;S.wk.breaks+=breaks;S.cnt.brk=(S.cnt.brk||0)+breaks;S.wk.fines+=raidFine+drvFines;
   const lines=[['Экипажей на линии',crews+(stops?` (−${stops} на рейде)`:'')+(crews-regular?`, ${crews-regular} на контрактах`:'')],[`Аренда (реп. ×${factor.toFixed(2)}, спрос ×${demand.toFixed(2)}, районы ×${distK.toFixed(2)}${revK!==1?`, сложность ×${revK}`:''}${B(3)?(S.shift2?`, вторая смена ×${nightK.toFixed(2)}`:''):S.night?`, ночь ×${nightK.toFixed(2)}`:''}${sat<1?`, рынок ×${sat.toFixed(2)}`:''})`,rub(revenue+aggFee)],['Офис',rub(-office)],...(mgmt?[['Управление большим парком',rub(-mgmt)]]:[]),['Зарплаты начальников и команд',rub(-pay)],['Стоянка и страховка',rub(-parking)]];
