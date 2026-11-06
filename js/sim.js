@@ -2,7 +2,7 @@
 /* ---- замер баланса ---- */
 /* Только с ?sim в адресе: бот проходит партии без интерфейса и печатает таблицу. Ничего не пишет в localStorage. */
 if(/[?&]sim\b/.test(location.search))(()=>{
-const SIM_V='bot-12';
+const SIM_V='bot-13';
 const mulberry=a=>()=>{a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296};
 const pct=(a,p)=>a.length?[...a].sort((x,y)=>x-y)[Math.min(a.length-1,Math.floor(p*a.length))]:null;
 const SIM_STUBS=['save','saveG','toast','sfx','voice','triggerScene','coachStart','tutorial','drawFaces','pddExam'];
@@ -17,7 +17,11 @@ function simMorning(r){let n=0;
   for(;(S.morning.length||simOpen)&&n<80;n++){if(simOpen){if(!simPump())simOpen=false}else runMorning()}
   if(S.morning.length||simOpen){r.stuck++;S.morning=[];simOpen=false}}
 /* bot-2: покупка по окупаемости; в сюжете цель главы (ч2 — обогнать конкурентов, ч4 — 35 машин и филиал) важнее окупаемости */
-function simBuy(){
+function simBuy(cfg){cfg=cfg||{};
+  // bot-13: cfg.target — заданный размер сети: замер «сколько приносит парк в 8 / 60 / 120 / 250 / 450 / 600 / 1000 машин».
+  // Пока цель задана, все ростовые правила (замена, излишек, погоня за целью) выключены: иначе бот купает парк туда-сюда
+  // и вместо экономики показывает перекупку, а цель должна держаться весь забег
+  const T=cfg.target||0;
   // bot-11: резерв на 30 дней операционных расходов — разумный владелец не выгребает кассу под ноль
   const reserve=()=>endl()?Math.round(((payroll()+Math.round(carsN()*PARKING*inf())+mgmtCost()+3000)*12)/100)*100:60000;
   // bot-12: цель бесконечного режима — то, что игрок читает в шапке и под что он подводит парк. Без этого бот стоит
@@ -30,18 +34,18 @@ function simBuy(){
   if(B(2))CLASSES.forEach(cl=>{const m=mk(cl);if(S.rents[cl]!==m)S.rents[cl]=m});
   // bot-9: машина без ресурса не зарабатывает, но платит стоянку. Меняем парк плавно:
   // сначала покупаем замену, только потом продаём старьё — иначе на 400-й день весь парк истекает разом и партия тонет
-  {const old=S.fleet.filter(c=>carWear(c)>.85).length, need=Math.min(old,S.fleet.length?2:0);
+  if(!T){const old=S.fleet.filter(c=>carWear(c)>.85).length, need=Math.min(old,S.fleet.length?2:0);
    for(let k=0;k<need;k++){const m=MK.filter(x=>!MODELS[x].lease&&(MODELS[x].rank||0)<=S.rank).sort((a,b)=>priceOf(a)-priceOf(b))[0];
      if(m&&S.money>priceOf(m)+200000&&carsN()<S.spots)buy(m)}
    S.fleet.filter(carDead).slice(0,4).forEach(c=>{if(S.money>priceOf(c.m))sellCar(c.id)});}
   // bot-12: парк больше, чем водителей, — это пустые места, полная стоянка и ноль выручки. Разумный владелец излишек
   // продаёт; без этого правила замер бесконечного режима видит не экономику, а самоубийство покупками
-  if(endl()){const surplus=carsN()-(S.drivers+8);
+  if(endl()&&!T){const surplus=carsN()-(S.drivers+8);
     if(surplus>0)S.fleet.slice().filter(c=>c.lease<=0||S.money>leaseRet(c)).sort((a,b)=>carWear(b)-carWear(a)).slice(0,Math.min(surplus,2)).forEach(c=>sellCar(c.id))}
-  if(g12&&g12.buy&&countM(...g12.buy)<g12.n){const ms=g12.buy.filter(m=>MODELS[m]&&m!==ban&&(MODELS[m].rank||0)<=S.rank&&carsN()<S.spots&&S.money>priceOf(m)+reserve());
+  if(g12&&!T&&g12.buy&&countM(...g12.buy)<g12.n){const ms=g12.buy.filter(m=>MODELS[m]&&m!==ban&&(MODELS[m].rank||0)<=S.rank&&carsN()<S.spots&&S.money>priceOf(m)+reserve());
     if(ms.length)buy(ms.sort((a,b)=>priceOf(a)-priceOf(b))[0])}
   // замену готовим заранее: продаём по одной машине в день и только когда парку есть на что опереться
-  if(ban){const bad=S.fleet.filter(c=>c.m===ban);
+  if(ban&&!T){const bad=S.fleet.filter(c=>c.m===ban);
     if(bad.length){const rep=MK.filter(m=>!MODELS[m].lease&&(MODELS[m].rank||0)<=S.rank).sort((a,b)=>priceOf(a)-priceOf(b))[0];
       const bought=!!rep&&carsN()<S.spots&&S.money>priceOf(rep)+reserve();if(bought)buy(rep);
       if(bought||carsN()>bad.length)sellCar(bad[0].id)}}
@@ -56,23 +60,46 @@ function simBuy(){
   // кампании нужны ровно 15 машин — докупаем до цели, не глядя на окупаемость
   let need=S.mode==='campaign'?GOAL_CARS:0;if(C===1)need=Math.max(...S.rivals.map(r=>r.cars))+2;if(C===3)need=35;
   if(C===3&&!S.branches.length&&S.rank>=3&&S.money>=branchSite(0).price+60000)openBranch();
+  // bot-13: в замере размера сеть финансируется иначе, чем в живой игре: резерв на 12 дней операционных расходов
+  // при доходе 275 тыс. ₽/сут — это 2-3 млн ₽, и бот годами не покупал ни машины, а цель зависала на 118.
+  // При заданной цели хватает запаса 15 % сверх цены — так строится кит, которого и измеряем
+  const fund=pr=>T?Math.round(pr*1.15):pr+reserve();
   // bot-7: в бесконечном режиме филиалы — главная поздняя экономика; без них замер видел только спираль основного парка
-  if(endl()&&S.rank>=3){const site=branchSite(S.branches.length);
+  if(endl()&&!T&&S.rank>=3){const site=branchSite(S.branches.length);
     if(S.branches.length<BRANCH_MAX&&S.money>=site.price+reserve())openBranch();
     S.branches.forEach((b,i)=>{if(b.drivers<b.cars&&S.money>=400000)branchAct(i,'hire50');
       else if(b.drivers>=b.cars&&b.cars<BR_CAR_CAP&&S.money>=Math.round(50*BR_CAR_PRICE*inf()+reserve()))branchAct(i,'car50');
       else if(b.drivers>=b.cars&&b.cars<BR_CAR_CAP&&S.money>=Math.round(10*BR_CAR_PRICE*inf()+reserve()))branchAct(i,'car10')})}
-  const cap=S.mode==='campaign'?GOAL_CARS:need||1e9,force=n<need;
+  // bot-13: замер размера сети. Живое правило «сначала накопи резерв на 12 дней» здесь мешает: при доходе 380 тыс. ₽/сут
+  // резерв — 2-3 млн, и сеть застревает в ловушке «на пачку водителей не хватает, машину купить нельзя» на 151 машине.
+  // Поэтому при заданной цели филиал достраивается по доступности денег: берётся максимальная пачка, которую оплачивают касса
+  if(T&&endl()&&S.rank>=3&&n<T){const site=branchSite(S.branches.length),car=BR_CAR_PRICE*inf();let left=T-n;
+    if(S.branches.length<BRANCH_MAX&&S.money>=site.price*1.15){const c0=totalCars();openBranch();left-=totalCars()-c0}
+    S.branches.forEach((b,i)=>{if(left<=0)return;const c0=totalCars();
+      if(b.drivers<b.cars){const g=b.cars-b.drivers;
+        if(g>=50&&S.money>=50*6000*1.15)branchAct(i,'hire50');
+        else if(g>=10&&S.money>=10*6000*1.15)branchAct(i,'hire10');
+        else if(S.money>=6000*1.15)branchAct(i,'hire')}
+      else{const want=Math.min(50,BR_CAR_CAP-b.cars,left);
+        if(want>=50&&S.money>=50*car*1.15)branchAct(i,'car50');
+        else if(want>=10&&S.money>=10*car*1.15)branchAct(i,'car10');
+        else if(want>=1&&S.money>=car*1.15)branchAct(i,'car')}
+      left-=totalCars()-c0})}
+  // цель ниже текущего размера — сбрасываем парк до неё (филиал по частям не ужимается, там потолок задан покупкой)
+  if(T&&n>T){const over=n-T;S.fleet.slice().filter(c=>c.lease<=0||S.money>leaseRet(c)).sort((a,b)=>carWear(b)-carWear(a)).slice(0,Math.min(over,2)).forEach(c=>sellCar(c.id))}
+  const cap=T||(S.mode==='campaign'?GOAL_CARS:need||1e9),force=T?n<T:n<need;
   // в бесконечном режиме сверяемся с реальным чистым доходом последних 7 дней на машину
   const st7=S.stat.slice(-7),avg=st7.length?st7.reduce((a,x)=>a+x.net,0)/st7.length:0;
   if(carsN()<cap&&n<cap&&(force||hz>=(C===0||C===2?10:1))){const ok=m=>(MODELS[m].rank||0)<=S.rank,by=f=>MK.filter(m=>ok(m)&&f(MODELS[m]));
     const eco=by(M=>M.cls==='Эконом'&&!M.lease).sort((a,b)=>carRevM(b)/priceOf(b)-carRevM(a)/priceOf(a))[0];
     const ls=by(M=>M.lease>0).sort((a,b)=>priceOf(a)-priceOf(b))[0];
     const lot=carsN()>=S.spots?lotPrice():0;
-    // окупится ли ещё одна машина до горизонта
-    const pays=m=>{if(S.mode==='endless'&&!force&&(carsN()>=S.drivers+3||!(avg>0&&avg/Math.max(1,n)*hz>priceOf(m)+lot)))return false;const M=MODELS[m],lz=M.lease>0,net=carRevM(m)*(.5+S.rep/100)-PARKING*inf()*(S.lotOwned?.4:1)-(mg(n+1)-mg(n));
-      return force||hz*net-(lz?M.lease*Math.min(hz,LEASE_DAYS):0)>priceOf(m)+lot};
-    const m=[eco,ls].find(m=>m&&S.money>=priceOf(m)+lot+reserve()&&pays(m));
+    // окупится ли ещё одна машина до горизонта; в замере размера окупаемость не смотрим, но водителей бережём:
+    // парк в 1000 машин при 200 водителях — это не размер сети, а способ обанкротиться, и так играет только бот-самоубийца
+    const pays=m=>{if(T)return carsN()<S.drivers+3;const M=MODELS[m],lz=M.lease>0;
+      if(S.mode==='endless'&&!force&&!(avg>0&&avg/Math.max(1,n)*hz>priceOf(m)+lot))return false;
+      return force||hz*(carRevM(m)*(.5+S.rep/100)-PARKING*inf()*(S.lotOwned?.4:1)-(mg(n+1)-mg(n)))-(lz?M.lease*Math.min(hz,LEASE_DAYS):0)>priceOf(m)+lot};
+    const m=[eco,ls].find(m=>m&&S.money>=fund(priceOf(m)+lot)&&pays(m));
     if(m){if(lot)buyLot();if(carsN()<S.spots)buy(m)}}
   if(!S.hired&&carsN()-brokenN()>S.drivers&&S.money>=HIRE_COST+20000)hire()}
 /* bot-3: вторая смена и ТО; strat: 'none' — смена 0 и без ТО, 'max' — смена на максимуме, ТО как у основного */
@@ -97,13 +124,15 @@ function simRun(cfg,seed,stopDay){
     simTax=false;simMorning(r);
     r.heavy=Math.max(r.heavy,(S.crisis?1:0)+(S.raid?1:0)+(S.strike||S.news.some(n=>n.id==='strike')?1:0)+(simTax?1:0)+(B(2)&&taxOn()&&isTaxDay(S.day)&&S.taxAcc>0?1:0));
     if(simTax)r.tax++;if(S.crisis&&S.crisis!==crisis0)r.crises++;crisis0=S.crisis;
-    simBuy();simShift(cfg.strat);simDesks();
+    simBuy(cfg);simShift(cfg.strat);simDesks();
     const day=S.day;endDay();r.fails=S.cnt.brk||0;r.fat=S.fat||0;clock+=864e5;
     if(r.goalDay===null&&(C?C.goal(S):goalMet()))r.goalDay=day;
     const lose=S.mode!=='sandbox'&&((S.money<0&&S.debt>=5)||S.rep<=0||S.drivers===0),fin=hasLimit()&&day>=dayLimit();
     if(lose||fin||day===stopDay||(S.mode==='endless'&&i===cap-1)){r.money=Math.round(S.money);r.cars=carsN();r.rep=S.rep;r.profit=Math.round(profit());r.poach=S.cnt.poach||0;r.tr=TRIAL[S.city]?TRIAL[S.city].v():0;r.wars=S.cnt.wars||0;r.cs=S.cscore||0;
       // сеть целиком: филиалы живут по своим правилам, и без них замер бесконечного режима слепой
       r.total=totalCars();r.br=(S.branches||[]).length;r.brCars=(S.branches||[]).reduce((a,b)=>a+b.cars,0);r.brDrv=(S.branches||[]).reduce((a,b)=>a+b.drivers,0);r.gi=S.goal;
+      // сутки как их видит игровое окно «ИТОГИ ДНЯ»: выручка и чистыми за последний день партии
+      {const st=S.stat[S.stat.length-1]||{};r.rev=Math.round(st.rev||0);r.net=Math.round(st.net||0);r.drv=S.drivers}
       if(lose)r.died=S.day;
       if(lose)r.why=S.money<0?'банкротство':S.rep<=0?'репутация':'водители';
       else if(fin){r.win=C?!!C.goal(S):goalMet()&&carsN()>=GOAL_CARS&&S.rep>=50;if(!r.win)r.why='не взята цель'}
@@ -120,7 +149,7 @@ function simBatch(cfg){
     winPct:+(100*rs.filter(r=>r.win).length/cfg.seeds).toFixed(1),
     lose:{банкротство:why['банкротство']||0,репутация:why['репутация']||0,водители:why['водители']||0,'не взята цель':why['не взята цель']||0,завис:(why['завис']||0)},
     cashP10:pct(cash,.1),cashP50:pct(cash,.5),cashP90:pct(cash,.9),carsP50:pct(rs.map(r=>r.cars||0),.5),repP50:pct(rs.map(r=>r.rep||0),.5),taxP50:pct(rs.map(r=>r.tax),.5),crisesP50:pct(rs.map(r=>r.crises),.5),goalMedian:pct(gd,.5),goalP30:pct(gd,.3),
-    totalP50:pct(rs.map(r=>r.total||0),.5),brP50:pct(rs.map(r=>r.br||0),.5),brCarsP50:pct(rs.map(r=>r.brCars||0),.5),brDrvP50:pct(rs.map(r=>r.brDrv||0),.5),diedP50:pct(rs.filter(r=>r.died).map(r=>r.died),.5),giP50:pct(rs.map(r=>r.gi||0),.5),
+    totalP50:pct(rs.map(r=>r.total||0),.5),brP50:pct(rs.map(r=>r.br||0),.5),brCarsP50:pct(rs.map(r=>r.brCars||0),.5),brDrvP50:pct(rs.map(r=>r.brDrv||0),.5),diedP50:pct(rs.filter(r=>r.died).map(r=>r.died),.5),giP50:pct(rs.map(r=>r.gi||0),.5),revP50:pct(rs.map(r=>r.rev||0),.5),netP50:pct(rs.map(r=>r.net||0),.5),drvP50:pct(rs.map(r=>r.drv||0),.5),
     profitP50:pct(rs.map(r=>r.profit||0),.5),poachP50:pct(rs.map(r=>r.poach||0),.5),warsP50:pct(rs.map(r=>r.wars||0),.5),trialP50:pct(rs.map(r=>r.tr||0),.5),trialP90:pct(rs.map(r=>r.tr||0),.9),cscoreP50:pct(rs.map(r=>r.cs||0),.5),gradeP50:cGrade(pct(rs.map(r=>r.cs||0),.5)),fatP50:pct(rs.map(r=>r.fat),.5),failsP50:pct(rs.map(r=>r.fails),.5),goalBy25Pct:+(100*gd.filter(d=>d<25).length/cfg.seeds).toFixed(1),heavyMax:rs.reduce((a,r)=>Math.max(a,r.heavy),0),profits:rs.map(r=>[r.seed,r.profit||0]),stuck,errors}}
 const simFlat=r=>Object.assign({},r,{lose:Object.entries(r.lose).map(([k,v])=>k+':'+v).join(' '),errors:r.errors.length});
 /* подмена всего на время прогона и возврат в finally */
@@ -149,7 +178,7 @@ function simGuard(fn){
   }}
 window.__balanceSim=(o={})=>simGuard(()=>{const {diff='normal',mode='campaign',seeds=100,simple=false}=o;
   if(!['campaign','story','endless'].includes(mode))throw new Error('замер: только campaign, story или endless');
-  const r=simBatch({diff,mode,seeds,simple,strat:o.strat,agg:o.agg,chapter:o.chapter||0,days:o.days,city:o.city,hold:o.hold});console.table([simFlat(r)]);return r});
+  const r=simBatch({diff,mode,seeds,simple,strat:o.strat,agg:o.agg,chapter:o.chapter||0,days:o.days,city:o.city,hold:o.hold,target:o.target});console.table([simFlat(r)]);return r});
 window.__balanceSim.all=(n=100)=>simGuard(()=>{const rs=['easy','normal','hard'].map(diff=>simBatch({diff,mode:'campaign',seeds:n,simple:false,chapter:0}));console.table(rs.map(simFlat));return rs});
 window.__balanceSim.story=(n=100)=>simGuard(()=>{const rs=CHAPTERS.map((C,i)=>simBatch({diff:'normal',mode:'story',seeds:n,simple:false,chapter:i}));console.table(rs.map(simFlat));return rs});
 window.__balanceSim.free=(hours=24,streak=1)=>simGuard(()=>{
