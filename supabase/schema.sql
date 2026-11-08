@@ -28,7 +28,7 @@ create table if not exists public.saves(
 alter table public.saves drop constraint if exists saves_sane;
 alter table public.saves add constraint saves_sane check (
   (mode is null or mode in ('campaign','endless','story','daily','contest'))
-  and (day is null or day between 0 and 2000) and (cars is null or cars between 0 and 1000)
+  and (day is null or day between 0 and 2000) and (cars is null or cars between 0 and 7000)
   and (money is null or abs(money) < 10000000000) and (stars is null or stars between 0 and 3)) not valid;
 
 /* ---- холдинг: мета игрока (холдинг, достижения, раскраски) ---- */
@@ -202,7 +202,7 @@ begin
   if p_days is null or p_days < 0 or p_days > (case p_mode
     when 'campaign' then 31 when 'story' then 46 when 'daily' then 10 when 'contest' then 10 else 2000 end)
     then raise exception 'days'; end if;
-  if p_cars is null or p_cars < 0 or p_cars > 1000 then raise exception 'cars'; end if;
+  if p_cars is null or p_cars < 0 or p_cars > 7000 then raise exception 'cars'; end if;
   if p_money is null or abs(p_money) >= 10000000000 then raise exception 'money'; end if;
   if p_score is null or p_score < 0 or p_score >= 10000000000 then raise exception 'score'; end if;
   if p_stars is null or p_stars < 0 or p_stars > 3 then raise exception 'stars'; end if;
