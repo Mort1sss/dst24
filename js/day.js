@@ -9,7 +9,7 @@ function nextEvent(d){
   if(qi>-1){const q=S.queue.splice(qi,1)[0],e=getEv(d,q.id);if((!e.need||typeof q.id==='string'||e.need(S))&&!ultBlocked(d,q.id))return q.id}
   const funnyP=d===1?(hasHead('gena')?.7:.45):0;
   for(let tries=0;tries<40;tries++){
-    if(!S.decks[d].length)S.decks[d]=shuffle(EVENTS[d].map((_,i)=>i));
+    if(!S.decks[d].length)S.decks[d]=shuffle(EVENTS[d].map((_,i)=>i).filter(i=>!EVENTS[d][i].end||endl()));
     const i=S.decks[d].pop(),ev=EVENTS[d][i];
     if(ev.need&&!ev.need(S)||S.queue.some(q=>q.d===d&&q.id===i))continue;
     if(ultBlocked(d,i))continue;
