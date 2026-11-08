@@ -99,7 +99,7 @@ function choose(d,i,gameRes){
 }
 
 /* ================= АВТОСАЛОН, ПАРК, НАЙМ ================= */
-const priceOf=m=>Math.round(MODELS[m].price*inf()*(cityDef().price||1)*dif().price*(stratOn('grow')?.9:1)*(hasHead('logist')?.9:1)*(hq('car',1)?1-bal('tree',7).car.price:1)*(MODELS[m].ev?cityDef().evPrice||1:1)/500)*500;
+const priceOf=m=>Math.round(MODELS[m].price*inf()*(cityDef().price||1)*dif().price*(stratOn('grow')?.9:1)*(hasHead('logist')?.9:1)*(hq('car',1)?1-bal('tree',7).car.price:1)*(MODELS[m].ev?cityDef().evPrice||1:1)*priceK()/500)*500;
 const rankName=r=>RANKS[r]?RANKS[r].n:'';
 function buy(m,t){
   const M=MODELS[m];if(S.over)return;

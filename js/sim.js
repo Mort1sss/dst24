@@ -65,7 +65,7 @@ function simBuy(cfg){cfg=cfg||{};
   {const need0=endl()?Math.max(1,Math.min(staffCap(),Math.ceil(S.drivers/8))):S.staff[0];
    if(S.staff[0]<need0&&S.money>STAFF_PAY*need0*10)staffChange(0,need0-S.staff[0])}
   if(S.debt>=2&&S.loans.length<maxLoans()&&(!simpleOn()||tabOpen('fin')))takeLoan(0);
-  const C=S.mode==='story'?S.chapter||0:-1,hz=S.mode==='endless'?120:dayLimit()-S.day,n=totalCars();
+  const C=S.mode==='story'?S.chapter||0:-1,hz=S.mode==='endless'?(B(21)?450:120):dayLimit()-S.day,n=totalCars();
   const mg=k=>k<=15?0:Math.round(Math.pow(k-15,1.3)*70*inf()/100)*100;
   // кампании нужны ровно 15 машин — докупаем до цели, не глядя на окупаемость
   let need=S.mode==='campaign'?GOAL_CARS:0;if(C===1)need=Math.max(...S.rivals.map(r=>r.cars))+2;if(C===3)need=35;
@@ -78,12 +78,12 @@ function simBuy(cfg){cfg=cfg||{};
   if(endl()&&!T&&S.rank>=3){const site=branchSite(S.branches.length);
     if(S.branches.length<BRANCH_MAX&&S.money>=site.price+reserve())openBranch();
     S.branches.forEach((b,i)=>{if(b.drivers<b.cars&&S.money>=400000)branchAct(i,'hire50');
-      else if(b.drivers>=b.cars&&b.cars<BR_CAR_CAP&&S.money>=Math.round(50*BR_CAR_PRICE*inf()+reserve()))branchAct(i,'car50');
-      else if(b.drivers>=b.cars&&b.cars<BR_CAR_CAP&&S.money>=Math.round(10*BR_CAR_PRICE*inf()+reserve()))branchAct(i,'car10')})}
+      else if(b.drivers>=b.cars&&b.cars<BR_CAR_CAP&&S.money>=Math.round(50*BR_CAR_PRICE*priceK()*inf()+reserve()))branchAct(i,'car50');
+      else if(b.drivers>=b.cars&&b.cars<BR_CAR_CAP&&S.money>=Math.round(10*BR_CAR_PRICE*priceK()*inf()+reserve()))branchAct(i,'car10')})}
   // bot-13: замер размера сети. Живое правило «сначала накопи резерв на 12 дней» здесь мешает: при доходе 380 тыс. ₽/сут
   // резерв — 2-3 млн, и сеть застревает в ловушке «на пачку водителей не хватает, машину купить нельзя» на 151 машине.
   // Поэтому при заданной цели филиал достраивается по доступности денег: берётся максимальная пачка, которую оплачивают касса
-  if(T&&endl()&&S.rank>=3&&n<T){const site=branchSite(S.branches.length),car=BR_CAR_PRICE*inf();let left=T-n;
+  if(T&&endl()&&S.rank>=3&&n<T){const site=branchSite(S.branches.length),car=BR_CAR_PRICE*priceK()*inf();let left=T-n;
     if(S.branches.length<BRANCH_MAX&&S.money>=site.price*1.15){const c0=totalCars();openBranch();left-=totalCars()-c0}
     S.branches.forEach((b,i)=>{if(left<=0)return;const c0=totalCars();
       if(b.drivers<b.cars){const g=b.cars-b.drivers;

@@ -274,7 +274,7 @@ function newGame(mode,heads,opts={}){
   S=blankState(mode);S.hold=mode==='endless'&&B(7)?opts.hold||holdSnap():null;S.gid=Date.now().toString(36)+(()=>{try{return crypto.getRandomValues(new Uint32Array(1))[0].toString(36)}catch(e){return''}})();if(!netOff){S.balRev=netRevNow();S.balPatch=netSnap()}hvToday=false;S.heads=heads;S.diff=opts.diff||'normal';S.chapter=opts.chapter||0;
   START_FLEET.forEach(([m,k])=>addCar(m,k));
   S.city=opts.city||'home';
-  S.money=Math.round(S.money*(B(2)&&mode==='campaign'&&S.diff!=='easy'?bal('start')[S.diff]:dif().money)*(mode==='endless'?B(7)?1+(hq('fin',1)?bal('tree',7).fin.cap:0):prestCap(prestige()):1)*(cityDef().price||1)/1000)*1000;
+  S.money=Math.round(S.money*(B(2)&&mode==='campaign'&&S.diff!=='easy'?bal('start')[S.diff]:dif().money)*(mode==='endless'?B(7)?1+(hq('fin',1)?bal('tree',7).fin.cap:0):prestCap(prestige()):1)*(mode==='endless'?priceK():1)*(cityDef().price||1)/1000)*1000;
   if(mode==='endless'&&(B(7)?hq('ppl',2):prestige()>=5))S.staff=S.staff.map(x=>x+bal('tree',7).ppl.staff);
   if(mode==='endless'&&(B(7)?hq('ppl',4):prestige()>=10))S.rank=1;
   if(hq('car',4)){addCar(bal('tree',7).car.gift,0);S.fleet[S.fleet.length-1].lease=0}
