@@ -126,7 +126,8 @@ function sellCar(id){
 const hireUsed=()=>{if(!S.hireLog)S.hireLog=[];S.hireLog=S.hireLog.filter(d=>S.day-d<7);return S.hireLog.length};
 // пропускная способность найма за 7 дней: база + узнаваемость (репутация) + отдел «Подключение» (BAL[18]).
 // Без отдела парк был обречён стоять на 25-30 машинах: филиал нанимает 50 кликом, а парк — 6 человек в неделю
-const hireCap=()=>{const H=bal('hire');return Math.max(1,H.cap+Math.floor(S.rep/H.capRep)+(B(18)?(S.staff[0]-1)*H.hrPerStaff:0))};
+// В бесконечном режиме (BAL[20]) каждая машина парка добавляет слот найма в неделю: потолок не душит рост парка
+const hireCap=()=>{const H=bal('hire');const base=Math.max(1,H.cap+Math.floor(S.rep/H.capRep)+(B(18)?(S.staff[0]-1)*H.hrPerStaff:0));return endl()&&B(20)?base+Math.round(carsN()*(bal('hireCar')||0)):base};
 const candName=()=>DNAMES[rand(0,DNAMES.length-1)]+' '+'АБВГДЕЖЗИКЛМНОПРСТУФХ'[rand(0,19)]+'.';
 /* отклики: слабый просит аренду выше рынка, «звезда» — ниже; рейтинг и ставка ходят вместе */
 function mkCands(boost){
@@ -252,7 +253,7 @@ function endDay(){
   let revenue=Math.round(base*factor*demand*nightK*distK*sat*revK*aggM/100)*100,aggFee=0;
   if(AG){const gr=Math.round(revenue/bal('grossK')/100)*100,nt=Math.round(revenue*(1-AG.fee)/bal('grossK')/100)*100;aggFee=gr-nt;revenue=nt;S.aggLast=aggFee}
   {const sN=strikeOn();if(sN){if(!S.strike)S.strike={day:S.day,lost:0};const k=newsDef(sN).demand||1;if(k<1)S.strike.lost+=Math.round(revenue*(1-k)/k)}}
-  const adsRev=(S.ads?carsN()*300:0)+(S.upg.gas?carsN()*150:0);
+  const adsRev=(S.ads?carsN()*adsPerCar():0)+(S.upg.gas?carsN()*150:0);
   // смена диспетчера: мини-игра пишет в S.dispEarn, деньги приходят вечером через кассу дня
   const dpRev=B(10)?(S.dispEarn||0):0;if(dpRev)S.dispEarn=0;
   // касса вечера: собранное сегодня + обещанные платежи, срок которых настал
@@ -260,7 +261,7 @@ function endDay(){
   if(B(12)&&S.cashWait&&S.cashWait.length){const dueW=S.cashWait.filter(w=>w.at<=S.day);S.cashWait=S.cashWait.filter(w=>w.at>S.day);
     if(dueW.length){const wSum=dueW.reduce((a,w)=>a+w.amt,0);cwRev+=wSum;notes.push(`Должники внесли обещанное: ${rub(wSum)} (${dueW.map(w=>w.n).join(', ')}).`)}}
   // стоянка ступенькой: первые 30 машин по полной, дальше дешевле — иначе парковка одна съедает маржу большого парка
-  const parkN=carsN(),parking=Math.round((Math.min(parkN,30)*PARKING+Math.max(0,parkN-30)*Math.round(PARKING*.7))*inf()*(S.lotOwned?.4:1)), lease=leaseSum(), pay=payroll(), loans=loanSum(), office=Math.round(OFFICE*inf()*(ownHas('office')?.95:1));
+  const parking=parkCost(), lease=leaseSum(), pay=payroll(), loans=loanSum(), office=Math.round(OFFICE*inf()*(ownHas('office')?.95:1));
   if(hol){notes.push(`Праздник: ${hol[1]}! Спрос ×${hol[0]}.`);if(hol[1]==='Новогодняя ночь'&&active>0)S.cnt.nye=1}
   if(moodNote)notes.push(moodNote);
   {const onDuty=working.slice(0,crews);onDuty.forEach(c=>c.km+=rand(300,450));
@@ -354,8 +355,10 @@ function endDay(){
   // филиалы: недоукомплектованный филиал платит от 40 до 100 % мощности, а не пропорционально водителям.
   // правило сознательно без привязки к BAL — его получают и старые партии, иначе сеть из 500 машин
   // с 120 водителями наказывалась бы вчетверо только за то, что найм идёт по одному человеку за клик
-  let brNet=0;S.branches.forEach(b=>{const eff=Math.min(1,(b.drivers||0)/Math.max(1,b.cars)),act=b.cars*(.4+.6*eff);
-    const rev=act*(B(6)?bal('brRev'):3300)*b.bonus*(.5+S.rep/100)*demand*(.85+.05*b.mgr)*satNet(),cost=3000+b.cars*400+b.mgr*1500;let br=0;for(let i=0;i<b.cars;i++)if(Math.random()<.03*dif().fail)br+=7000;
+  let brNet=0;S.branches.forEach(b=>{const eff=Math.min(1,(b.drivers||0)/Math.max(1,b.cars)),pow=.4+.6*eff,w=brWear(b);
+    const perCar=endl()&&B(20)?Object.entries(brMix(b)).reduce((a,[m,n])=>a+n*brCarRev(m),0):b.cars*(B(6)?bal('brRev'):3300);
+    const rev=perCar*pow*(1-.15*w)*b.bonus*(.5+S.rep/100)*demand*(.85+.05*b.mgr)*satNet(),cost=3000+b.cars*400+b.mgr*1500;let br=0;for(let i=0;i<b.cars;i++)if(Math.random()<.03*dif().fail*(1+.15*w))br+=7000;
+    if(endl()&&B(20)){const km=eff*375+(1-eff)*bal('life').idle;b.wear=Math.min(1,(b.wear||0)+km/(bal('life').new*1.5))}
     let lv=0;for(let i=0;i<b.drivers;i++)if(Math.random()<.01)lv++;b.drivers-=lv;
     b.eff=eff;const net=Math.round((rev-cost-br)/100)*100;b.last=net;brNet+=net});
   // профсоюз
@@ -414,7 +417,7 @@ function endDay(){
   S.stat.push({d:S.day,rev:revenue+cRev+adsRev+dpRev+cwRev,net,money:Math.round(S.money),cars:totalCars(),rep:S.rep,brk:breaks});S.stat=S.stat.slice(-90);
   if(S.mode==='endless'&&B(7)&&!S.preview)holdDay(revenue,nightK);
   S.wk.rev+=revenue+cRev+adsRev+dpRev+cwRev;S.wk.net+=net;S.wk.breaks+=breaks;S.cnt.brk=(S.cnt.brk||0)+breaks;S.wk.fines+=raidFine+drvFines;
-  const lines=[['Экипажей на линии',crews+(stops?` (−${stops} на рейде)`:'')+(crews-regular?`, ${crews-regular} на контрактах`:'')],[`Аренда (реп. ×${factor.toFixed(2)}, спрос ×${demand.toFixed(2)}, районы ×${distK.toFixed(2)}${revK!==1?`, сложность ×${revK}`:''}${B(3)?(S.shift2?`, вторая смена ×${nightK.toFixed(2)}`:''):S.night?`, ночь ×${nightK.toFixed(2)}`:''}${sat<1?`, рынок ×${sat.toFixed(2)}`:''})`,rub(revenue+aggFee)],['Офис',rub(-office)],...(mgmt?[['Управление большим парком',rub(-mgmt)]]:[]),['Зарплаты начальников и команд',rub(-pay)],['Стоянка и страховка',rub(-parking)]];
+  const lines=[['Экипажей на линии',crews+(stops?` (−${stops} на рейде)`:'')+(crews-regular?`, ${crews-regular} на контрактах`:'')],[`Аренда (реп. ×${factor.toFixed(2)}, спрос ×${demand.toFixed(2)}, районы ×${distK.toFixed(2)}${revK!==1?`, сложность ×${revK}`:''}${B(3)?(S.shift2?`, вторая смена ×${nightK.toFixed(2)}`:''):S.night?`, ночь ×${nightK.toFixed(2)}`:''}${sat<1?`, рынок ×${sat.toFixed(2)}`:''})`,rub(revenue+aggFee)],['Офис',rub(-office)],...(mgmt?[['Управление большим парком',rub(-mgmt)]]:[]),['Зарплаты начальников и команд',rub(-pay)],...(parking?[['Стоянка и страховка',rub(-parking)]]:[])];
   if(aggFee)lines.splice(2,0,[`Комиссия «${AGG[S.agg||'mig'].n}» (${Math.round(AG.fee*100)}%)`,rub(-aggFee)]);
   if(lease)lines.push(['Лизинг',rub(-lease)]);
   if(loans)lines.push(['Кредиты',rub(-loans)]);

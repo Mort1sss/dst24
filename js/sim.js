@@ -25,7 +25,7 @@ function simBuy(cfg){cfg=cfg||{};
   // и вместо экономики показывает перекупку, а цель должна держаться весь забег
   const T=cfg.target||0;
   // bot-11: резерв на 30 дней операционных расходов — разумный владелец не выгребает кассу под ноль
-  const reserve=()=>endl()?Math.round(((payroll()+Math.round(carsN()*PARKING*inf())+mgmtCost()+3000)*12)/100)*100:60000;
+  const reserve=()=>endl()?Math.round(((payroll()+parkCost()+mgmtCost()+3000)*12)/100)*100:60000;
   // bot-12: цель бесконечного режима — то, что игрок читает в шапке и под что он подводит парк. Без этого бот стоит
   // на «избавьтесь от Грант» все 400 дней и цепочка целей в замерах невидима
   const g12=endl()?goalAt(S.goal):null,ban=g12&&g12.sell?g12.sell:null;
@@ -108,7 +108,7 @@ function simBuy(cfg){cfg=cfg||{};
     // парк в 1000 машин при 200 водителях — это не размер сети, а способ обанкротиться, и так играет только бот-самоубийца
     const pays=m=>{if(T)return carsN()<S.drivers+3;const M=MODELS[m],lz=M.lease>0;
       if(S.mode==='endless'&&!force&&!(avg>0&&avg/Math.max(1,n)*hz>priceOf(m)+lot))return false;
-      return force||hz*(carRevM(m)*(.5+S.rep/100)-PARKING*inf()*(S.lotOwned?.4:1)-(mg(n+1)-mg(n)))-(lz?M.lease*Math.min(hz,LEASE_DAYS):0)>priceOf(m)+lot};
+      return force||hz*(carRevM(m)*(.5+S.rep/100)-parkMarg()-(mg(n+1)-mg(n)))-(lz?M.lease*Math.min(hz,LEASE_DAYS):0)>priceOf(m)+lot};
     const m=[eco,ls].find(m=>m&&S.money>=fund(priceOf(m)+lot)&&pays(m));
     if(m){if(lot)buyLot();if(carsN()<S.spots)buy(m)}}
   // нехватка больше пяти экипажей — вакансия с продвижением: 20 000 ₽ вместо 8 000 ₽, но откликов 3-4 вместо 2-3.

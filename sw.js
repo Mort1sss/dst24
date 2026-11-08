@@ -1,5 +1,5 @@
 // Офлайн-режим: сначала сеть (чтобы приходили обновления игры), при её отсутствии — кэш.
-const CACHE='dst24-v51';
+const CACHE='dst24-v52';
 const CORE=['./','index.html','css/game.css','js/data.js','js/state.js','js/day.js','js/minigames.js','js/ui.js','js/cars.js','js/art.js','js/sim.js','js/online.js','js/main.js',
   'manifest.webmanifest','icon-192.png','icon-512.png'];
 self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE).then(c=>c.addAll(CORE.map(u=>new Request(u,{cache:'reload'})))));self.skipWaiting()});

@@ -188,14 +188,16 @@ function openBranch(){
   if(S.rank<3){toast('Филиалы откроются на звании «Владелец сети»');return}
   if(S.branches.length>=BRANCH_MAX){toast(`Все районы заняты: филиалов в городе ${BRANCH_MAX}`);return}
   const site=branchSite(S.branches.length);if(S.money<site.price){toast('Не хватает денег в кассе');sfx('bad');return}
-  const before=snap();S.money-=site.price;S.branches.push({n:site.n,cars:3,drivers:3,mgr:1,bonus:site.bonus,last:0});
+  const before=snap();S.money-=site.price;S.branches.push({n:site.n,cars:3,drivers:3,mgr:1,bonus:site.bonus,last:0,mix:{solaris:3},wear:0});
   addLog(`Открыт филиал «${site.n}»: 3 машины и 3 водителя.`);toast(`Филиал «${site.n}» открыт!`);sfx('win');save();render(before);
 }
 function branchAct(i,a){const b=S.branches[i];if(!b||S.over)return;const before=snap();
-  if(a==='car'||a==='car10'||a==='car50'){const n=a==='car'?1:a==='car10'?10:50,pr=Math.round(n*BR_CAR_PRICE*inf()/1000)*1000;
+  if(a==='car'||a==='car10'||a==='car50'){const n=a==='car'?1:a==='car10'?10:50,m=endl()&&B(20)?(brSel[i]||'solaris'):null,pr=Math.round(n*brUnit(i)*inf()/1000)*1000;
     if(b.cars+n>BR_CAR_CAP){toast(`В районе «${b.n}» можно не больше ${BR_CAR_CAP} машин`);return}
-    if(S.money<pr){toast('Не хватает денег');return}S.money-=pr;b.cars+=n;
-    toast(`«${b.n}»: +${n} ${n===1?'машина':'машин'}`)}
+    if(S.money<pr){toast('Не хватает денег');return}S.money-=pr;
+    if(m){if(!b.mix)b.mix={solaris:b.cars};b.mix[m]=(b.mix[m]||0)+n;b.wear=(b.wear||0)*b.cars/(b.cars+n)}
+    b.cars+=n;
+    toast(`«${b.n}»: +${n} ${n===1?'машина':'машин'}${m?` (${MODELS[m].name})`:''}`)}
   if(a==='hire'||a==='hire10'||a==='hire50'){const n=a==='hire'?1:a==='hire10'?10:50,pr=n*6000;
     if(b.drivers>=b.cars){toast(`Водителей в «${b.n}» уже ${b.drivers} — столько же, сколько машин`);return}
     if(S.money<pr){toast('Не хватает денег');return}S.money-=pr;let got=0;
@@ -206,7 +208,7 @@ function branchAct(i,a){const b=S.branches[i];if(!b||S.over)return;const before=
 function branchEvent(){
   const b=S.branches[rand(0,S.branches.length-1)];
   const E=[
-   {x:`В филиале «${b.n}» затопило гараж после ливня.`,o:[['Откачать и просушить (−20 000 ₽)',()=>{S.money-=20000;return'Гараж высушили за день.'}],['Подождать',()=>{b.cars=Math.max(0,b.cars-1);return'Одна машина утонула в луже по самые пороги. Списана.'}]]},
+   {x:`В филиале «${b.n}» затопило гараж после ливня.`,o:[['Откачать и просушить (−20 000 ₽)',()=>{S.money-=20000;return'Гараж высушили за день.'}],['Подождать',()=>{b.cars=Math.max(0,b.cars-1);brLose(b,1);return'Одна машина утонула в луже по самые пороги. Списана.'}]]},
    {x:`Водители филиала «${b.n}» грозят забастовкой: хотят премию к праздникам.`,o:[['Выплатить премию (−15 000 ₽)',()=>{S.money-=15000;return'Забастовки не будет. Водители довольны.'}],['Отказать',()=>{b.drivers=Math.max(0,b.drivers-2);return'Двое водителей филиала ушли.'}]]},
    {x:`Филиал «${b.n}» перевыполнил план. Директор просит отметить успех.`,o:[['Корпоратив (−8 000 ₽)',()=>{S.money-=8000;S.rep=Math.min(100,S.rep+2);b.mgr=Math.min(3,b.mgr+(Math.random()<.3?1:0));return'Отметили. Команда филиала заряжена.'}],['Ограничиться грамотой',()=>'Грамоту повесили на стену. Скромно, но приятно.']]},
    {x:`В филиале «${b.n}» кто-то из сотрудников сливал бензин из машин.`,o:[['Поставить камеры (−12 000 ₽)',()=>{S.money-=12000;return'Камеры поймали виновника. Больше не сливают.'}],['Разобраться без камер',()=>Math.random()<.5?'Виновника нашли сами.':(S.money-=15000,'Не нашли. Слив продолжался ещё неделю: −15 000 ₽.')]]}][rand(0,3)];
@@ -418,12 +420,12 @@ function buyBack(){if(!S.investors.length)return;const v=Math.round(valuation()*
   S.money-=v;const inv=S.investors.pop();addLog(`Выкупили 10% у «${inv.name}» за ${rub(v)}.`);toast('Доля выкуплена');sfx('coin');save();render(before)}
 function buyLine(k){const L=LINES[k];if(S.lines[k]||S.over)return;if(S.rank<(L.rank||0))return toast(`Откроется на звании «${rankName(L.rank)}»`);if(S.money<L.price)return toast('Не хватает денег');
   const before=snap();S.money-=L.price;S.lines[k]=true;addLog(`Запущено направление «${L.n}».`);toast(`Новое направление: ${L.n}`);sfx('win');save();render(before)}
-function toggleAds(){const before=snap();if(S.ads){S.ads=null;addLog('Реклама с машин снята.');toast('Реклама снята')}else{S.ads={brand:ADS[rand(0,ADS.length-1)]};addLog(`На машинах реклама ${S.ads.brand}: +300 ₽ с машины в день.`);toast(`Реклама: ${S.ads.brand}`)}sfx('click');save();render(before)}
+function toggleAds(){const before=snap();if(S.ads){S.ads=null;addLog('Реклама с машин снята.');toast('Реклама снята')}else{S.ads={brand:ADS[rand(0,ADS.length-1)]};addLog(`На машинах реклама ${S.ads.brand}: +${adsPerCar()} ₽ с машины в день.`);toast(`Реклама: ${S.ads.brand}`)}sfx('click');save();render(before)}
 function tuneCar(id,k){const c=S.fleet.find(x=>x.id===id);if(!c||S.over)return;c.tune=c.tune||{};if(c.tune[k])return;const pr=tunePrice(k);if(S.money<pr)return toast('Не хватает денег');
   const before=snap();S.money-=pr;c.tune[k]=1;let msg=`${MODELS[c.m].name}: ${TUNE[k].n.toLowerCase()}.`;
   const cls=c.up||MODELS[c.m].cls,full=Object.keys(TUNE).every(x=>c.tune[x]);
   if(full&&CLS_UP[cls]){c.up=CLS_UP[cls];c.tune={};msg+=` Машина переведена в класс «${c.up}»!`}
-  else if(full&&!c.club){c.club=1;const C=bal('club')||{rep:0,repair:0};S.rep=Math.min(100,S.rep+C.rep);msg+=` Полный комплект — клубный пакет: +${C.rep} к репутации и ремонты этой машины на ${Math.round(C.repair*100)}% дешевле.`}
+  else if(full&&!c.club){c.club=1;const C=bal('club')||{rep:0,repair:0};S.rep=Math.min(100,S.rep+C.rep);msg+=` Полный комплект — клубный пакет: +${C.rep} к репутации и ремонты этой машины на ${Math.round(C.repair*100)}% дешевле.${clubK()>1?` Выручка этой машины +${Math.round((clubK()-1)*100)}%.`:''}`}
   addLog('Тюнинг: '+msg);toast(msg);sfx('coin');save();render(before)}
 function buyParts(n){const pr=n>=30?Math.round(partPrice()*.89):partPrice(),tot=pr*n;if(S.parts+n>partsCap())return toast(`Склад вмещает ${partsCap()}`);if(S.money<tot)return toast('Не хватает денег');
   const before=snap();S.money-=tot;S.parts+=n;addLog(`Склад: закуплено ${n} запчастей за ${rub(tot)}.`);toast(`+${n} запчастей на складе`);sfx('cash');save();render(before)}

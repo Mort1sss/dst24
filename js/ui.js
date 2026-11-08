@@ -247,7 +247,8 @@ function render(prev){
   if(taxOn()&&taxDueIn()<=10)tick.unshift(card('down','tax',`Налог через ${taxDueIn()+1} дн.`,`≈${rub(Math.round(S.taxAcc*taxRate()/1000)*1000)}`));
   if(B(13)&&taxRate()>=.2)tick.unshift(card('down','tax',`Налог ${Math.round(taxRate()*100)}%`,`выручка ${rub(Math.round(txAvg()))}/день на ${S.split?`юрлицо №${S.split+1}`:'парк'}${txSpecK()>1?' · спецрежим':''}`));
   if(B(13)&&S.watch>S.day)tick.unshift(card('down','tax','Вы «на карандаше» у налоговой',`проверки чаще до дня ${S.watch}`,S.watch-S.day));
-  if(satK()<.97)tick.unshift(card('down','down','Рынок насыщен',`выручка с машины ×${satK().toFixed(2)}`));
+  if(satK()<.97)tick.unshift(card('down','down','Рынок насыщен',`выручка с машины ×${satK().toFixed(2)}${S.branches.length&&satNet()<.97?`, филиалы ×${satNet().toFixed(2)}`:''}`));
+  else if(S.branches.length&&satNet()<.97)tick.unshift(card('down','down','Сеть переросла рынок',`выручка филиалов ×${satNet().toFixed(2)}`));
   if(brokenN()>repairCap())tick.unshift(card('down','warn','Гараж не успевает',`в ремонте ${brokenN()} · сервис ${repairCap()}/сут`));
   // сервер держит сеть до 1000 машин: выше — облако и лидерборд молча перестают принимать игру
   {const tc=totalCars();if(tc>=950)tick.unshift(card('down','warn',tc>1000?'Облако не принимает сеть':`Облако: ${tc} из 1000 машин`,tc>1000?'сейв и рекорды замирают — сократите сеть':'дальше сервер не сохранит игру и не засчитает рекорд'))}
@@ -316,7 +317,7 @@ function hireCard(){const off=S.over||S.preview,working=carsN()-brokenN(),free=M
     ${B(11)?`<div class="spec"><span>Найм за 7 дней</span><b class="${full?'neg':'pos'}">${used} из ${cap}</b></div>`:''}</div>
     <div class="btns"><button class="buy" id="hireBtn" ${S.hired||off||S.money<cost||full?'disabled':''}>${S.hired?'Вакансия уже размещена':full?'Лимит найма на неделю':'Разместить'}</button>
     ${B(11)?`<button class="buy alt" id="hireBoost" ${S.hired||off||S.money<H.cost+H.boost||full?'disabled':''}>С продвижением · ${rub(H.cost+H.boost)}</button>`:''}</div>
-    ${B(11)?`<p class="sub">Продвижение даёт больше откликов и больше «звёзд», но кандидаты дороже. Собеседование — утром.${full&&b18()?` Лимит поднимает отдел «Подключение»: каждый сотрудник сверх одного — +${H.hrPerStaff} найма в неделю.`:''}</p>`:''}</div>`}
+    ${B(11)?`<p class="sub">Продвижение даёт больше откликов и больше «звёзд», но кандидаты дороже. Собеседование — утром.${endl()&&B(20)?` В бесконечном режиме каждая машина парка даёт +${bal('hireCar')} слот найма в неделю: потолок растёт вместе с парком.`:''}${full&&b18()?` Лимит поднимает отдел «Подключение»: каждый сотрудник сверх одного — +${H.hrPerStaff} найма в неделю.`:''}</p>`:''}</div>`}
 const b3=()=>B(3);
 // в renderMgmt локальная B — элемент #mbody, поэтому проверка баланса только через обёртку
 const b7=()=>B(7);
@@ -324,6 +325,7 @@ const b12=()=>B(12);
 const b18=()=>B(18);
 const b19=()=>B(19);
 const b13=()=>B(13);
+const b20=()=>B(20);
 /* карточка смен: bal 3 — вторая смена и усталость (во вкладке «Водители»), раньше — ночная смена (на карте) */
 function shiftCard(dis){
   if(b3()){const mx=bal('shiftMax'),owl=S.dlist.filter(d=>d.t==='night').length;
@@ -374,7 +376,7 @@ function renderMgmt(){
   }
   else if(uiTab==='fleet'){
     const sorted=[...S.fleet].sort((a,b)=>b.b-a.b||carFail(b)-carFail(a));
-    B.innerHTML=`<p class="sub">Чем больше пробег, тем чаще машина ломается и тем ближе её ресурс к нулю; от пробега зависит работа, а не цена — продана машина будет за 50-60 % покупной цены. ${b12()?`Досрочный возврат лизинговой машины — штраф ${Math.round(bal('lz').early*100)}% от оставшихся платежей; в конце срока её можно выкупить или вернуть бесплатно. Просрочка платежа: пени и изъятие машины через ${bal('lz').lateMax} дн.`:(S.bal||1)>=2?`Возврат лизинговой машины стоит ${bal('leaseRet')} дневных платежей, а после ${bal('leaseWearFrom')} дней она ломается чаще.`:'Лизинговую машину можно вернуть без выплаты.'} Сервис чинит до ${repairCap()} машин в день${brokenN()>repairCap()?` — <b class="neg">в ремонте ${brokenN()}, это больше суточной мощности</b>`:''}. Рынок подержанных сегодня: ${Math.round(resellK()*100)}% покупной цены.${endl()&&b19()?` Рабочая машина проходит 300-450 км в сутки, а та, что стоит без водителя, — ${bal('life').idle} км: простой тоже старит. Ресурс б/у машины — ${(bal('life').used/1000).toFixed(0)} тыс. км сверх покупного пробега.`:''} Тюнинг: Т — тонировка, Ш — шумоизоляция, К — кожаный салон; полный комплект поднимает класс машины, а если класс уже верхний — даёт клубный пакет: +${bal('club').rep} к репутации и ремонты этой машины на ${Math.round(bal('club').repair*100)}% дешевле.${hasHead('master')?' Мастер Ашот делает тюнинг на 30% дешевле.':''}</p>
+    B.innerHTML=`<p class="sub">Чем больше пробег, тем чаще машина ломается и тем ближе её ресурс к нулю; от пробега зависит работа, а не цена — продана машина будет за 50-60 % покупной цены. ${b12()?`Досрочный возврат лизинговой машины — штраф ${Math.round(bal('lz').early*100)}% от оставшихся платежей; в конце срока её можно выкупить или вернуть бесплатно. Просрочка платежа: пени и изъятие машины через ${bal('lz').lateMax} дн.`:(S.bal||1)>=2?`Возврат лизинговой машины стоит ${bal('leaseRet')} дневных платежей, а после ${bal('leaseWearFrom')} дней она ломается чаще.`:'Лизинговую машину можно вернуть без выплаты.'} Сервис чинит до ${repairCap()} машин в день${brokenN()>repairCap()?` — <b class="neg">в ремонте ${brokenN()}, это больше суточной мощности</b>`:''}. Рынок подержанных сегодня: ${Math.round(resellK()*100)}% покупной цены.${endl()&&b19()?` Рабочая машина проходит 300-450 км в сутки, а та, что стоит без водителя, — ${bal('life').idle} км: простой тоже старит. Ресурс б/у машины — ${(bal('life').used/1000).toFixed(0)} тыс. км сверх покупного пробега.`:''} Тюнинг: Т — тонировка, Ш — шумоизоляция, К — кожаный салон; полный комплект поднимает класс машины, а если класс уже верхний — даёт клубный пакет: +${bal('club').rep} к репутации и ремонты этой машины на ${Math.round(bal('club').repair*100)}% дешевле${clubK()>1?`, и +${Math.round((clubK()-1)*100)}% к её выручке`:''}.${hasHead('master')?' Мастер Ашот делает тюнинг на 30% дешевле.':''}</p>
       ${toOn()&&S.fleet.some(c=>!c.b&&!c.svc&&toLeft(c)<0)?`<div class="btns"><button class="buy to" data-svcall="1" ${dis}>Все просроченные на ТО</button></div>`:''}
       <div class="tablewrap"><table><thead><tr><th>Машина</th><th>Класс</th><th>Пробег</th><th>Износ</th><th>Статус</th><th>Лизинг</th><th>Тюнинг</th><th></th></tr></thead><tbody>
       ${sorted.map(c=>{const M=MODELS[c.m],wear=Math.min(100,Math.round(carFail(c)/.15*100)),v=carValue(c);
@@ -413,12 +415,12 @@ function renderMgmt(){
       <div class="card2"><h3>Склад запчастей</h3><p class="kind">Каждая ночная поломка берёт одну запчасть: ремонт со склада на 40% дешевле. Без запчастей — на 30% дороже.${crisisOn('parts')?' <span class="neg">Сейчас дефицит: цены вдвое выше.</span>':''}</p>
         <div class="spec"><span>На складе</span><b class="${S.parts?'':'neg'}">${S.parts} / ${partsCap()}</b></div><div class="bar ${S.parts>partsCap()*.3?'green':''}"><i style="width:${S.parts/partsCap()*100}%"></i></div>
         <div class="btns"><button class="buy sm" data-parts="10" ${off?'disabled':''}>+10 за ${rub(partPrice()*10)}</button><button class="buy sm" data-parts="30" ${off?'disabled':''}>+30 за ${rub(Math.round(partPrice()*.89)*30)}</button></div></div>
-      <div class="card2"><h3>Расширение стоянки</h3><p class="kind">+8 машиномест. Можно расширять сколько угодно.</p>
+      <div class="card2"><h3>Расширение стоянки</h3><p class="kind">+8 машиномест. Можно расширять сколько угодно.${freePark()?' Плата за места в сутки отменена: стоянка — это только вместимость, дальше за простой машина платит возрастом.':''}</p>
         <div class="spec"><span>Сейчас мест</span><b>${S.spots}</b></div><div class="spec"><span>Стоимость</span><b>${rub(lotPrice())}</b></div>
         <div class="btns"><button class="buy" id="lotBtn" ${off||S.money<lotPrice()?'disabled':''}>Расширить</button>${b6()?`<button class="buy sm" id="lotSell" ${off||!lotBack()||S.spots-8<12||S.spots-carsN()<8?'disabled':''}>Продать 8 мест за ${rub(lotBack())}</button>`:''}</div>${b6()?'<p class="kind">Продать можно, если свободны 8 мест и осталось не меньше 12: вернётся половина цены последнего расширения.</p>':''}</div></div>`;
   }
   else if(uiTab==='fin'){
-    const exp=[['Офис',Math.round(OFFICE*(ownHas('office')?.95:1))],...(mgmtCost()?[['Управление большим парком',mgmtCost()]]:[]),['Начальники и команды',payroll()],['Стоянка и страховка',carsN()*PARKING],['Лизинг',leaseSum()],['Кредиты',loanSum()]];
+    const exp=[['Офис',Math.round(OFFICE*(ownHas('office')?.95:1))],...(mgmtCost()?[['Управление большим парком',mgmtCost()]]:[]),['Начальники и команды',payroll()],...(parkCost()?[['Стоянка и страховка',parkCost()]]:[]),['Лизинг',leaseSum()],['Кредиты',loanSum()]];
     const aggCard=!aggOn()?'':`<div class="card2" style="grid-column:1/-1"><h3>Агрегатор</h3>
         <p class="sub">Через него приходят заказы, за это он берёт комиссию с выручки. Менять можно раз в ${bal('aggGap')} дн., на следующий день половина парка простаивает.${S.aggLast?` Комиссия за прошлый день: ${rub(S.aggLast)}.`:''}</p>
         <div class="grid">${Object.keys(AGG).map(k=>{const A=bal('agg')[k],cur=(S.agg||'mig')===k,w=bal('aggGap')-(S.day-S.aggAt),o=Math.round((A.ord-1)*100);
@@ -508,9 +510,9 @@ function renderMgmt(){
     const val=valuation();
     B.innerHTML=`<div class="grid">
       <div class="card2" style="grid-column:1/-1"><h3>Корпоративные контракты</h3>${S.contracts.length?S.contracts.map(c=>`<div class="spec"><span>${esc(c.co)} · ${c.cars} маш.</span><b>${rub(c.pay)}/маш. · ещё ${c.days} дн.</b></div>`).join(''):'<p class="kind">Контрактов нет. Предложения от компаний приходят утром.</p>'}</div>
-      ${Object.entries(LINES).map(([k,L])=>`<div class="card2"><h3>${L.n}</h3><p class="kind">${L.d}</p><div class="spec"><span>Запуск</span><b>${rub(L.price)}</b></div>
+      ${Object.entries(LINES).map(([k,L])=>`<div class="card2"><h3>${L.n}</h3><p class="kind">${lineDesc(k)}</p><div class="spec"><span>Запуск</span><b>${rub(L.price)}</b></div>
         <div class="btns">${S.lines[k]?'<span class="done-tag">РАБОТАЕТ</span>':S.rank<(L.rank||0)?`<button class="buy" disabled>🔒 Звание «${rankName(L.rank)}»</button>`:`<button class="buy" data-line="${k}" ${off||S.money<L.price?'disabled':''}>Запустить</button>`}</div></div>`).join('')}
-      <div class="card2"><h3>Реклама на машинах</h3><p class="kind">${S.ads?`Сейчас: ${S.ads.brand}. +${rub(carsN()*300)} в день.`:'Бренды платят 300 ₽ с машины в день. Часть пассажиров рекламу не любит: −1 к репутации раз в 5 дней.'}</p>
+      <div class="card2"><h3>Реклама на машинах</h3><p class="kind">${S.ads?`Сейчас: ${S.ads.brand}. +${rub(carsN()*adsPerCar())} в день.`:`Бренды платят ${adsPerCar()} ₽ с машины в день. Часть пассажиров рекламу не любит: −1 к репутации раз в 5 дней.`}</p>
         <div class="btns"><button class="buy ${S.ads?'alt':''}" id="adsBtn" ${dis}>${S.ads?'Снять рекламу':'Взять рекламу'}</button></div></div>
       <div class="card2"><h3>Инвесторы</h3><p class="kind">Оценка парка: ${rub(val)}. Продав долю, вы получите деньги сразу, но инвесторы будут забирать свой процент прибыли каждый день и следить за результатами.</p>
         <div class="spec"><span>Доля инвесторов</span><b>${invShare()}%</b></div>${(S.investors||[]).map(i=>`<div class="spec"><span>${esc(i.name)}</span><b>${i.share}%</b></div>`).join('')}
@@ -551,9 +553,10 @@ function renderMgmt(){
         <div class="specs"><div class="spec"><span>Машины</span><b>${b.cars} / ${BR_CAR_CAP}</b></div><div class="spec"><span>Водители</span><b>${b.drivers} / ${b.cars}</b></div>
         <div class="spec"><span>Комплектация</span><b class="${b.drivers>=b.cars?'pos':b.drivers>=b.cars*.5?'':'neg'}">${Math.round(Math.min(1,b.drivers/Math.max(1,b.cars))*100)}% · работает на ${Math.round((.4+.6*Math.min(1,b.drivers/Math.max(1,b.cars)))*100)}% мощности</b></div>
         <div class="spec"><span>Директор филиала</span><b>ур. ${b.mgr}/3</b></div>${b.bonus>1?`<div class="spec"><span>Бонус района</span><b>+${Math.round((b.bonus-1)*100)}%</b></div>`:''}
-        <div class="spec"><span>Вчера чистыми</span><b class="${b.last>=0?'pos':'neg'}">${b.last>=0?'+':''}${rub(b.last)}</b></div>${satNet()<.97?`<div class="spec"><span>Рынок сети</span><b class="neg">выручка ×${satNet().toFixed(2)}</b></div>`:''}</div>
-        <div class="btns"><button class="buy sm" data-br="${i}:car" ${dis||b.cars+1>BR_CAR_CAP?'disabled':''}>+Машина ${rub(Math.round(BR_CAR_PRICE*inf()/1000)*1000)}</button>
-        <button class="buy sm" data-br="${i}:car10" ${dis||b.cars+10>BR_CAR_CAP?'disabled':''}>+10 машин · ${rub(Math.round(BR_CAR_PRICE*10*inf()/1000)*1000)}</button><button class="buy sm" data-br="${i}:car50" ${dis||b.cars+50>BR_CAR_CAP?'disabled':''}>+50 машин · ${rub(Math.round(BR_CAR_PRICE*50*inf()/1000)*1000)}</button>
+        <div class="spec"><span>Вчера чистыми</span><b class="${b.last>=0?'pos':'neg'}">${b.last>=0?'+':''}${rub(b.last)}</b></div>${satNet()<.97?`<div class="spec"><span>Рынок сети</span><b class="neg">выручка ×${satNet().toFixed(2)}</b></div>`:''}${endl()&&b20()?`<div class="spec"><span>Износ парка</span><b class="${brWear(b)>.7?'neg':''}">${Math.round(brWear(b)*100)}%</b></div>`:''}</div>
+        ${endl()&&b20()?`<p class="kind">${Object.entries(brMix(b)).filter(([,n])=>n>0).map(([m,n])=>esc(MODELS[m].name)+' ×'+n).join(', ')||'парк пуст'}</p><label class="sub">Закупать: <select data-brm="${i}">${MODEL_KEYS.map(k=>`<option value="${k}"${(brSel[i]||'solaris')===k?' selected':''}>${esc(MODELS[k].name)}</option>`).join('')}</select></label>`:''}
+        <div class="btns"><button class="buy sm" data-br="${i}:car" ${dis||b.cars+1>BR_CAR_CAP?'disabled':''}>+Машина ${rub(Math.round(brUnit(i)*inf()/1000)*1000)}</button>
+        <button class="buy sm" data-br="${i}:car10" ${dis||b.cars+10>BR_CAR_CAP?'disabled':''}>+10 машин · ${rub(Math.round(brUnit(i)*10*inf()/1000)*1000)}</button><button class="buy sm" data-br="${i}:car50" ${dis||b.cars+50>BR_CAR_CAP?'disabled':''}>+50 машин · ${rub(Math.round(brUnit(i)*50*inf()/1000)*1000)}</button>
         <button class="buy sm" data-br="${i}:hire" ${dis||b.drivers>=b.cars?'disabled':''}>Найм 6 000</button>
         <button class="buy sm" data-br="${i}:hire10" ${dis||b.drivers>=b.cars?'disabled':''}>Найм 10 · 60 000</button><button class="buy sm" data-br="${i}:hire50" ${dis||b.drivers>=b.cars?'disabled':''}>Найм 50 · 300 000</button>
         ${b.mgr<3?`<button class="buy sm alt" data-br="${i}:mgr" ${dis}>Обучить директора ${rub(40000*b.mgr)}</button>`:''}</div></div>`).join('')}
@@ -561,6 +564,7 @@ function renderMgmt(){
         <div class="spec"><span>Стоимость</span><b>${rub(site.price)}</b></div>
         <div class="btns"><button class="buy" id="brOpen" ${off||S.money<site.price?'disabled':''}>Открыть филиал</button></div></div>`
       :`<div class="card2"><h3>Все районы заняты</h3><p class="kind">Филиалов в городе ${BRANCH_MAX}, и в каждом не больше ${BR_CAR_CAP} машин. Дальше растёт основной парк — следите за сервисом: он чинит ${repairCap()} машин в сутки, механики во вкладке «Отделы».</p></div>`}</div>`;
+    B.querySelectorAll('[data-brm]').forEach(s=>s.onchange=()=>{brSel[+s.dataset.brm]=s.value;renderMgmt()});
   }
   else if(uiTab==='city'){
     const rows=[{name:'ДСТ-24 (вы)',cars:totalCars(),rep:S.rep,style:'',me:1}].concat(S.rivals.map(r=>({name:r.name,cars:r.cars,rep:r.rep,style:RIVAL_STYLES[r.style]}))).sort((a,b)=>b.cars-a.cars);

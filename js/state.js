@@ -79,6 +79,13 @@ const rm=d=>rmAt(d,S.staff[d]);
 const repairMult=()=>inf()*(hq('car',3)?1-bal('tree',7).car.svc:1)*(hasHead('master')?.85:1)*(hasHead('petrovich')?.7:1)*(S.upg.tire?.65:1)*newsMod('repair');
 const failMult=()=>(cityDef().fail||1)*dif().fail*(hasHead('sanya')?.65:1)*(S.upg.diag?.7:1)*(hq('car',2)?1-bal('tree',7).car.fail:1)*season(dateOf(S.day)).fail*newsMod('fail');
 const repairCap=()=>3+3*S.staff[2]+(hasHead('olga')?3:0)+(hasHead('robot')?8:0)+(S.upg.lift?3:0);
+/* стоянка: в бесконечном режиме отменена (BAL[20]) — места и так покупаются в «Базе», а простаивающая машина
+   теперь платит возрастом (120 км износа в сутки). Кампания и сюжет считают прежнюю ступенчатую формулу */
+const freePark=()=>endl()&&B(20);
+const parkCost=()=>{if(freePark())return 0;const n=carsN();
+  return Math.round((Math.min(n,30)*PARKING+Math.max(0,n-30)*Math.round(PARKING*.7))*inf()*(S.lotOwned?.4:1))};
+// цена ещё одной машины на сегодня: после 30-й ставка уже снижена
+const parkMarg=()=>freePark()?0:Math.round(PARKING*(carsN()>=30?.7:1)*inf()*(S.lotOwned?.4:1));
 const leaseWear=c=>c.lease>0&&B(2)?Math.min(bal('leaseWearMax'),1+bal('leaseWearK')*Math.max(0,lzTerm(c)-c.lease-bal('leaseWearFrom'))):1;
 // досрочный возврат: штраф от оставшихся платежей; в конце срока машина отдаётся бесплатно
 const leaseRet=c=>B(12)?Math.round(Math.max(0,c.lease)*lzPay(c)*bal('lz').early/100)*100:bal('leaseRet')*MODELS[c.m].lease;
