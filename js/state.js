@@ -245,7 +245,7 @@ function holdDay(rev,nk){const c=S.cnt,m=dateOf(S.day).getMonth();if(m>=5&&m<=7)
 /* ================= НОВАЯ ИГРА ================= */
 const START_FLEET=[['granta',190000],['granta',205000],['granta',170000],['granta',230000],['solaris',110000],['solaris',125000],['solaris',98000],['solaris',140000]];
 function blankState(mode){
-  return {mode,bal:BAL_NEW,startMoney:0,stars:0,goal:0,day:1,money:300000,rep:60,drivers:7,fleet:[],seq:0,decks:[[],[],[]],today:[0,0,0],done:[null,null,null],log:[],over:false,hired:false,
+  return {mode,bal:BAL_NEW,startMoney:0,stars:0,goal:0,day:1,money:300000,rep:60,drivers:7,fleet:[],seq:0,decks:[[],[],[]],today:[0,0,0],done:[null,null,null],log:[],over:false,hired:false,hireDayN:0,
     rents:Object.assign({},MARKET),heads:[0,1,2].map(d=>({key:HEADS[d][0].key,name:HEADS[d][0].name})),staff:[1,1,1],train:[0,0,0],upg:{},spots:12,lotsPaid:[],loans:[],news:[],
     rivals:[{name:'Жёлтый ветер',style:'war',cars:10,rep:55},{name:'Шмель',style:'poach',cars:7,rep:60},{name:'Премиум Драйв',style:'prem',cars:5,rep:70}],
     nextRival:rand(6,9),nextInspect:rand(3,6),quest:null,nextQuest:3,queue:[],hist:[[],[],[]],cnt:{},ach:{},morning:[],

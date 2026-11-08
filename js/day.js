@@ -128,6 +128,8 @@ const hireUsed=()=>{if(!S.hireLog)S.hireLog=[];S.hireLog=S.hireLog.filter(d=>S.d
 // Без отдела парк был обречён стоять на 25-30 машинах: филиал нанимает 50 кликом, а парк — 6 человек в неделю
 // В бесконечном режиме (BAL[20]) каждая машина парка добавляет слот найма в неделю: потолок не душит рост парка
 const hireCap=()=>{const H=bal('hire');const base=Math.max(1,H.cap+Math.floor(S.rep/H.capRep)+(B(18)?(S.staff[0]-1)*H.hrPerStaff:0));return endl()&&B(20)?base+Math.round(carsN()*(bal('hireCar')||0)):base};
+// вакансий в день: в бесконечном режиме (BAL[21]) несколько, иначе одна — парк успевает укомплектоваться
+const hirePerDay=()=>endl()&&B(21)?bal('hirePerDay'):1;
 const candName=()=>DNAMES[rand(0,DNAMES.length-1)]+' '+'АБВГДЕЖЗИКЛМНОПРСТУФХ'[rand(0,19)]+'.';
 /* отклики: слабый просит аренду выше рынка, «звезда» — ниже; рейтинг и ставка ходят вместе */
 function mkCands(boost){
@@ -143,17 +145,19 @@ function mkCands(boost){
   return out;
 }
 function hire(boost){
-  if(S.hired||S.over)return;
+  if(S.over)return;
+  if((S.hireDayN||0)>=hirePerDay()){toast(`Лимит вакансий: ${hirePerDay()} в день`);return}
   if(B(11)){
     if(S.cands&&S.cands.length){toast('Сначала проведите собеседование');return}
     if(hireUsed()>=hireCap()){toast(`Лимит найма: ${hireCap()} за 7 дней`);return}
     const H=bal('hire'),cost=H.cost+(boost?H.boost:0),before=snap();
     if(S.money<cost){toast('Не хватает денег в кассе');return}
-    S.money-=cost;S.hired=true;S.vac={boost:!!boost,day:S.day};
+    S.money-=cost;S.hired=true;S.hireDayN=(S.hireDayN||0)+1;
+    if(S.vac&&S.vac.day===S.day){S.vac.n=(S.vac.n||1)+1;S.vac.boost=S.vac.boost||!!boost}else S.vac={boost:!!boost,day:S.day,n:1};
     addLog(`Авито: вакансия размещена${boost?' с продвижением':''} за ${rub(cost)} — отклики утром.`);
     toast('Вакансия размещена — отклики придут утром');sfx('coin');save();render(before);return}
   if(S.money<HIRE_COST){toast('Не хватает денег в кассе');return}
-  const before=snap();S.money-=HIRE_COST;S.hired=true;
+  const before=snap();S.money-=HIRE_COST;S.hired=true;S.hireDayN=(S.hireDayN||0)+1;
   const r=Math.random()*(hasHead('artur')?.75:1),n=r<.25?2:r<.8?1:0;S.drivers+=n;
   const msg=n===2?'Откликнулись двое, оба вышли на линию.':n?'Пришёл один водитель.':'Звонили одни перекупщики. Никого.';
   addLog('Вакансия: '+msg);toast(msg);sfx(n?'coin':'bad');syncDrivers();save();render(before);
@@ -457,7 +461,7 @@ function endDay(){
 /* ================= УТРО: проверки, конкурент, задания ================= */
 function startDay(){
   ctSync(S);const nn=netDay();townDay();
-  S.done=[null,null,null];S.hired=false;rollDistricts();
+  S.done=[null,null,null];S.hired=false;S.hireDayN=0;rollDistricts();
   // B(2): проверку откладываем, если идёт удар; рейд и профсоюз не стартуют в один день с ней и друг с другом
   let tx=(S.taxAt&&S.taxAt.includes(S.day))||(S.mode==='endless'&&S.day>=S.nextTax);
   if(B(2)&&tx&&(S.crisis||S.raid||S.strike||S.news.some(n=>n.id==='strike')||isTaxDay(S.day))){tx=false;if(S.taxAt&&S.taxAt.includes(S.day))S.taxAt=S.taxAt.map(t=>t===S.day?t+rand(2,4):t);else S.nextTax=S.day+rand(2,4)}
@@ -489,7 +493,7 @@ function startDay(){
   if(B(12)&&S.day>2&&S.cashDay!==S.day&&activeN()>=3&&featOpen('cash')&&Math.random()<.35)m.push('cash');
   let mm=m.filter(k=>featOpen(k));
   if(simpleOn()){mm.sort((a,b)=>MORNING_PRIO.indexOf(a)-MORNING_PRIO.indexOf(b));mm=mm.slice(0,1)}
-  if(B(11)&&S.vac&&S.day>S.vac.day){S.cands=mkCands(S.vac.boost);S.vac=null}
+  if(B(11)&&S.vac&&S.day>S.vac.day){let c=[];for(let k=0;k<(S.vac.n||1);k++)c=c.concat(mkCands(S.vac.boost));S.cands=c;S.vac=null}
   if(S.cands&&S.cands.length)mm.unshift('vac');
   if(B(12)&&S.fleet.some(c=>c.lease===0&&c.lzBuy>0))mm.unshift('lzend');
   // новые вкладки

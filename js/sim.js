@@ -115,7 +115,7 @@ function simBuy(cfg){cfg=cfg||{};
   // Только в бесконечном режиме: в кампании это правило поднимало «Обычный» с 57,3 % до 66,7 %, и замер стал бы
   // про сравнение ботов, а не про баланс игры
   {const gap=carsN()-brokenN()-S.drivers,H=bal('hire'),big=endl()&&gap>5;
-   if(!S.hired&&gap>0&&S.money>=(big?H.cost+H.boost:H.cost)+20000)hire(big)}}
+   for(let k=0;k<hirePerDay()&&(S.hireDayN||0)<hirePerDay()&&gap>0&&S.money>=(big?H.cost+H.boost:H.cost)+20000;k++)hire(big)}}
 /* bot-3: вторая смена и ТО; strat: 'none' — смена 0 и без ТО, 'max' — смена на максимуме, ТО как у основного */
 function simShift(strat){if(!B(3))return;
   S.shift2=strat==='none'?0:strat==='max'?bal('shiftMax'):S.fat<50?30:0;

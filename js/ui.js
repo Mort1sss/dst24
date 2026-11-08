@@ -308,16 +308,16 @@ function render(prev){
 const MGROUPS=[['garage','Гараж',['shop','fleet','base']],['people','Люди',['drivers','depts']],['town','Город',['map','city','branch']],['cash','Деньги',['fin','biz','stats']],['more','Ещё',['style','ach']]];
 let lastSub={};
 const MTABS=[['shop','Автосалон'],['fleet','Мой парк'],['drivers','Водители'],['depts','Отделы'],['map','Карта'],['biz','Бизнес'],['branch','Филиалы'],['base','База'],['fin','Финансы'],['stats','Статистика'],['city','Город'],['style','Мой стиль'],['ach','Достижения']];
-function hireCard(){const off=S.over||S.preview,working=carsN()-brokenN(),free=Math.max(0,working-S.drivers),H=B(11)?bal('hire'):null,used=B(11)?hireUsed():0,cap=B(11)?hireCap():0,full=B(11)&&used>=cap,cost=B(11)?H.cost:HIRE_COST;
+function hireCard(){const off=S.over||S.preview,working=carsN()-brokenN(),free=Math.max(0,working-S.drivers),H=B(11)?bal('hire'):null,used=B(11)?hireUsed():0,cap=B(11)?hireCap():0,full=B(11)&&used>=cap,dayFull=(S.hireDayN||0)>=hirePerDay(),cost=B(11)?H.cost:HIRE_COST;
   return `<div class="card2 hire${free>0?' need':''}"><div class="car-top"><canvas class="mini" width="38" height="17" data-m="person"></canvas>
     <div><h3>Нанять водителей</h3><div class="kind">вакансия на Авито</div></div></div>
     <div class="specs"><div class="spec"><span>Размещение</span><b>${rub(cost)}</b></div>
     <div class="spec"><span>${B(11)?'Отклики':'Обычно приходит'}</span><b>${B(11)?`${H.min}–${H.max} вод.`:'1–2 вод.'}</b></div>
     <div class="spec"><span>Машин без водителя</span><b class="${free?'neg':''}">${free}</b></div>
-    ${B(11)?`<div class="spec"><span>Найм за 7 дней</span><b class="${full?'neg':'pos'}">${used} из ${cap}</b></div>`:''}</div>
-    <div class="btns"><button class="buy" id="hireBtn" ${S.hired||off||S.money<cost||full?'disabled':''}>${S.hired?'Вакансия уже размещена':full?'Лимит найма на неделю':'Разместить'}</button>
-    ${B(11)?`<button class="buy alt" id="hireBoost" ${S.hired||off||S.money<H.cost+H.boost||full?'disabled':''}>С продвижением · ${rub(H.cost+H.boost)}</button>`:''}</div>
-    ${B(11)?`<p class="sub">Продвижение даёт больше откликов и больше «звёзд», но кандидаты дороже. Собеседование — утром.${endl()&&B(20)?` В бесконечном режиме каждая машина парка даёт +${bal('hireCar')} слот найма в неделю: потолок растёт вместе с парком.`:''}${full&&b18()?` Лимит поднимает отдел «Подключение»: каждый сотрудник сверх одного — +${H.hrPerStaff} найма в неделю.`:''}</p>`:''}</div>`}
+    ${B(11)?`<div class="spec"><span>Найм за 7 дней</span><b class="${full?'neg':'pos'}">${used} из ${cap}</b></div>`:''}${endl()&&B(21)?`<div class="spec"><span>Вакансий сегодня</span><b class="${dayFull?'neg':'pos'}">${S.hireDayN||0} из ${hirePerDay()}</b></div>`:''}</div>
+    <div class="btns"><button class="buy" id="hireBtn" ${dayFull||off||S.money<cost||full?'disabled':''}>${dayFull?'Лимит вакансий на день':full?'Лимит найма на неделю':'Разместить'}</button>
+    ${B(11)?`<button class="buy alt" id="hireBoost" ${dayFull||off||S.money<H.cost+H.boost||full?'disabled':''}>С продвижением · ${rub(H.cost+H.boost)}</button>`:''}</div>
+    ${B(11)?`<p class="sub">Продвижение даёт больше откликов и больше «звёзд», но кандидаты дороже. Собеседование — утром.${endl()&&B(20)?` В бесконечном режиме каждая машина парка даёт +${bal('hireCar')} слот найма в неделю: потолок растёт вместе с парком.`:''}${endl()&&B(21)?` Можно разместить до ${hirePerDay()} вакансий в день — отклики придут утром все вместе.`:''}${full&&b18()?` Лимит поднимает отдел «Подключение»: каждый сотрудник сверх одного — +${H.hrPerStaff} найма в неделю.`:''}</p>`:''}</div>`}
 const b3=()=>B(3);
 // в renderMgmt локальная B — элемент #mbody, поэтому проверка баланса только через обёртку
 const b7=()=>B(7);
