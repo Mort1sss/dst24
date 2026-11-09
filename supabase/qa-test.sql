@@ -56,13 +56,20 @@ begin
   r := public.poach('QA-H2');
   if not (r ? 'err' and r ->> 'err' like '%некого%') then raise exception 'T4 FAIL: %', r; end if;
 
-  -- T5: игрок забросил сохранение — не цель
-  update public.saves set updated_at = now() - interval '20 days' where user_id = u2;
+  -- T5: забросил сохранение — не цель. Явным updated_at это не смоделировать: триггер
+  -- saves_touch на before insert or update безусловно ставит now(). Ветку «нет свежего
+  -- сохранения» проверяем отсутствием строки — poach на seen is null даёт то же сообщение
+  delete from public.saves where user_id = u2;
   r := public.poach('QA-H2');
   if not (r ? 'err' and r ->> 'err' like '%давно не заходил%') then raise exception 'T5 FAIL: %', r; end if;
 
-  -- T6: живой парк с водителями — получается; второй раз за сутки уже нет
-  update public.saves set updated_at = now(), drivers = 5 where user_id = u2;
+  -- T6: живой парк с водителями — получается; второй раз за сутки уже нет.
+  -- Касса завышена намеренно: parks() отдаёт только 200 строк, отсортированных по money desc,
+  -- и с обычными 60 000 тестовый игрок в них не попал бы — T7 видел null вместо водителей.
+  -- Потолок saves по CHECK — |money| < 10 млрд, 9 млрд в него проходит
+  insert into public.saves(user_id, mode, day, money, cars, drivers, stars, bal)
+    values (u2,'campaign',5,9000000000,6,5,0,7)
+    on conflict (user_id) do update set drivers = 5, money = 9000000000, updated_at = now();
   r := public.poach('QA-H2');
   if not (r ? 'ok') then raise exception 'T6 FAIL: %', r; end if;
   r := public.poach('QA-H2');
