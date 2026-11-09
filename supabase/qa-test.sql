@@ -142,6 +142,23 @@ begin
   exception when raise_exception then
     if sqlerrm <> 'bal' then raise exception 'T14 FAIL: %', sqlerrm; end if;
   end;
+  -- T15: потолок машин в районе снят (BAL[22]) — сеть из тысяч машин должна и сохраняться в облаке, и попадать в scores.
+  -- Граница была 7000; бот на 400-й день даёт 2555 машин, а длинная партия её давно перешагивает, и CHECK молча отбивал синхронизацию
+  begin
+    update public.saves set cars = 40000 where user_id = '22222222-2222-2222-2222-222222222222';
+  exception when others then raise exception 'T15 FAIL: сохранение на 40 000 машин отбито: %', sqlerrm; end;
+  begin
+    n := public.submit_score('endless', 'normal', '', 700000000, 3, 1800, 40000, 0, 22);
+  exception when others then raise exception 'T15 FAIL: рекорд на 40 000 машин отбит: %', sqlerrm; end;
+  if n is null then raise exception 'T15 FAIL: id не вернулся'; end if;
+
+  -- T16: запас всё-таки конечен — иначе вместо проверки получилось бы «принимается любое число»
+  begin
+    n := public.submit_score('endless', 'normal', '', 700000000, 3, 1800, 50001, 0, 22);
+    raise exception 'T16 FAIL: парк 50 001 принят (id %)', n;
+  exception when raise_exception then
+    if sqlerrm <> 'cars' then raise exception 'T16 FAIL: %', sqlerrm; end if;
+  end;
 end $$;
 
 rollback;

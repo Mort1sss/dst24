@@ -550,7 +550,7 @@ function renderMgmt(){
     B.innerHTML=S.rank<3?`<p>Филиалы откроются на звании <b>«Владелец сети»</b> (нужно ${RANKS[3].txt}). Сейчас: «${rankName(S.rank)}».</p>`:
      `<p class="sub">Филиал — отдельный парк в другом районе. Он работает сам и приносит прибыль каждый день. Машины филиалов считаются в общий размер сети.</p>
       <div class="grid">${S.branches.map((b,i)=>`<div class="card2"><h3>Филиал «${esc(b.n)}»</h3>
-        <div class="specs"><div class="spec"><span>Машины</span><b>${b.cars} / ${brCap()}</b></div><div class="spec"><span>Водители</span><b>${b.drivers} / ${b.cars}</b></div>
+        <div class="specs"><div class="spec"><span>Машины</span><b>${b.cars}${brUnc()?'':' / '+brCap()}</b></div><div class="spec"><span>Водители</span><b>${b.drivers} / ${b.cars}</b></div>
         <div class="spec"><span>Комплектация</span><b class="${b.drivers>=b.cars?'pos':b.drivers>=b.cars*.5?'':'neg'}">${Math.round(Math.min(1,b.drivers/Math.max(1,b.cars))*100)}% · работает на ${Math.round((.4+.6*Math.min(1,b.drivers/Math.max(1,b.cars)))*100)}% мощности</b></div>
         <div class="spec"><span>Директор филиала</span><b>ур. ${b.mgr}/3</b></div>${b.bonus>1?`<div class="spec"><span>Бонус района</span><b>+${Math.round((b.bonus-1)*100)}%</b></div>`:''}
         <div class="spec"><span>Вчера чистыми</span><b class="${b.last>=0?'pos':'neg'}">${b.last>=0?'+':''}${rub(b.last)}</b></div>${satNet()<.97?`<div class="spec"><span>Рынок сети</span><b class="neg">выручка ×${satNet().toFixed(2)}</b></div>`:''}${endl()&&b20()?`<div class="spec"><span>Износ парка</span><b class="${brWear(b)>.7?'neg':''}">${Math.round(brWear(b)*100)}%</b></div>`:''}</div>
@@ -560,10 +560,10 @@ function renderMgmt(){
         <button class="buy sm" data-br="${i}:hire" ${dis||b.drivers>=b.cars?'disabled':''}>Найм 6 000</button>
         <button class="buy sm" data-br="${i}:hire10" ${dis||b.drivers>=b.cars?'disabled':''}>Найм 10 · 60 000</button><button class="buy sm" data-br="${i}:hire50" ${dis||b.drivers>=b.cars?'disabled':''}>Найм 50 · 300 000</button>
         ${b.mgr<3?`<button class="buy sm alt" data-br="${i}:mgr" ${dis}>Обучить директора ${rub(40000*b.mgr)}</button>`:''}</div></div>`).join('')}
-      ${S.branches.length<brMax()?`<div class="card2"><h3>Новый филиал «${site.n}»</h3><p class="kind">3 машины и 3 водителя на старте.${site.bonus>1?` Район приносит +${Math.round((site.bonus-1)*100)}% выручки.`:''} В районе не больше ${brCap()} машин.</p>
+      ${S.branches.length<brMax()?`<div class="card2"><h3>Новый филиал «${site.n}»</h3><p class="kind">3 машины и 3 водителя на старте.${site.bonus>1?` Район приносит +${Math.round((site.bonus-1)*100)}% выручки.`:''}${brUnc()?' Машин в районе — сколько купите.':' В районе не больше '+brCap()+' машин.'}</p>
         <div class="spec"><span>Стоимость</span><b>${rub(site.price)}</b></div>
         <div class="btns"><button class="buy" id="brOpen" ${off||S.money<site.price?'disabled':''}>Открыть филиал</button></div></div>`
-      :`<div class="card2"><h3>Все районы заняты</h3><p class="kind">Филиалов в городе ${brMax()}, и в каждом не больше ${brCap()} машин. Дальше растёт основной парк — следите за сервисом: он чинит ${repairCap()} машин в сутки, механики во вкладке «Отделы».</p></div>`}</div>`;
+      :`<div class="card2"><h3>Все районы заняты</h3><p class="kind">Филиалов в городе ${brMax()}, ${brUnc()?'машин в каждом — сколько потянет касса, но чем больше сеть, тем меньше выручка с каждой машины':`и в каждом не больше ${brCap()} машин. Дальше растёт основной парк`}. Следите за сервисом: он чинит ${repairCap()} машин в сутки, механики во вкладке «Отделы».</p></div>`}</div>`;
     B.querySelectorAll('[data-brm]').forEach(s=>s.onchange=()=>{brSel[+s.dataset.brm]=s.value;renderMgmt()});
   }
   else if(uiTab==='city'){

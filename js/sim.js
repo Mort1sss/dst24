@@ -2,7 +2,7 @@
 /* ---- замер баланса ---- */
 /* Только с ?sim в адресе: бот проходит партии без интерфейса и печатает таблицу. Ничего не пишет в localStorage. */
 if(/[?&]sim\b/.test(location.search))(()=>{
-const SIM_V='bot-15';
+const SIM_V='bot-16';
 const mulberry=a=>()=>{a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296};
 const pct=(a,p)=>a.length?[...a].sort((x,y)=>x-y)[Math.min(a.length-1,Math.floor(p*a.length))]:null;
 const SIM_STUBS=['save','saveG','toast','sfx','voice','triggerScene','coachStart','tutorial','drawFaces','pddExam'];
@@ -77,11 +77,13 @@ function simBuy(cfg){cfg=cfg||{};
   // При заданной цели хватает запаса 15 % сверх цены — так строится кит, которого и измеряем
   const fund=pr=>T?Math.round(pr*1.15):pr+reserve();
   // bot-7: в бесконечном режиме филиалы — главная поздняя экономика; без них замер видел только спираль основного парка
-  if(endl()&&!T&&S.rank>=3){const site=branchSite(S.branches.length);
+  // bot-16: потолок машин в районе снят (BAL[22]), поэтому филиалы докупаются после основного парка,
+  // иначе «купли если хватает денег» выключает рост самого ДСТ-24 и замер перестаёт быть про игру
+  const brGrow=()=>{if(endl()&&!T&&S.rank>=3){const site=branchSite(S.branches.length);
     if(S.branches.length<brMax()&&S.money>=site.price+reserve())openBranch();
     S.branches.forEach((b,i)=>{if(b.drivers<b.cars&&S.money>=400000)branchAct(i,'hire50');
       else if(b.drivers>=b.cars&&b.cars<brCap()&&S.money>=Math.round(50*BR_CAR_PRICE*priceK()*inf()+reserve()))branchAct(i,'car50');
-      else if(b.drivers>=b.cars&&b.cars<brCap()&&S.money>=Math.round(10*BR_CAR_PRICE*priceK()*inf()+reserve()))branchAct(i,'car10')})}
+      else if(b.drivers>=b.cars&&b.cars<brCap()&&S.money>=Math.round(10*BR_CAR_PRICE*priceK()*inf()+reserve()))branchAct(i,'car10')})}};
   // bot-13: замер размера сети. Живое правило «сначала накопи резерв на 12 дней» здесь мешает: при доходе 380 тыс. ₽/сут
   // резерв — 2-3 млн, и сеть застревает в ловушке «на пачку водителей не хватает, машину купить нельзя» на 151 машине.
   // Поэтому при заданной цели филиал достраивается по доступности денег: берётся максимальная пачка, которую оплачивают касса
@@ -117,7 +119,8 @@ function simBuy(cfg){cfg=cfg||{};
   // Только в бесконечном режиме: в кампании это правило поднимало «Обычный» с 57,3 % до 66,7 %, и замер стал бы
   // про сравнение ботов, а не про баланс игры
   {const gap=carsN()-brokenN()-S.drivers,H=bal('hire'),big=endl()&&gap>5;
-   for(let k=0;k<hirePerDay()&&(S.hireDayN||0)<hirePerDay()&&gap>0&&S.money>=(big?H.cost+H.boost:H.cost)+20000;k++)hire(big)}}
+   for(let k=0;k<hirePerDay()&&(S.hireDayN||0)<hirePerDay()&&gap>0&&S.money>=(big?H.cost+H.boost:H.cost)+20000;k++)hire(big)}
+  brGrow()}
 /* bot-3: вторая смена и ТО; strat: 'none' — смена 0 и без ТО, 'max' — смена на максимуме, ТО как у основного */
 function simShift(strat){if(!B(3))return;
   S.shift2=strat==='none'?0:strat==='max'?bal('shiftMax'):S.fat<50?30:0;
