@@ -192,15 +192,19 @@ function openBranch(){
   addLog(`Открыт филиал «${site.n}»: 3 машины и 3 водителя.`);toast(`Филиал «${site.n}» открыт!`);sfx('win');save();render(before);
 }
 function branchAct(i,a){const b=S.branches[i];if(!b||S.over)return;const before=snap();
-  if(a==='car'||a==='car10'||a==='car50'){const n=a==='car'?1:a==='car10'?10:50,m=endl()&&B(20)?(brSel[i]||'solaris'):null,pr=Math.round(n*brUnit(i)*inf()/1000)*1000;
+  if(a==='car'||a==='car10'||a==='car50'){const n=a==='car'?1:a==='car10'?10:50,m=endl()&&B(20)?(brSel[i]||'solaris'):null,pr=Math.round(n*brUnit(i)/1000)*1000;
     if(b.cars+n>brCap()){toast(`В районе «${b.n}» можно не больше ${brCap()} машин`);return}
     if(S.money<pr){toast('Не хватает денег');return}S.money-=pr;
     if(m){if(!b.mix)b.mix={solaris:b.cars};b.mix[m]=(b.mix[m]||0)+n;b.wear=(b.wear||0)*b.cars/(b.cars+n)}
     b.cars+=n;
     toast(`«${b.n}»: +${n} ${n===1?'машина':'машин'}${m?` (${MODELS[m].name})`:''}`)}
-  if(a==='hire'||a==='hire10'||a==='hire50'){const n=a==='hire'?1:a==='hire10'?10:50,pr=n*6000;
+  if(a==='hire'||a==='hire10'||a==='hire50'){
+    const cap=a==='hire'?1:a==='hire10'?10:50,tap=brTap(),per=Math.max(1,(bal('hire')||{}).max||3);
     if(b.drivers>=b.cars){toast(`Водителей в «${b.n}» уже ${b.drivers} — столько же, сколько машин`);return}
-    if(S.money<pr){toast('Не хватает денег');return}S.money-=pr;let got=0;
+    if(tap&&!brHireLeft()){toast(`Лимит найма на сутки: ${hirePerDay()} слотов на парк и районы вместе`);return}
+    const n=tap?Math.min(cap,brHireLeft()*per):cap,pr=brHireCost(n);
+    if(S.money<pr){toast('Не хватает денег');return}
+    S.money-=pr;if(tap)S.hireDayN=(S.hireDayN||0)+brSlots(n);let got=0;
     for(let k=0;k<n;k++)got+=Math.random()<.7?(Math.random()<.3?2:1):0;b.drivers=Math.min(b.cars,b.drivers+got);
     toast(got?`«${b.n}»: +${got} вод. из ${n}`:`«${b.n}»: на ${n} вакансий никто не откликнулся`)}
   if(a==='mgr'){const c=40000*b.mgr;if(b.mgr>=3)return;if(S.money<c){toast('Не хватает денег');return}S.money-=c;b.mgr++;toast(`«${b.n}»: директор филиала прошёл обучение`)}

@@ -546,7 +546,7 @@ function renderMgmt(){
     document.querySelectorAll('[data-logo-draw]').forEach(el=>drawLogo(el.getContext('2d'),el.dataset.logoDraw,0,0,'#f7c331'));
   }
   else if(uiTab==='branch'){
-    const site=branchSite(S.branches.length);
+    const site=branchSite(S.branches.length),tap=brTap(),left=tap?brHireLeft():0,tapOut=tap&&left<=0;
     B.innerHTML=S.rank<3?`<p>Филиалы откроются на звании <b>«Владелец сети»</b> (нужно ${RANKS[3].txt}). Сейчас: «${rankName(S.rank)}».</p>`:
      `<p class="sub">Филиал — отдельный парк в другом районе. Он работает сам и приносит прибыль каждый день. Машины филиалов считаются в общий размер сети.</p>
       <div class="grid">${S.branches.map((b,i)=>`<div class="card2"><h3>Филиал «${esc(b.n)}»</h3>
@@ -555,10 +555,10 @@ function renderMgmt(){
         <div class="spec"><span>Директор филиала</span><b>ур. ${b.mgr}/3</b></div>${b.bonus>1?`<div class="spec"><span>Бонус района</span><b>+${Math.round((b.bonus-1)*100)}%</b></div>`:''}
         <div class="spec"><span>Вчера чистыми</span><b class="${b.last>=0?'pos':'neg'}">${b.last>=0?'+':''}${rub(b.last)}</b></div>${satNet()<.97?`<div class="spec"><span>Рынок сети</span><b class="neg">выручка ×${satNet().toFixed(2)}</b></div>`:''}${endl()&&b20()?`<div class="spec"><span>Износ парка</span><b class="${brWear(b)>.7?'neg':''}">${Math.round(brWear(b)*100)}%</b></div>`:''}</div>
         ${endl()&&b20()?`<p class="kind">${Object.entries(brMix(b)).filter(([,n])=>n>0).map(([m,n])=>esc(MODELS[m].name)+' ×'+n).join(', ')||'парк пуст'}</p><label class="sub">Закупать: <select data-brm="${i}">${MODEL_KEYS.map(k=>`<option value="${k}"${(brSel[i]||'solaris')===k?' selected':''}>${esc(MODELS[k].name)}</option>`).join('')}</select></label>`:''}
-        <div class="btns"><button class="buy sm" data-br="${i}:car" ${dis||b.cars+1>brCap()?'disabled':''}>+Машина ${rub(Math.round(brUnit(i)*inf()/1000)*1000)}</button>
-        <button class="buy sm" data-br="${i}:car10" ${dis||b.cars+10>brCap()?'disabled':''}>+10 машин · ${rub(Math.round(brUnit(i)*10*inf()/1000)*1000)}</button><button class="buy sm" data-br="${i}:car50" ${dis||b.cars+50>brCap()?'disabled':''}>+50 машин · ${rub(Math.round(brUnit(i)*50*inf()/1000)*1000)}</button>
-        <button class="buy sm" data-br="${i}:hire" ${dis||b.drivers>=b.cars?'disabled':''}>Найм 6 000</button>
-        <button class="buy sm" data-br="${i}:hire10" ${dis||b.drivers>=b.cars?'disabled':''}>Найм 10 · 60 000</button><button class="buy sm" data-br="${i}:hire50" ${dis||b.drivers>=b.cars?'disabled':''}>Найм 50 · 300 000</button>
+        <div class="btns"><button class="buy sm" data-br="${i}:car" ${dis||b.cars+1>brCap()?'disabled':''}>+Машина ${rub(Math.round(brUnit(i)/1000)*1000)}</button>
+        <button class="buy sm" data-br="${i}:car10" ${dis||b.cars+10>brCap()?'disabled':''}>+10 машин · ${rub(Math.round(brUnit(i)*10/1000)*1000)}</button><button class="buy sm" data-br="${i}:car50" ${dis||b.cars+50>brCap()?'disabled':''}>+50 машин · ${rub(Math.round(brUnit(i)*50/1000)*1000)}</button>
+        <button class="buy sm" data-br="${i}:hire" ${dis||b.drivers>=b.cars||tapOut?'disabled':''}>Найм ${rub(brHireCost(1))}</button>
+        <button class="buy sm" data-br="${i}:hire10" ${dis||b.drivers>=b.cars||tapOut?'disabled':''}>Найм 10 · ${rub(brHireCost(10))}</button><button class="buy sm" data-br="${i}:hire50" ${dis||b.drivers>=b.cars||tapOut?'disabled':''}>Найм 50 · ${rub(brHireCost(50))}</button>${tap?`<p class="kind">Найм в районе берёт слоты из общего суточного крана: сегодня осталось ${left} из ${hirePerDay()}.</p>`:''}
         ${b.mgr<3?`<button class="buy sm alt" data-br="${i}:mgr" ${dis}>Обучить директора ${rub(40000*b.mgr)}</button>`:''}</div></div>`).join('')}
       ${S.branches.length<brMax()?`<div class="card2"><h3>Новый филиал «${site.n}»</h3><p class="kind">3 машины и 3 водителя на старте.${site.bonus>1?` Район приносит +${Math.round((site.bonus-1)*100)}% выручки.`:''}${brUnc()?' Машин в районе — сколько купите.':' В районе не больше '+brCap()+' машин.'}</p>
         <div class="spec"><span>Стоимость</span><b>${rub(site.price)}</b></div>

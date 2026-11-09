@@ -109,7 +109,7 @@ function buy(m,t){
   if(S.money<cost){toast(lz?'Не хватает денег на аванс':'Не хватает денег в кассе');sfx('bad');return}
   const before=snap();S.money-=cost;S.taxAcc=Math.max(0,(S.taxAcc||0)-cost*.5);
   addCar(m);const c=S.fleet[S.fleet.length-1];
-  if(lz){c.lease=pl.days;c.lzT=tt;c.lzK=pl.k;c.lzBuy=pl.buy;c.lzLate=0}
+  if(lz){c.lease=pl.days;c.lzT=tt;c.lzK=pl.k;c.lzBuy=pl.buy;c.lzLate=0;if(grow()&&B(23))c.lzP=pl.pay}
   if(M.rep)S.rep=Math.min(100,S.rep+M.rep);S.cnt.bought=(S.cnt.bought||0)+1;
   addLog(lz?`Автосалон: ${M.name} в лизинг на ${pl.days} дн. — аванс ${rub(pl.down)}, ${rub(pl.pay)}/день, выкуп в конце ${rub(pl.buy)}.`
     :`Автосалон: ${M.name} (${M.kind}) за ${rub(pr)}${M.lease?`, лизинг ${rub(M.lease)}/день на ${LEASE_DAYS} дн.`:''}.`);

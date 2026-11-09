@@ -23,11 +23,18 @@ const activeN=()=>Math.min(S.drivers,carsN()-brokenN());
 const lzTerm=c=>B(12)&&c.lzT!=null?bal('lz').days[c.lzT]:LEASE_DAYS;
 // дневной платёж: пока идёт срок — и после его конца, пока машина не выкуплена и не возвращена
 const lzPay=c=>{const M=MODELS[c.m];if(!M.lease)return 0;
+  if(c.lzP!=null)return c.lzBuy>0||c.lease>0?c.lzP:0; // BAL[23]: платёж зафиксирован в договоре при подписании
   if(!B(12))return c.lease>0?M.lease:0;
   return c.lzBuy>0||c.lease>0?Math.round(M.lease*(c.lzK||1)*inf()/100)*100:0};
 const leaseSum=()=>S.fleet.reduce((a,c)=>a+lzPay(c),0);
-// что получится по деньгам, если подписать машину m на срок t: аванс, платёж в день (ставка × срок × рейтинг), выкуп в конце
-function lzPlan(m,t){const P=priceOf(m),LZ=bal('lz'),k=LZ.pay[t]*(1+(LZ.cAdj[cGrade()]||0));
+// что получится по деньгам, если подписать машину m на срок t: аванс, платёж в день, выкуп в конце
+// BAL[23]: в режимах роста лизинг — рассрочка цены машины (lzG): аванс и выкуп — доли цены, платёж добирает
+// остаток с премией срока. Кампания, сюжет и ежедневки берут старый lz: там дорогим лизингом держалась калибровка сложности
+function lzPlan(m,t){const P=priceOf(m),LZ=grow()&&B(23)?bal('lzG'):bal('lz'),adj=1+(LZ.cAdj[cGrade()]||0);
+  if(LZ.prem){const total=Math.round(P*(1+LZ.prem[t]*adj)),days=LZ.days[t],
+    down=Math.round(P*LZ.down[t]/500)*500,buy=Math.round(P*LZ.buy[t]/500)*500;
+    return{days,down,pay:Math.max(100,Math.round((total-down-buy)/days/100)*100),buy,k:+adj.toFixed(3)}}
+  const k=LZ.pay[t]*adj;
   return{days:LZ.days[t],down:Math.round(P*LZ.down[t]/500)*500,pay:Math.round(MODELS[m].lease*k*inf()/100)*100,buy:Math.round(P*LZ.buy[t]/500)*500,k:+k.toFixed(3)}}
 // итог за весь срок: аванс + платежи + выкуп
 const lzTotal=(m,t)=>{const p=lzPlan(m,t);return p.down+p.pay*p.days+p.buy};

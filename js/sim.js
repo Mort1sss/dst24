@@ -2,7 +2,7 @@
 /* ---- замер баланса ---- */
 /* Только с ?sim в адресе: бот проходит партии без интерфейса и печатает таблицу. Ничего не пишет в localStorage. */
 if(/[?&]sim\b/.test(location.search))(()=>{
-const SIM_V='bot-16';
+const SIM_V='bot-18';
 const mulberry=a=>()=>{a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296};
 const pct=(a,p)=>a.length?[...a].sort((x,y)=>x-y)[Math.min(a.length-1,Math.floor(p*a.length))]:null;
 const SIM_STUBS=['save','saveG','toast','sfx','voice','triggerScene','coachStart','tutorial','drawFaces','pddExam'];
@@ -79,21 +79,26 @@ function simBuy(cfg){cfg=cfg||{};
   // bot-7: в бесконечном режиме филиалы — главная поздняя экономика; без них замер видел только спираль основного парка
   // bot-16: потолок машин в районе снят (BAL[22]), поэтому филиалы докупаются после основного парка,
   // иначе «купли если хватает денег» выключает рост самого ДСТ-24 и замер перестаёт быть про игру
+  // bot-18: на район было одно действие в день, и после смягчения насыщения парк рос на 4 % — это был бюджет кликов,
+  // а не экономика: живой игрок жмёт «+50 машин» и «Найм 50» несколько раз за день. Теперь до 12 действий на район,
+  // потолок денег всё равно решает раньше
   const brGrow=()=>{if(endl()&&!T&&S.rank>=3){const site=branchSite(S.branches.length);
     if(S.branches.length<brMax()&&S.money>=site.price+reserve())openBranch();
-    S.branches.forEach((b,i)=>{if(b.drivers<b.cars&&S.money>=400000)branchAct(i,'hire50');
-      else if(b.drivers>=b.cars&&b.cars<brCap()&&S.money>=Math.round(50*BR_CAR_PRICE*priceK()*inf()+reserve()))branchAct(i,'car50');
-      else if(b.drivers>=b.cars&&b.cars<brCap()&&S.money>=Math.round(10*BR_CAR_PRICE*priceK()*inf()+reserve()))branchAct(i,'car10')})}};
+    S.branches.forEach((b,i)=>{for(let a=0;a<12;a++){
+      if(b.drivers<b.cars){if(S.money<brHireCost(50))break;branchAct(i,'hire50')}
+      else if(S.money>=Math.round(50*brUnit(i)+reserve()))branchAct(i,'car50');
+      else if(S.money>=Math.round(10*brUnit(i)+reserve()))branchAct(i,'car10');
+      else break}})}};
   // bot-13: замер размера сети. Живое правило «сначала накопи резерв на 12 дней» здесь мешает: при доходе 380 тыс. ₽/сут
   // резерв — 2-3 млн, и сеть застревает в ловушке «на пачку водителей не хватает, машину купить нельзя» на 151 машине.
   // Поэтому при заданной цели филиал достраивается по доступности денег: берётся максимальная пачка, которую оплачивают касса
-  if(T&&endl()&&S.rank>=3&&n<T){const site=branchSite(S.branches.length),car=BR_CAR_PRICE*priceK()*inf();let left=T-n;
+  if(T&&endl()&&S.rank>=3&&n<T){const site=branchSite(S.branches.length);let left=T-n;
     if(S.branches.length<brMax()&&S.money>=site.price*1.15){const c0=totalCars();openBranch();left-=totalCars()-c0}
-    S.branches.forEach((b,i)=>{if(left<=0)return;const c0=totalCars();
+    S.branches.forEach((b,i)=>{if(left<=0)return;const c0=totalCars(),car=brUnit(i);
       if(b.drivers<b.cars){const g=b.cars-b.drivers;
-        if(g>=50&&S.money>=50*6000*1.15)branchAct(i,'hire50');
-        else if(g>=10&&S.money>=10*6000*1.15)branchAct(i,'hire10');
-        else if(S.money>=6000*1.15)branchAct(i,'hire')}
+        if(g>=50&&S.money>=brHireCost(50)*1.15)branchAct(i,'hire50');
+        else if(g>=10&&S.money>=brHireCost(10)*1.15)branchAct(i,'hire10');
+        else if(S.money>=brHireCost(1)*1.15)branchAct(i,'hire')}
       else{const want=Math.min(50,brCap()-b.cars,left);
         if(want>=50&&S.money>=50*car*1.15)branchAct(i,'car50');
         else if(want>=10&&S.money>=10*car*1.15)branchAct(i,'car10');
@@ -108,12 +113,17 @@ function simBuy(cfg){cfg=cfg||{};
     const eco=by(M=>M.cls==='Эконом'&&!M.lease).sort((a,b)=>carRevM(b)/priceOf(b)-carRevM(a)/priceOf(a))[0];
     const ls=by(M=>M.lease>0).sort((a,b)=>priceOf(a)-priceOf(b))[0];
     const lot=carsN()>=S.spots?lotPrice():0;
+    // bot-17: лизинг — это аванс сейчас и аванс+платежи+выкуп за горизонт, а не «цена машины плюс тариф».
+    // Пока бот сравнивал лизинг с полной ценой, он либо не брал лизинговые модели вовсе, либо брал их вслепую
+    const lzT=1,lzOn=m=>B(12)&&MODELS[m].lease>0;
+    const up=m=>lzOn(m)?lzPlan(m,lzT).down+lot:priceOf(m)+lot;
+    const costH=(m,h)=>{if(!lzOn(m))return priceOf(m)+lot;const p=lzPlan(m,lzT);return p.down+p.pay*Math.min(h,p.days)+(h>=p.days?p.buy:0)+lot};
     // окупится ли ещё одна машина до горизонта; в замере размера окупаемость не смотрим, но водителей бережём:
     // парк в 1000 машин при 200 водителях — это не размер сети, а способ обанкротиться, и так играет только бот-самоубийца
-    const pays=m=>{if(T)return carsN()<S.drivers+3;const M=MODELS[m],lz=M.lease>0;
-      if(S.mode==='endless'&&!force&&!(avg>0&&avg/Math.max(1,n)*hz>priceOf(m)+lot))return false;
-      return force||hz*(carRevM(m)*(.5+S.rep/100)-parkMarg()-(mg(n+1)-mg(n)))-(lz?M.lease*Math.min(hz,LEASE_DAYS):0)>priceOf(m)+lot};
-    const m=[eco,ls].find(m=>m&&S.money>=fund(priceOf(m)+lot)&&pays(m));
+    const pays=m=>{if(T)return carsN()<S.drivers+3;
+      if(S.mode==='endless'&&!force&&!(avg>0&&avg/Math.max(1,n)*hz>costH(m,hz)))return false;
+      return force||hz*(carRevM(m)*(.5+S.rep/100)-parkMarg()-(mg(n+1)-mg(n)))>costH(m,hz)};
+    const m=[eco,ls].find(m=>m&&S.money>=fund(up(m))&&pays(m));
     if(m){if(lot)buyLot();if(carsN()<S.spots)buy(m)}}
   // нехватка больше пяти экипажей — вакансия с продвижением: 20 000 ₽ вместо 8 000 ₽, но откликов 3-4 вместо 2-3.
   // Только в бесконечном режиме: в кампании это правило поднимало «Обычный» с 57,3 % до 66,7 %, и замер стал бы
