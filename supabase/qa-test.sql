@@ -117,6 +117,21 @@ begin
     n := public.submit_score('campaign', 'normal', '', 900000, 3, 30, 40, 100000, 7);
   exception when others then raise exception 'T12 FAIL: %', sqlerrm; end;
   if n is null then raise exception 'T12 FAIL: id не вернулся'; end if;
+
+  -- T13: bal текущего поколения и парк больше тысячи машин проходят. Прежняя граница p_bal > 12 отбивала
+  -- именно это, а все тесты выше передавали bal = 7 и проскок не видели: пять дней в scores не попадало ничего
+  begin
+    n := public.submit_score('endless', 'normal', '', 24100000, 3, 800, 1200, 100000, 21);
+  exception when others then raise exception 'T13 FAIL: %', sqlerrm; end;
+  if n is null then raise exception 'T13 FAIL: id не вернулся'; end if;
+
+  -- T14: bal за запасом 99 отсечён, иначе граница превратилась бы в «принимается всё подряд»
+  begin
+    n := public.submit_score('endless', 'normal', '', 24100000, 3, 800, 1200, 100000, 100);
+    raise exception 'T14 FAIL: bal 100 принят (id %)', n;
+  exception when raise_exception
+    if sqlerrm <> 'bal' then raise exception 'T14 FAIL: %', sqlerrm; end if;
+  end;
 end $$;
 
 rollback;

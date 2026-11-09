@@ -21,7 +21,8 @@ begin
   if p_money is null or abs(p_money) >= 10000000000 then raise exception 'money'; end if;
   if p_score is null or p_score < 0 or p_score >= 10000000000 then raise exception 'score'; end if;
   if p_stars is null or p_stars < 0 or p_stars > 3 then raise exception 'stars'; end if;
-  if p_bal is null or p_bal < 1 or p_bal > 12 then raise exception 'bal'; end if;
+  -- запас 99, не «текущий BAL_NEW»: BAL_NEW растёт каждый выпуск, и узкая граница молча режет рекорды — клиент ошибку проглатывает
+  if p_bal is null or p_bal < 1 or p_bal > 99 then raise exception 'bal'; end if;
   if coalesce(p_diff,'') not in ('easy','normal','hard','') or length(coalesce(p_day_key,'')) > 20 then raise exception 'key'; end if;
   if (select count(*) from public.scores where user_id = u and created_at > now() - interval '1 hour') >= 30 then raise exception 'limit'; end if;
   -- очки обычной партии = машины × 20 000 + касса (recordResult); потолок с запасом на округление
