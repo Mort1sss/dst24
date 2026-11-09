@@ -186,14 +186,14 @@ function raidEvent(){
 /* ---- филиалы ---- */
 function openBranch(){
   if(S.rank<3){toast('Филиалы откроются на звании «Владелец сети»');return}
-  if(S.branches.length>=BRANCH_MAX){toast(`Все районы заняты: филиалов в городе ${BRANCH_MAX}`);return}
+  if(S.branches.length>=brMax()){toast(`Все районы заняты: филиалов в городе ${brMax()}`);return}
   const site=branchSite(S.branches.length);if(S.money<site.price){toast('Не хватает денег в кассе');sfx('bad');return}
   const before=snap();S.money-=site.price;S.branches.push({n:site.n,cars:3,drivers:3,mgr:1,bonus:site.bonus,last:0,mix:{solaris:3},wear:0});
   addLog(`Открыт филиал «${site.n}»: 3 машины и 3 водителя.`);toast(`Филиал «${site.n}» открыт!`);sfx('win');save();render(before);
 }
 function branchAct(i,a){const b=S.branches[i];if(!b||S.over)return;const before=snap();
   if(a==='car'||a==='car10'||a==='car50'){const n=a==='car'?1:a==='car10'?10:50,m=endl()&&B(20)?(brSel[i]||'solaris'):null,pr=Math.round(n*brUnit(i)*inf()/1000)*1000;
-    if(b.cars+n>BR_CAR_CAP){toast(`В районе «${b.n}» можно не больше ${BR_CAR_CAP} машин`);return}
+    if(b.cars+n>brCap()){toast(`В районе «${b.n}» можно не больше ${brCap()} машин`);return}
     if(S.money<pr){toast('Не хватает денег');return}S.money-=pr;
     if(m){if(!b.mix)b.mix={solaris:b.cars};b.mix[m]=(b.mix[m]||0)+n;b.wear=(b.wear||0)*b.cars/(b.cars+n)}
     b.cars+=n;
@@ -618,20 +618,40 @@ function checkLogin(){const k=todayKey();G.login=G.login||{};const off=offlineIn
 const rentTxt=r=>{const v=Math.round((r-1)*100);return v===0?'по рынку':(v>0?'+':'−')+Math.abs(v)+'% к рынку'};
 function vacancy(){
   if(!S.cands||!S.cands.length)return runMorning();
+  const batch=endl()&&B(21),room=batch?Math.max(0,hireCap()-hireUsed()):0;
+  // в бесконечном режиме откликов бывает десятки: список короткая витрина лучших, остальных берёт пакетная кнопка
+  if(batch)S.cands.sort((a,c)=>c.r-a.r);
+  const shown=batch?S.cands.slice(0,8):S.cands;
   showModal(`<span class="step">УТРО · СОБЕСЕДОВАНИЕ</span><h2>Отклики на Авито</h2>
     <p>Пришли ${S.cands.length} ${S.cands.length===1?'кандидат':'кандидата'}. Рейтинг и ставка ходят вместе: «звезда» просит аренду ниже рынка, слабый согласен платить больше. Лимит найма сейчас ${hireUsed()}/${hireCap()} за 7 дней.</p>
-    <div class="modes">${S.cands.map((c,i)=>`<button class="mode" id="vc${i}"><b>${esc(c.n)}</b><span style="color:var(--ink)">★${c.r.toFixed(2)} · ${TRAITS[c.t].n} · лояльность ${c.loy} · аренда ${rentTxt(c.req)}</span></button>`).join('')}</div>
+    ${room&&S.cands.length>1?`<button class="btn" id="vcAll">Взять лучших · ${Math.min(S.cands.length,room)} из ${S.cands.length}</button>`:''}
+    <div class="modes">${shown.map((c,i)=>`<button class="mode" id="vc${i}"><b>${esc(c.n)}</b><span style="color:var(--ink)">★${c.r.toFixed(2)} · ${TRAITS[c.t].n} · лояльность ${c.loy} · аренда ${rentTxt(c.req)}</span></button>`).join('')}</div>
+    ${batch&&S.cands.length>shown.length?`<p class="sub">Показаны ${shown.length} с лучшим рейтингом — остальных забирает кнопка выше.</p>`:''}
     <button class="btn ghost" id="vcSkip">Никого не брать</button>`);
   sfx('alert');
-  S.cands.forEach((c,i)=>{$('vc'+i).onclick=()=>takeCand(i)});
+  shown.forEach((c,i)=>{$('vc'+i).onclick=()=>takeCand(i)});
+  if($('vcAll'))$('vcAll').onclick=takeAll;
   $('vcSkip').onclick=()=>{S.cands=[];save();hideModal();runMorning()};
 }
 function takeCand(i){
   const c=S.cands[i];if(!c)return;
   const nd={id:++S.dseq,n:c.n,r:c.r,xp:c.xp,t:c.t,loy:c.loy,req:c.req};
-  S.dlist.push(nd);S.drivers=S.dlist.length;S.hireLog=(S.hireLog||[]).concat(S.day);S.cands=[];
+  S.dlist.push(nd);S.drivers=S.dlist.length;S.hireLog=(S.hireLog||[]).concat(S.day);
   addLog(`Авито: нанят ${nd.n} — ★${nd.r}, аренда ${rentTxt(nd.req)}.`);
-  toast(`${nd.n} вышел на линию`);sfx('coin');syncDrivers();save();render();hideModal();runMorning();
+  toast(`${nd.n} вышел на линию`);sfx('coin');syncDrivers();
+  // в бесконечном режиме (BAL[21]) отклики не сгорают: пока есть слоты за 7 дней, утром берут всех подряд
+  if(endl()&&B(21)){S.cands.splice(i,1);if(S.cands.length&&hireUsed()<hireCap()){save();render();hideModal();vacancy();return}}
+  S.cands=[];save();render();hideModal();runMorning();
+}
+// один клик вместо сотни: берут лучших по рейтингу, сколько пропускает недельный лимит слотов
+function takeAll(){
+  if(!S.cands||!S.cands.length)return runMorning();
+  const room=Math.max(0,hireCap()-hireUsed()),best=S.cands.slice(0,room);
+  if(!best.length){S.cands=[];toast('Слоты найма за 7 дней выбраны');save();render();hideModal();runMorning();return}
+  best.forEach(c=>{S.dlist.push({id:++S.dseq,n:c.n,r:c.r,xp:c.xp,t:c.t,loy:c.loy,req:c.req});S.hireLog=(S.hireLog||[]).concat(S.day)});
+  S.drivers=S.dlist.length;S.cands=[];
+  addLog(`Авито: взяли ${best.length} ${best.length===1?'человек':'чел.'} — ★от ${best[best.length-1].r} и выше, остальные ушли к другим.`);
+  toast(`Вышли на линию: ${best.length}`);sfx('coin');syncDrivers();save();render();hideModal();runMorning();
 }
 /* ---- лизинг: конец срока, выкуп или возврат ---- */
 const lzDue=()=>S.fleet.filter(c=>c.lease===0&&c.lzBuy>0);
@@ -769,9 +789,8 @@ function dispatcher(cb){
   if(S.dispDay===S.day)return toast('Смена диспетчера уже была сегодня');
   const dp=bal('dp'),nCars=Math.max(2,Math.min(dp.cap,activeN())),park=activeN();
   S.dispDay=S.day;save();
-  const crew=Array.from({length:nCars},(_,i)=>{const d=S.dlist[i];return d?esc(d.n):'Экипаж '+(i+1)});
   showModal(`<span class="step">МИНИ-ИГРА · ДИСПЕТЧЕР</span><h2>Раздайте заказы за 60 секунд</h2>
-    <p>Тап по заказу — берёте его в работу (белая рамка), затем тап по свободной машине — поедет именно она. Тап по пустому месту отправит ближайшую. Сгоревший заказ режет награду, район задаёт её множитель, усталость замедляет экипажи.</p>
+    <p>Тап по флажку заказа — к нему сразу едет ближайшая свободная машина. Сгоревший заказ режет награду, район задаёт её множитель, усталость замедляет экипажи.</p>
     <canvas id="dpC" class="dp-canvas" width="200" height="120"></canvas><div class="row2"><span class="mg-timer" id="dpInfo"></span><button class="buy sm alt" id="dpStop">Закончить</button></div>`);
   const cv2=$('dpC'),g=cv2.getContext('2d');crisp(cv2);const GX=[10,50,90,130,170,190],GY=[10,40,70,100];
   const DC={};DISTRICTS.forEach(D=>DC[D.k]=D.c);
@@ -799,23 +818,22 @@ function dispatcher(cb){
   const distOf=()=>{if(!DPOOL.length)return DISTRICTS[0];let r=Math.random()*dTot;for(const D of DPOOL){r-=S.alloc[D.k];if(r<=0)return D}return DPOOL[DPOOL.length-1]};
   const mkOrder=()=>{const D=distOf(),z=ZONE[D.k],p=z[rand(0,z.length-1)];
     return{x:p.x+rand(-4,4),y:p.y,ttl:dp.ttl,taken:false,d:D.k,k:+((D.base*(S.dmods[D.k]||1)).toFixed(2))}};
-  let orders=[],t2=0,last=0,spawn=1,done=0,sumK=0,lost=0,fin=false,sel=null,pop=[];
+  let orders=[],t2=0,last=0,spawn=1,done=0,sumK=0,lost=0,fin=false,pop=[];
   const pathTo=(c,tx,ty)=>[{x:tx,y:c.y},{x:tx,y:ty}];
   const spMul=()=>1-(1-dp.tiredK)*fatK(S.fat||0);
   const need=Math.max(4,nCars*2);
   const stat=()=>{const pr=done+lost,skill=pr?Math.max(.4,Math.min(1.2,.4+done/pr*.8)):0,avgK=done?sumK/done:1,night=1+shN()/100*(dp.nightK-1),vol=Math.min(1,done/need);
     return{skill,avgK,night,vol,need,money:done?Math.round(park*dp.per*skill*avgK*night*vol*inf()/100)*100:0}};
-  const send=(o,c)=>{o.taken=true;c.st='pick';c.ord=o;c.k=o.k;c.path=pathTo(c,o.x,o.y);sel=null;sfx('click')};
+  const send=(o,c)=>{o.taken=true;c.st='pick';c.ord=o;c.k=o.k;c.path=pathTo(c,o.x,o.y);sfx('click')};
+  // один тап по флажку, как было до обновления 31: к заказу сама едет ближайшая свободная машина
   cv2.onpointerdown=e=>{const r=cv2.getBoundingClientRect(),px=(e.clientX-r.left)/r.width*200,py=(e.clientY-r.top)/r.height*120;
-    const o=orders.find(o=>!o.taken&&Math.hypot(o.x-px,o.y-py)<12);
-    if(o){sel=o===sel?null:o;sfx('click');return}
-    const hit=cars.find(c=>c.st==='free'&&Math.hypot(c.x-px,c.y-py)<11);
-    if(!sel){if(hit)toast('Сначала выберите заказ');return}
-    const free=cars.filter(c=>c.st==='free');if(!free.length){sfx('bad');toast('Свободных машин нет');return}
-    send(sel,hit||free.sort((a,b)=>Math.hypot(a.x-sel.x,a.y-sel.y)-Math.hypot(b.x-sel.x,b.y-sel.y))[0])};
+    const o=orders.find(o=>!o.taken&&Math.hypot(o.x-px,o.y-py)<12);if(!o)return;
+    const free=cars.filter(c=>c.st==='free');
+    if(!free.length){sfx('bad');toast('Свободных машин нет');return}
+    send(o,free.sort((a,b)=>Math.hypot(a.x-o.x,a.y-o.y)-Math.hypot(b.x-o.x,b.y-o.y))[0])};
   const frame=ts=>{const dt=last?Math.min(.05,(ts-last)/1000):0;last=ts;t2+=dt;
     spawn-=dt;if(spawn<=0){spawn=Math.max(dp.spawn[1],dp.spawn[0]-t2*dp.spawn[2]);orders.push(mkOrder())}
-    orders.forEach(o=>{if(!o.taken)o.ttl-=dt});orders=orders.filter(o=>{if(!o.taken&&o.ttl<=0){lost++;if(sel===o)sel=null;sfx('bad');return false}return true});
+    orders.forEach(o=>{if(!o.taken)o.ttl-=dt});orders=orders.filter(o=>{if(!o.taken&&o.ttl<=0){lost++;sfx('bad');return false}return true});
     const sp=70*dt*spMul();
     cars.forEach(c=>{if(!c.path.length)return;const tg=c.path[0],dx=tg.x-c.x,dy=tg.y-c.y,dist=Math.hypot(dx,dy);
       if(dist<=sp){c.x=tg.x;c.y=tg.y;c.path.shift();if(!c.path.length){if(c.st==='pick'){c.st='drive';orders=orders.filter(o=>o!==c.ord);c.path=pathTo(c,node().x,node().y)}
@@ -825,13 +843,12 @@ function dispatcher(cb){
     g.drawImage(city,0,0);
     g.fillStyle='#f7c33155';GY.forEach(y=>{for(let x=(Math.floor(t2*20))%8;x<200;x+=8)g.fillRect(x,y,3,1)});
     // заказ: пульсирующее кольцо и пассажир в цвете района, цвет — сколько осталось ждать
-    orders.forEach(o=>{const x=Math.round(o.x),y=Math.round(o.y),on=sel===o,col=o.taken?'#a8a0cc':o.ttl<3?'#ff4d4d':o.ttl<6?'#f7c331':'#86e06f';
-      if(!o.taken&&!on){const r=2+Math.floor((t2*2.5)%1*5);g.globalAlpha=1-((t2*2.5)%1);g.fillStyle=col;g.fillRect(x-r,y-4-r,r*2+1,1);g.fillRect(x-r,y-4+r,r*2+1,1);g.fillRect(x-r,y-4-r,1,r*2+1);g.fillRect(x+r,y-4-r,1,r*2+1);g.globalAlpha=1}
-      if(on){g.fillStyle='#f3ecdc';g.fillRect(x-7,y-11,3,1);g.fillRect(x+4,y-11,3,1);g.fillRect(x-7,y-11,1,3);g.fillRect(x+6,y-11,1,3);g.fillRect(x-7,y+2,3,1);g.fillRect(x+4,y+2,3,1);g.fillRect(x-7,y,1,3);g.fillRect(x+6,y,1,3)}
-      g.fillStyle='#0e0b1c';g.fillRect(x-2,y-8,5,8);g.fillStyle='#f0c8a0';g.fillRect(x-1,y-7,3,2);g.fillStyle=on?'#f3ecdc':(DC[o.d]||col);g.fillRect(x-1,y-5,3,3);g.fillStyle='#2a2450';g.fillRect(x-1,y-2,1,1);g.fillRect(x+1,y-2,1,1);
+    orders.forEach(o=>{const x=Math.round(o.x),y=Math.round(o.y),col=o.taken?'#a8a0cc':o.ttl<3?'#ff4d4d':o.ttl<6?'#f7c331':'#86e06f';
+      if(!o.taken){const r=2+Math.floor((t2*2.5)%1*5);g.globalAlpha=1-((t2*2.5)%1);g.fillStyle=col;g.fillRect(x-r,y-4-r,r*2+1,1);g.fillRect(x-r,y-4+r,r*2+1,1);g.fillRect(x-r,y-4-r,1,r*2+1);g.fillRect(x+r,y-4-r,1,r*2+1);g.globalAlpha=1}
+      g.fillStyle='#0e0b1c';g.fillRect(x-2,y-8,5,8);g.fillStyle='#f0c8a0';g.fillRect(x-1,y-7,3,2);g.fillStyle=DC[o.d]||col;g.fillRect(x-1,y-5,3,3);g.fillStyle='#2a2450';g.fillRect(x-1,y-2,1,1);g.fillRect(x+1,y-2,1,1);
       if(!o.taken){g.fillStyle='#0e0b1c';g.fillRect(x-5,y+2,11,2);g.fillStyle=col;g.fillRect(x-4,y+2,Math.max(1,Math.round(9*o.ttl/dp.ttl)),1)}});
     pop.forEach(p=>{const y=Math.round(p.y-10-(1-p.t)*8);g.globalAlpha=Math.min(1,p.t*2);g.fillStyle='#86e06f';g.fillRect(Math.round(p.x)-3,y,7,1);g.fillRect(Math.round(p.x)+3,y-3,1,7);g.globalAlpha=1});
-    // такси сверху: повёрнуто по ходу движения, на крыше шашка, спереди фары; свободные мигают рамкой, пока выбран заказ
+    // такси сверху: повёрнуто по ходу движения, на крыше шашка, спереди фары
     cars.forEach(c=>{const tg=c.path[0],hz=tg?Math.abs(tg.x-c.x)>=Math.abs(tg.y-c.y):true,dir=tg?(hz?Math.sign(tg.x-c.x):Math.sign(tg.y-c.y))||1:1,x=Math.round(c.x),y=Math.round(c.y);
       const body=c.st==='free'?'#f7c331':c.st==='pick'?'#ff8a4c':'#4fc7b0',w=hz?8:5,h=hz?5:8;
       g.globalAlpha=.4;g.fillStyle='#0e0b1c';g.fillRect(x-(w>>1)+1,y-(h>>1)+1,w,h);g.globalAlpha=1;
@@ -839,12 +856,9 @@ function dispatcher(cb){
       g.fillStyle=body;g.fillRect(x-(w>>1),y-(h>>1),w,h);g.fillStyle='#9fd3ff';
       if(hz){g.fillRect(dir>0?x+1:x-2,y-1,2,3);g.fillStyle='#fff6a8';g.fillRect(dir>0?x+3:x-4,y-2,1,1);g.fillRect(dir>0?x+3:x-4,y+2,1,1)}
       else{g.fillRect(x-1,dir>0?y+1:y-2,3,2);g.fillStyle='#fff6a8';g.fillRect(x-2,dir>0?y+3:y-4,1,1);g.fillRect(x+2,dir>0?y+3:y-4,1,1)}
-      g.fillStyle='#0e0b1c';g.fillRect(x,y,1,1);
-      if(sel&&c.st==='free'&&(t2*4|0)%2){g.fillStyle='#f3ecdc';g.fillRect(x-(w>>1)-2,y-(h>>1)-2,w+4,1);g.fillRect(x-(w>>1)-2,y+(h>>1)+1,w+4,1);g.fillRect(x-(w>>1)-2,y-(h>>1)-2,1,h+3);g.fillRect(x+(w>>1)+1,y-(h>>1)-2,1,h+3)}});
-    const left=Math.max(0,60-t2),st=stat();let tip='';
-    if(sel){const D=DISTRICTS.find(x=>x.k===sel.d),nr=cars.filter(c=>c.st==='free').sort((a,b)=>Math.hypot(a.x-sel.x,a.y-sel.y)-Math.hypot(b.x-sel.x,b.y-sel.y))[0];
-      tip=' · '+D.n+' ×'+sel.k+(nr?', едет '+crew[nr.i]:' · свободных машин нет')}
-    $('dpInfo').textContent=`⏱ ${left.toFixed(0)} с · выполнено ${done} · сгорело ${lost} · ≈${rub(st.money)}`+tip;
+      g.fillStyle='#0e0b1c';g.fillRect(x,y,1,1)});
+    const left=Math.max(0,60-t2),st=stat();
+    $('dpInfo').textContent=`⏱ ${left.toFixed(0)} с · выполнено ${done} · сгорело ${lost} · ≈${rub(st.money)}`;
     if(left<=0||fin){mgStop();
       const pr=done+lost,rp=(dp.rep.filter(x=>done>=x[0]).pop()||[0,0])[1];
       S.dispEarn=st.money;S.rep=Math.min(100,S.rep+rp);S.cnt.disp=Math.max(S.cnt.disp||0,done);

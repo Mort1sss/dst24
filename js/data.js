@@ -30,7 +30,7 @@ const MODEL_KEYS=Object.keys(MODELS);
 /* рыночная суточная аренда по классам */
 const MARKET={'Эконом':3200,'Комфорт':4200,'Комфорт+':5800,'Бизнес':7200,'Минивэн':6100};
 const CLASSES=Object.keys(MARKET);
-const carRevM=(m,up,tm,club)=>{const M=MODELS[m],cls=up||M.cls;let v=S.rents[cls]*M.mult*3200/MARKET[M.cls]*(1+(tm||0));
+const carRevM=(m,up,tm,club)=>{const M=MODELS[m],cls=up||M.cls;let v=S.rents[cls]*M.mult*3200/MARKET[M.cls]*(1+(tm||0))*revK();
   if(S.lines){if(S.lines.delivery&&cls==='Эконом')v*=lineK('delivery');if(S.lines.transfer&&(cls==='Минивэн'||cls==='Комфорт+'))v*=lineK('transfer');if(S.lines.kids)v*=lineK('kids')}
   if(club)v*=clubK();
   if(M.ev)v*=(S.upg&&S.upg.charger?1:.7)*(1+(fuelNow()-1)*.6);
@@ -949,8 +949,9 @@ const BAL_NEW=21,BAL={
  // skill: line — надбавки направлений, ads — ₽ рекламы с машины в сутки (было 300), club — доля выручки клубного пакета
  // hireCar: сколько слотов найма в неделю добавляет каждая машина парка (только бесконечный): недельный потолок больше не душит рост
  20:{skill:{line:{delivery:1.12,transfer:1.22,kids:1.08},ads:450,club:.04},hireCar:1},
- // BAL[21]: сколько вакансий в день можно разместить в бесконечном режиме (было одна): парк успевает укомплектоваться
- 21:{hirePerDay:3,priceK:10}}; // BAL[4] подобран ботом bot-4: «Обычный» ≈60%, агрегаторы 55/54/60%; BAL[5] (кредитный рейтинг) bot-5: «Обычный» ≈60%, «Хардкор» ≈31%
+ // BAL[21]: вакансии в день — ступенью по размеру парка (hirePerDay по порогам hireTier: 10 до 60 машин, 20 до 200, дальше 30);
+ // hireCar переопределён здесь же: 1 слот найма в неделю на машину не пропускал и 10 в день, с 3 потолок растёт вместе с парком
+ 21:{hirePerDay:[10,20,30,45],hireTier:[60,200,600],hireCar:3,brCap:250,priceK:10,revK:3,skill:{line:{delivery:1.12,transfer:1.22,kids:1.08},ads:600,club:.06}}}; // BAL[4] подобран ботом bot-4: «Обычный» ≈60%, агрегаторы 55/54/60%; BAL[5] (кредитный рейтинг) bot-5: «Обычный» ≈60%, «Хардкор» ≈31%
 // BAL[6]: brRev — выручка филиала с машины (было 3300); lotBack — доля цены при продаже стоянки; upgVal/brVal — доля цены улучшений и филиалов в оценке парка; prestK — ₽ оценки на очко престижа; rk — пороги званий
 // BAL[6] город: town — k выручки и cap (заказов на всех) по районам; townLead — надбавка лидера; townFloor — нижний предел давки; townMin/townMax — границы множителя парка
 // BAL[7] холдинг (только бесконечный): tree — цены ступеней (cost) и эффекты веток: fin — капитал, ставка кредитов (п.п.), налоги; ppl — лояльность на старте, сотрудники в отделе, медленнее усталость; car — цены автосалона, поломки, ТО и ремонт, подарок-машина
@@ -1010,15 +1011,21 @@ const RIVAL_POOL=['Рыжий кот','Глобус','Шустрый','Мете�
 const BRANCH_SITES=[{n:'Северный',price:250000,bonus:1},{n:'Южный',price:280000,bonus:1},{n:'Аэропорт',price:400000,bonus:1.25},{n:'Восточный',price:320000,bonus:1},{n:'Западный',price:350000,bonus:1.05}];
 // филиал — район, а не второй парк: районов пять, машин в каждом не больше 120
 const BRANCH_MAX=5,BR_CAR_CAP=120,BR_CAR_PRICE=75000;
+// потолки сети в BAL[21]: без них деньги перестают во что превращаться — парк упирается в 5×120 и касса просто растёт.
+// Районы (brMax) — контент: их пять с именами, поэтому в BAL вынесено на всякий случай, а число пока то же
+const brMax=()=>endl()&&B(21)&&bal('brMax')?bal('brMax'):BRANCH_MAX;
+const brCap=()=>endl()&&B(21)&&bal('brCap')?bal('brCap'):BR_CAR_CAP;
 const branchSite=i=>{const s=BRANCH_SITES[i]||{n:'Филиал №'+(i+1),price:400000+50000*(i-4),bonus:1};return Object.assign({},s,{price:Math.round(s.price*priceK())})};
 // филиалы в бесконечном режиме (BAL[20]): состав парка по моделям и общий износ; кампания и сюжет считают плоскую выручу без износа.
 // Старые филиалы без mix считаются как Solaris (BR_CAR_PRICE равен его цене), без износа — экономика не прыгает.
 const brMix=b=>b.mix||{solaris:b.cars};
 const brWear=b=>endl()&&B(20)?Math.min(1,b.wear||0):0;
-const brCarRev=m=>bal('brRev')*MODELS[m].mult;
+const brCarRev=m=>bal('brRev')*MODELS[m].mult*revK();
 const brSel={};
 // масштаб цен бесконечного режима (BAL[21].priceK): в кампании и сюжете =1, цифры прежние
 const priceK=()=>endl()&&B(21)?bal('priceK'):1;
+// масштаб суточного дохода бесконечного режима (BAL[21].revK): компенсирует цены x10, чтобы парк рос нормально
+const revK=()=>endl()&&B(21)?bal('revK'):1;
 const brUnit=i=>endl()&&B(20)?Math.round(MODELS[brSel[i]||'solaris'].price*priceK()):BR_CAR_PRICE;
 const brLose=(b,n)=>{if(!b.mix)return;let left=n;for(const k of Object.keys(b.mix).sort((a,c)=>b.mix[c]-b.mix[a])){const take=Math.min(b.mix[k],left);b.mix[k]-=take;left-=take;if(!left)break}};
 
@@ -1037,8 +1044,17 @@ const dayLimit=()=>S.mode==='story'?CHAPTERS[S.chapter||0].days:dailyLike()?7:DA
 const hasLimit=()=>['campaign','story','daily','contest'].includes(S.mode);
 /* ---- что нового: номер сборки и сводка выпусков ---- */
 // BUILD поднимают вместе с кэшем в sw.js (dst24-vN = BUILD=N); UPDATES — короткий рассказ о выпуске для игрока, новые сверху
-const BUILD=53;
+const BUILD=54;
 const UPDATES=[
+ {v:54,n:'Парк нанимает толпой',items:[
+  'Найм в бесконечном режиме перестал упираться в людей: ступень по размеру парка — 10 вакансий в день до 60 машин, 20 до 200, 30 до 600 и 45 у крупных. Экипажи успевают за новыми машинами',
+  'Отклики больше не сгорают: утром берут не одного, а сколько пропустит недельный лимит. Кнопка «Взять лучших» набирает всех сразу — вместо десятки кликов',
+  'Каждая машина парка даёт уже 3 слота найма в неделю вместо одного: потолок растёт вместе с парком',
+  'В районе теперь до 250 машин вместо 120: сеть перестала упираться в потолок — на 800-й день парк с филиалами примерно в 1,6 раза больше, а доход в сутки выше примерно на 60 %',
+  'Доход масштабируется вместе с парком, а не отстаёт от цен: деньги есть куда вложить, суточная выручка бесконечного режима выросла в разы',
+  'Диспетчерская вернулась к прежнему управлению: один тап по флажку заказа — и ближайшая свободная машина едет к нему, выбирать экипаж вручную не нужно',
+  'Кампания и сюжет не тронуты: там по-прежнему одна вакансия в день и прежние числа',
+ ]},
  {v:53,n:'Несколько вакансий в день',items:[
   'Бесконечный режим: до 3 вакансий в день вместо одной — отклики приходят утром все вместе, парк успевает укомплектоваться и машины не простаивают без водителей',
   'В карточке найма видно, сколько вакансий размещено сегодня из дневного лимита',
@@ -1410,10 +1426,10 @@ const heavyDays=(from,len)=>{for(let d=from;d<from+len;d++)if(isTaxDay(d)||audit
 const heavyGate=(key,len)=>heavyDays(S.day,len)||(S[key]=S.day+rand(2,4),false);
 /* ---- насыщение рынка и расходы большого парка ---- */
 const SAT_CAP=()=>Math.round(30*(cityDef().demand||1));
-const satK=()=>{const n=carsN(),c=SAT_CAP();return n<=c?1:Math.pow(c/n,.28)};
+const satK=()=>{const n=carsN(),c=SAT_CAP();return n<=c?1:Math.pow(c/n,endl()&&B(21)?.22:.28)};
 // рынок всей сети: каждый новый район добавляет ёмкость, но не удваивает её — иначе филиалы печатают деньги без потолка
 const netCap=()=>SAT_CAP()*(1+.5*(S&&S.branches?S.branches.length:0));
-const satNet=()=>{const n=totalCars(),c=netCap();return n<=c?1:Math.pow(c/n,.28)};
+const satNet=()=>{const n=totalCars(),c=netCap();return n<=c?1:Math.pow(c/n,endl()&&B(21)?.22:.28)};
 // управление считается по основному парку: филиалы не должны обременять парк, у каждого свой директор и своя строка расходов
 const mgmtCost=()=>{if(S.mode==='sandbox')return 0;const n=carsN();return n<=15?0:Math.round(Math.pow(n-15,1.12)*70*inf()*(ownHas('driver')?.95:1)/100)*100};
 /* ---- города франшизы ---- */

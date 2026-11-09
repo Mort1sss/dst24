@@ -2,11 +2,11 @@
 /* ---- замер баланса ---- */
 /* Только с ?sim в адресе: бот проходит партии без интерфейса и печатает таблицу. Ничего не пишет в localStorage. */
 if(/[?&]sim\b/.test(location.search))(()=>{
-const SIM_V='bot-13';
+const SIM_V='bot-14';
 const mulberry=a=>()=>{a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296};
 const pct=(a,p)=>a.length?[...a].sort((x,y)=>x-y)[Math.min(a.length-1,Math.floor(p*a.length))]:null;
 const SIM_STUBS=['save','saveG','toast','sfx','voice','triggerScene','coachStart','tutorial','drawFaces','pddExam'];
-const SIM_PRI=['chGo','dpSkip','lzBuyAll','lzBackAll','cwGo','cwOk','vc0','iHonest','rdNone','txSelf','tdSelf','tdOk','unRent','ctNo','agNo','crNo','cfA','bmBurn','qtGo','a2Ok','ppOk','qOk','ecOk','lotDone','st_grow','iOk','next'];
+const SIM_PRI=['chGo','dpSkip','lzBuyAll','lzBackAll','cwGo','cwOk','vcAll','vc0','iHonest','rdNone','txSelf','tdSelf','tdOk','unRent','ctNo','agNo','crNo','cfA','bmBurn','qtGo','a2Ok','ppOk','qOk','ecOk','lotDone','st_grow','iOk','next'];
 let simOpen=false,simTax=false;
 /* продажа с указанием причины: sellCar один на все правила, и без метки «почему парк молодой» не разобраться */
 function simSell(c,why){if(!c)return;S.cnt=S.cnt||{};const b=S.cnt.soldBy=S.cnt.soldBy||{};b[why]=(b[why]||0)+1;sellCar(c.id)}
@@ -16,7 +16,9 @@ function simPump(){const card=$('modalCard');
   const bs=[...card.querySelectorAll('button')].filter(b=>!b.disabled),b=bs.find(x=>!/₽/.test(x.textContent))||bs[0];
   if(!b)return false;b.click();return true}
 function simMorning(r){let n=0;
-  for(;(S.morning.length||simOpen)&&n<80;n++){if(simOpen){if(!simPump())simOpen=false}else runMorning()}
+  // 80 шагов хватало, пока собеседование было одним кликом на утро; с пакетным наймом откликов в разы больше,
+  // и бюджет резал утро молча: остаток сбрасывался в stuck, а цифры замера становились хуже игровых
+  for(;(S.morning.length||simOpen)&&n<600;n++){if(simOpen){if(!simPump())simOpen=false}else runMorning()}
   if(S.morning.length||simOpen){r.stuck++;S.morning=[];simOpen=false}}
 /* bot-2: покупка по окупаемости; в сюжете цель главы (ч2 — обогнать конкурентов, ч4 — 35 машин и филиал) важнее окупаемости */
 function simBuy(cfg){cfg=cfg||{};
@@ -76,21 +78,21 @@ function simBuy(cfg){cfg=cfg||{};
   const fund=pr=>T?Math.round(pr*1.15):pr+reserve();
   // bot-7: в бесконечном режиме филиалы — главная поздняя экономика; без них замер видел только спираль основного парка
   if(endl()&&!T&&S.rank>=3){const site=branchSite(S.branches.length);
-    if(S.branches.length<BRANCH_MAX&&S.money>=site.price+reserve())openBranch();
+    if(S.branches.length<brMax()&&S.money>=site.price+reserve())openBranch();
     S.branches.forEach((b,i)=>{if(b.drivers<b.cars&&S.money>=400000)branchAct(i,'hire50');
-      else if(b.drivers>=b.cars&&b.cars<BR_CAR_CAP&&S.money>=Math.round(50*BR_CAR_PRICE*priceK()*inf()+reserve()))branchAct(i,'car50');
-      else if(b.drivers>=b.cars&&b.cars<BR_CAR_CAP&&S.money>=Math.round(10*BR_CAR_PRICE*priceK()*inf()+reserve()))branchAct(i,'car10')})}
+      else if(b.drivers>=b.cars&&b.cars<brCap()&&S.money>=Math.round(50*BR_CAR_PRICE*priceK()*inf()+reserve()))branchAct(i,'car50');
+      else if(b.drivers>=b.cars&&b.cars<brCap()&&S.money>=Math.round(10*BR_CAR_PRICE*priceK()*inf()+reserve()))branchAct(i,'car10')})}
   // bot-13: замер размера сети. Живое правило «сначала накопи резерв на 12 дней» здесь мешает: при доходе 380 тыс. ₽/сут
   // резерв — 2-3 млн, и сеть застревает в ловушке «на пачку водителей не хватает, машину купить нельзя» на 151 машине.
   // Поэтому при заданной цели филиал достраивается по доступности денег: берётся максимальная пачка, которую оплачивают касса
   if(T&&endl()&&S.rank>=3&&n<T){const site=branchSite(S.branches.length),car=BR_CAR_PRICE*priceK()*inf();let left=T-n;
-    if(S.branches.length<BRANCH_MAX&&S.money>=site.price*1.15){const c0=totalCars();openBranch();left-=totalCars()-c0}
+    if(S.branches.length<brMax()&&S.money>=site.price*1.15){const c0=totalCars();openBranch();left-=totalCars()-c0}
     S.branches.forEach((b,i)=>{if(left<=0)return;const c0=totalCars();
       if(b.drivers<b.cars){const g=b.cars-b.drivers;
         if(g>=50&&S.money>=50*6000*1.15)branchAct(i,'hire50');
         else if(g>=10&&S.money>=10*6000*1.15)branchAct(i,'hire10');
         else if(S.money>=6000*1.15)branchAct(i,'hire')}
-      else{const want=Math.min(50,BR_CAR_CAP-b.cars,left);
+      else{const want=Math.min(50,brCap()-b.cars,left);
         if(want>=50&&S.money>=50*car*1.15)branchAct(i,'car50');
         else if(want>=10&&S.money>=10*car*1.15)branchAct(i,'car10');
         else if(want>=1&&S.money>=car*1.15)branchAct(i,'car')}
@@ -125,6 +127,17 @@ function simDesks(){
   for(let d=0;d<3;d++){if(S.done[d])continue;const g=getEv(d,S.today[d]).c.findIndex(c=>c.game);if(g>-1)choose(d,g,Math.random()<.6)}
   if(!simpleOn()||S.day>=10)autoResolve();
   for(let d=0;d<3;d++)if(!S.done[d])choose(d,0)}
+/* bot-14: источники дохода, которых в боте не было вовсе — реклама на машинах, направления и клубные пакеты.
+   Пока бот их не включал, выключение ads/line/club в BAL не сдвигало замер: «усилить источники» нельзя было померить */
+function simSkills(){
+  if(!endl()||S.over)return;
+  if(!S.ads&&carsN()>=4)toggleAds();
+  for(const k of Object.keys(LINES)){const L=LINES[k];
+    if(!S.lines[k]&&S.rank>=(L.rank||0)&&S.money>L.price*4)buyLine(k)}
+  // клубный пакет берём только там, где класс уже верхний: иначе комплект уводит машину в другой класс, и замер меряет апгрейд, а не доход
+  const kit=Object.keys(TUNE).reduce((a,k)=>a+tunePrice(k),0);
+  S.fleet.filter(c=>!c.b&&!c.club&&!CLS_UP[c.up||MODELS[c.m].cls]).slice(0,3).forEach(c=>
+    Object.keys(TUNE).forEach(k=>{if(S.money>kit+100000)tuneCar(c.id,k)}))}
 /* одна партия; stopDay — остановиться после конца этого дня (для free) */
 function simRun(cfg,seed,stopDay){
   Math.random=mulberry(seed);let clock=Date.UTC(2026,10,1,12);Date.now=()=>clock;
@@ -141,7 +154,7 @@ function simRun(cfg,seed,stopDay){
     simTax=false;simMorning(r);
     r.heavy=Math.max(r.heavy,(S.crisis?1:0)+(S.raid?1:0)+(S.strike||S.news.some(n=>n.id==='strike')?1:0)+(simTax?1:0)+(B(2)&&taxOn()&&isTaxDay(S.day)&&S.taxAcc>0?1:0));
     if(simTax)r.tax++;if(S.crisis&&S.crisis!==crisis0)r.crises++;crisis0=S.crisis;
-    simBuy(cfg);simShift(cfg.strat);simDesks();
+    simBuy(cfg);simShift(cfg.strat);simSkills();simDesks();
     const day=S.day;endDay();r.fails=S.cnt.brk||0;r.fat=S.fat||0;clock+=864e5;
     S.fleet.forEach(c=>{if(carDead(c)&&!seenD.has(c.id)){seenD.add(c.id);deadEver++}if(carWear(c)>.7&&!seenW.has(c.id)){seenW.add(c.id);wornEver++}});
     if(r.goalDay===null&&(C?C.goal(S):goalMet()))r.goalDay=day;

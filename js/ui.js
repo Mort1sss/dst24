@@ -308,7 +308,7 @@ function render(prev){
 const MGROUPS=[['garage','Гараж',['shop','fleet','base']],['people','Люди',['drivers','depts']],['town','Город',['map','city','branch']],['cash','Деньги',['fin','biz','stats']],['more','Ещё',['style','ach']]];
 let lastSub={};
 const MTABS=[['shop','Автосалон'],['fleet','Мой парк'],['drivers','Водители'],['depts','Отделы'],['map','Карта'],['biz','Бизнес'],['branch','Филиалы'],['base','База'],['fin','Финансы'],['stats','Статистика'],['city','Город'],['style','Мой стиль'],['ach','Достижения']];
-function hireCard(){const off=S.over||S.preview,working=carsN()-brokenN(),free=Math.max(0,working-S.drivers),H=B(11)?bal('hire'):null,used=B(11)?hireUsed():0,cap=B(11)?hireCap():0,full=B(11)&&used>=cap,dayFull=(S.hireDayN||0)>=hirePerDay(),cost=B(11)?H.cost:HIRE_COST;
+function hireCard(){const off=S.over||S.preview,working=carsN()-brokenN(),free=Math.max(0,working-S.drivers),H=B(11)?bal('hire'):null,used=B(11)?hireUsed():0,cap=B(11)?hireCap():0,full=B(11)&&used>=cap,dayFull=(S.hireDayN||0)>=hirePerDay(),cost=B(11)?H.cost:HIRE_COST,T=B(21)?bal('hireTier'):[60,200,600],V=B(21)?bal('hirePerDay'):[10,20,30,45];
   return `<div class="card2 hire${free>0?' need':''}"><div class="car-top"><canvas class="mini" width="38" height="17" data-m="person"></canvas>
     <div><h3>Нанять водителей</h3><div class="kind">вакансия на Авито</div></div></div>
     <div class="specs"><div class="spec"><span>Размещение</span><b>${rub(cost)}</b></div>
@@ -317,7 +317,7 @@ function hireCard(){const off=S.over||S.preview,working=carsN()-brokenN(),free=M
     ${B(11)?`<div class="spec"><span>Найм за 7 дней</span><b class="${full?'neg':'pos'}">${used} из ${cap}</b></div>`:''}${endl()&&B(21)?`<div class="spec"><span>Вакансий сегодня</span><b class="${dayFull?'neg':'pos'}">${S.hireDayN||0} из ${hirePerDay()}</b></div>`:''}</div>
     <div class="btns"><button class="buy" id="hireBtn" ${dayFull||off||S.money<cost||full?'disabled':''}>${dayFull?'Лимит вакансий на день':full?'Лимит найма на неделю':'Разместить'}</button>
     ${B(11)?`<button class="buy alt" id="hireBoost" ${dayFull||off||S.money<H.cost+H.boost||full?'disabled':''}>С продвижением · ${rub(H.cost+H.boost)}</button>`:''}</div>
-    ${B(11)?`<p class="sub">Продвижение даёт больше откликов и больше «звёзд», но кандидаты дороже. Собеседование — утром.${endl()&&B(20)?` В бесконечном режиме каждая машина парка даёт +${bal('hireCar')} слот найма в неделю: потолок растёт вместе с парком.`:''}${endl()&&B(21)?` Можно разместить до ${hirePerDay()} вакансий в день — отклики придут утром все вместе.`:''}${full&&b18()?` Лимит поднимает отдел «Подключение»: каждый сотрудник сверх одного — +${H.hrPerStaff} найма в неделю.`:''}</p>`:''}</div>`}
+    ${B(11)?`<p class="sub">Продвижение даёт больше откликов и больше «звёзд», но кандидаты дороже. Собеседование — утром.${endl()&&B(20)?` В бесконечном режиме каждая машина парка даёт +${bal('hireCar')} слот найма в неделю: потолок растёт вместе с парком.`:''}${endl()&&B(21)?` Можно разместить до ${hirePerDay()} вакансий в день — ступень растёт с парком: ${T.map((t,i)=>`${V[i]} до ${t}`).join(', ')}, дальше ${V[V.length-1]}. Утром берут не одного, а сколько пропустят слоты за 7 дней.`:''}${full&&b18()?` Лимит поднимает отдел «Подключение»: каждый сотрудник сверх одного — +${H.hrPerStaff} найма в неделю.`:''}</p>`:''}</div>`}
 const b3=()=>B(3);
 // в renderMgmt локальная B — элемент #mbody, поэтому проверка баланса только через обёртку
 const b7=()=>B(7);
@@ -550,20 +550,20 @@ function renderMgmt(){
     B.innerHTML=S.rank<3?`<p>Филиалы откроются на звании <b>«Владелец сети»</b> (нужно ${RANKS[3].txt}). Сейчас: «${rankName(S.rank)}».</p>`:
      `<p class="sub">Филиал — отдельный парк в другом районе. Он работает сам и приносит прибыль каждый день. Машины филиалов считаются в общий размер сети.</p>
       <div class="grid">${S.branches.map((b,i)=>`<div class="card2"><h3>Филиал «${esc(b.n)}»</h3>
-        <div class="specs"><div class="spec"><span>Машины</span><b>${b.cars} / ${BR_CAR_CAP}</b></div><div class="spec"><span>Водители</span><b>${b.drivers} / ${b.cars}</b></div>
+        <div class="specs"><div class="spec"><span>Машины</span><b>${b.cars} / ${brCap()}</b></div><div class="spec"><span>Водители</span><b>${b.drivers} / ${b.cars}</b></div>
         <div class="spec"><span>Комплектация</span><b class="${b.drivers>=b.cars?'pos':b.drivers>=b.cars*.5?'':'neg'}">${Math.round(Math.min(1,b.drivers/Math.max(1,b.cars))*100)}% · работает на ${Math.round((.4+.6*Math.min(1,b.drivers/Math.max(1,b.cars)))*100)}% мощности</b></div>
         <div class="spec"><span>Директор филиала</span><b>ур. ${b.mgr}/3</b></div>${b.bonus>1?`<div class="spec"><span>Бонус района</span><b>+${Math.round((b.bonus-1)*100)}%</b></div>`:''}
         <div class="spec"><span>Вчера чистыми</span><b class="${b.last>=0?'pos':'neg'}">${b.last>=0?'+':''}${rub(b.last)}</b></div>${satNet()<.97?`<div class="spec"><span>Рынок сети</span><b class="neg">выручка ×${satNet().toFixed(2)}</b></div>`:''}${endl()&&b20()?`<div class="spec"><span>Износ парка</span><b class="${brWear(b)>.7?'neg':''}">${Math.round(brWear(b)*100)}%</b></div>`:''}</div>
         ${endl()&&b20()?`<p class="kind">${Object.entries(brMix(b)).filter(([,n])=>n>0).map(([m,n])=>esc(MODELS[m].name)+' ×'+n).join(', ')||'парк пуст'}</p><label class="sub">Закупать: <select data-brm="${i}">${MODEL_KEYS.map(k=>`<option value="${k}"${(brSel[i]||'solaris')===k?' selected':''}>${esc(MODELS[k].name)}</option>`).join('')}</select></label>`:''}
-        <div class="btns"><button class="buy sm" data-br="${i}:car" ${dis||b.cars+1>BR_CAR_CAP?'disabled':''}>+Машина ${rub(Math.round(brUnit(i)*inf()/1000)*1000)}</button>
-        <button class="buy sm" data-br="${i}:car10" ${dis||b.cars+10>BR_CAR_CAP?'disabled':''}>+10 машин · ${rub(Math.round(brUnit(i)*10*inf()/1000)*1000)}</button><button class="buy sm" data-br="${i}:car50" ${dis||b.cars+50>BR_CAR_CAP?'disabled':''}>+50 машин · ${rub(Math.round(brUnit(i)*50*inf()/1000)*1000)}</button>
+        <div class="btns"><button class="buy sm" data-br="${i}:car" ${dis||b.cars+1>brCap()?'disabled':''}>+Машина ${rub(Math.round(brUnit(i)*inf()/1000)*1000)}</button>
+        <button class="buy sm" data-br="${i}:car10" ${dis||b.cars+10>brCap()?'disabled':''}>+10 машин · ${rub(Math.round(brUnit(i)*10*inf()/1000)*1000)}</button><button class="buy sm" data-br="${i}:car50" ${dis||b.cars+50>brCap()?'disabled':''}>+50 машин · ${rub(Math.round(brUnit(i)*50*inf()/1000)*1000)}</button>
         <button class="buy sm" data-br="${i}:hire" ${dis||b.drivers>=b.cars?'disabled':''}>Найм 6 000</button>
         <button class="buy sm" data-br="${i}:hire10" ${dis||b.drivers>=b.cars?'disabled':''}>Найм 10 · 60 000</button><button class="buy sm" data-br="${i}:hire50" ${dis||b.drivers>=b.cars?'disabled':''}>Найм 50 · 300 000</button>
         ${b.mgr<3?`<button class="buy sm alt" data-br="${i}:mgr" ${dis}>Обучить директора ${rub(40000*b.mgr)}</button>`:''}</div></div>`).join('')}
-      ${S.branches.length<BRANCH_MAX?`<div class="card2"><h3>Новый филиал «${site.n}»</h3><p class="kind">3 машины и 3 водителя на старте.${site.bonus>1?` Район приносит +${Math.round((site.bonus-1)*100)}% выручки.`:''} В районе не больше ${BR_CAR_CAP} машин.</p>
+      ${S.branches.length<brMax()?`<div class="card2"><h3>Новый филиал «${site.n}»</h3><p class="kind">3 машины и 3 водителя на старте.${site.bonus>1?` Район приносит +${Math.round((site.bonus-1)*100)}% выручки.`:''} В районе не больше ${brCap()} машин.</p>
         <div class="spec"><span>Стоимость</span><b>${rub(site.price)}</b></div>
         <div class="btns"><button class="buy" id="brOpen" ${off||S.money<site.price?'disabled':''}>Открыть филиал</button></div></div>`
-      :`<div class="card2"><h3>Все районы заняты</h3><p class="kind">Филиалов в городе ${BRANCH_MAX}, и в каждом не больше ${BR_CAR_CAP} машин. Дальше растёт основной парк — следите за сервисом: он чинит ${repairCap()} машин в сутки, механики во вкладке «Отделы».</p></div>`}</div>`;
+      :`<div class="card2"><h3>Все районы заняты</h3><p class="kind">Филиалов в городе ${brMax()}, и в каждом не больше ${brCap()} машин. Дальше растёт основной парк — следите за сервисом: он чинит ${repairCap()} машин в сутки, механики во вкладке «Отделы».</p></div>`}</div>`;
     B.querySelectorAll('[data-brm]').forEach(s=>s.onchange=()=>{brSel[+s.dataset.brm]=s.value;renderMgmt()});
   }
   else if(uiTab==='city'){
