@@ -627,7 +627,7 @@ function vacancy(){
     ${room&&S.cands.length>1?`<button class="btn" id="vcAll">Взять лучших · ${Math.min(S.cands.length,room)} из ${S.cands.length}</button>`:''}
     <div class="modes">${shown.map((c,i)=>`<button class="mode" id="vc${i}"><b>${esc(c.n)}</b><span style="color:var(--ink)">★${c.r.toFixed(2)} · ${TRAITS[c.t].n} · лояльность ${c.loy} · аренда ${rentTxt(c.req)}</span></button>`).join('')}</div>
     ${batch&&S.cands.length>shown.length?`<p class="sub">Показаны ${shown.length} с лучшим рейтингом — остальных забирает кнопка выше.</p>`:''}
-    <button class="btn ghost" id="vcSkip">Никого не брать</button>`);
+    <div class="mfoot"><button class="btn ghost" id="vcSkip">Никого не брать</button></div>`);
   sfx('alert');
   shown.forEach((c,i)=>{$('vc'+i).onclick=()=>takeCand(i)});
   if($('vcAll'))$('vcAll').onclick=takeAll;
@@ -825,9 +825,11 @@ function dispatcher(cb){
   const stat=()=>{const pr=done+lost,skill=pr?Math.max(.4,Math.min(1.2,.4+done/pr*.8)):0,avgK=done?sumK/done:1,night=1+shN()/100*(dp.nightK-1),vol=Math.min(1,done/need);
     return{skill,avgK,night,vol,need,money:done?Math.round(park*dp.per*skill*avgK*night*vol*inf()/100)*100:0}};
   const send=(o,c)=>{o.taken=true;c.st='pick';c.ord=o;c.k=o.k;c.path=pathTo(c,o.x,o.y);sfx('click')};
-  // один тап по флажку, как было до обновления 31: к заказу сама едет ближайшая свободная машина
+  // один тап по флажку, как было до обновления 31: к заказу сама едет ближайшая свободная машина.
+  // Берём ближайший заказ в радиусе 18, а не только тот, в который попали точно: сцена на телефоне ~303 px
+  // против 200 внутренних, то есть прежний радиус 12 — это цель ~36 CSS px, ниже внятной границы пальца
   cv2.onpointerdown=e=>{const r=cv2.getBoundingClientRect(),px=(e.clientX-r.left)/r.width*200,py=(e.clientY-r.top)/r.height*120;
-    const o=orders.find(o=>!o.taken&&Math.hypot(o.x-px,o.y-py)<12);if(!o)return;
+    let o=null,near=18;orders.forEach(x=>{if(x.taken)return;const d=Math.hypot(x.x-px,x.y-py);if(d<near){near=d;o=x}});if(!o)return;
     const free=cars.filter(c=>c.st==='free');
     if(!free.length){sfx('bad');toast('Свободных машин нет');return}
     send(o,free.sort((a,b)=>Math.hypot(a.x-o.x,a.y-o.y)-Math.hypot(b.x-o.x,b.y-o.y))[0])};

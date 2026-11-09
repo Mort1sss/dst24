@@ -193,6 +193,9 @@ input[type=range]{width:100%;accent-color:var(--taxi)}
   padding:max(16px,env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) max(16px,env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
 .modal.pause{z-index:40}
 .card{background:var(--panel);width:min(560px,100%);padding:20px;display:grid;gap:14px;max-height:100%;overflow:auto}
+/* липкий низ длинных утр (собеседование): отказ от найма должен быть виден без прокрутки до конца списка.
+   карточка модалки и есть скроллер, поэтому bottom:0 — от нижнего края padding box */
+.mfoot{position:sticky;bottom:0;z-index:2;background:var(--panel);margin:0 -20px -20px;padding:12px 20px 20px;border-top:3px solid var(--edge);display:flex;gap:8px;justify-content:flex-end}
 .card h2{font-size:13px;color:var(--taxi);line-height:1.5}
 .rows{display:grid;gap:6px;font-variant-numeric:tabular-nums}
 .row{display:flex;justify-content:space-between;gap:12px;border-bottom:2px dashed var(--panel-2);padding-bottom:5px}
