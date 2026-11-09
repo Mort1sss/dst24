@@ -77,7 +77,7 @@ begin
   begin
     n := public.submit_score('daily', 'normal', '2020-1-1', 1000000, 0, 6, 12, 400000, 7);
     raise exception 'T8 FAIL: старый ключ принят (id %)', n;
-  exception when raise_exception
+  exception when raise_exception then
     if sqlerrm <> 'stale' then raise exception 'T8 FAIL: %', sqlerrm; end if;
   end;
 
@@ -103,7 +103,7 @@ begin
   begin
     n := public.submit_score('campaign', 'normal', '', 100000, 3, 99, 40, 100000, 7);
     raise exception 'T10 FAIL: 99 дней приняты (id %)', n;
-  exception when raise_exception
+  exception when raise_exception then
     if sqlerrm <> 'days' then raise exception 'T10 FAIL: %', sqlerrm; end if;
   end;
 
@@ -111,7 +111,7 @@ begin
   begin
     n := public.submit_score('campaign', 'normal', '', 5000000, 0, 30, 10, 0, 7);
     raise exception 'T11 FAIL: надуманные очки приняты (id %)', n;
-  exception when raise_exception
+  exception when raise_exception then
     if sqlerrm <> 'score' then raise exception 'T11 FAIL: %', sqlerrm; end if;
   end;
 
@@ -132,7 +132,7 @@ begin
   begin
     n := public.submit_score('endless', 'normal', '', 24100000, 3, 800, 1200, 100000, 100);
     raise exception 'T14 FAIL: bal 100 принят (id %)', n;
-  exception when raise_exception
+  exception when raise_exception then
     if sqlerrm <> 'bal' then raise exception 'T14 FAIL: %', sqlerrm; end if;
   end;
 end $$;
