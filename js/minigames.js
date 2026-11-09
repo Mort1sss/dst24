@@ -774,6 +774,13 @@ function deskAudit(){
 /* ---- смена диспетчера ---- */
 // оценка «quanto заплатит смена»: парк × ставка × полная точность × вторая смена; спрос районов заранее неизвестен, поэтому в тексте это «около»
 const dispTop=()=>{const dp=bal('dp');return Math.round(activeN()*dp.per*1.2*(1+shN()/100*(dp.nightK-1))*inf()/100)*100};
+// итог смены вынесен из замыкания мини-игры: бот не может её сыграть (она живёт на rAF, а замер синхронный),
+// и без общей формулы замер мерил бы выдуманное число, а не то же самое, что получает игрок
+const dispCars=()=>{const dp=bal('dp');return Math.max(2,Math.min(dp.cap,activeN()))};
+const dispNeed=()=>Math.max(4,dispCars()*2);
+const dispRep=done=>{const r=bal('dp').rep.filter(x=>done>=x[0]).pop();return r?r[1]:0};
+const dispStat=(done,lost,sumK,park)=>{const dp=bal('dp'),pr=done+lost,skill=pr?Math.max(.4,Math.min(1.2,.4+done/pr*.8)):0,avgK=done?sumK/done:1,night=1+shN()/100*(dp.nightK-1),need=dispNeed(),vol=Math.min(1,done/need);
+  return{skill,avgK,night,vol,need,money:done?Math.round(park*dp.per*skill*avgK*night*vol*inf()/100)*100:0}};
 function dispAsk(){
   if(S.over||S.dispDay===S.day||activeN()<2||!featOpen('disp'))return runMorning();
   const top=dispTop();
@@ -821,9 +828,8 @@ function dispatcher(cb){
   let orders=[],t2=0,last=0,spawn=1,done=0,sumK=0,lost=0,fin=false,pop=[];
   const pathTo=(c,tx,ty)=>[{x:tx,y:c.y},{x:tx,y:ty}];
   const spMul=()=>1-(1-dp.tiredK)*fatK(S.fat||0);
-  const need=Math.max(4,nCars*2);
-  const stat=()=>{const pr=done+lost,skill=pr?Math.max(.4,Math.min(1.2,.4+done/pr*.8)):0,avgK=done?sumK/done:1,night=1+shN()/100*(dp.nightK-1),vol=Math.min(1,done/need);
-    return{skill,avgK,night,vol,need,money:done?Math.round(park*dp.per*skill*avgK*night*vol*inf()/100)*100:0}};
+  const need=dispNeed();
+  const stat=()=>dispStat(done,lost,sumK,park);
   const send=(o,c)=>{o.taken=true;c.st='pick';c.ord=o;c.k=o.k;c.path=pathTo(c,o.x,o.y);sfx('click')};
   // один тап по флажку, как было до обновления 31: к заказу сама едет ближайшая свободная машина.
   // Берём ближайший заказ в радиусе 18, а не только тот, в который попали точно: сцена на телефоне ~303 px
@@ -862,7 +868,7 @@ function dispatcher(cb){
     const left=Math.max(0,60-t2),st=stat();
     $('dpInfo').textContent=`⏱ ${left.toFixed(0)} с · выполнено ${done} · сгорело ${lost} · ≈${rub(st.money)}`;
     if(left<=0||fin){mgStop();
-      const pr=done+lost,rp=(dp.rep.filter(x=>done>=x[0]).pop()||[0,0])[1];
+      const pr=done+lost,rp=dispRep(done);
       S.dispEarn=st.money;S.rep=Math.min(100,S.rep+rp);S.cnt.disp=Math.max(S.cnt.disp||0,done);
       addLog(`Диспетчер: выполнено ${done} заказов, сгорело ${lost}, ${rub(st.money)} в вечернюю кассу${rp?`, репутация +${rp}`:''}.`);save();render();sfx(done>=7?'win':'coin');
       showModal(`<span class="step">ДИСПЕТЧЕР</span><h2>${done} заказов</h2>

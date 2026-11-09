@@ -2,7 +2,7 @@
 /* ---- замер баланса ---- */
 /* Только с ?sim в адресе: бот проходит партии без интерфейса и печатает таблицу. Ничего не пишет в localStorage. */
 if(/[?&]sim\b/.test(location.search))(()=>{
-const SIM_V='bot-14';
+const SIM_V='bot-15';
 const mulberry=a=>()=>{a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296};
 const pct=(a,p)=>a.length?[...a].sort((x,y)=>x-y)[Math.min(a.length-1,Math.floor(p*a.length))]:null;
 const SIM_STUBS=['save','saveG','toast','sfx','voice','triggerScene','coachStart','tutorial','drawFaces','pddExam'];
@@ -138,6 +138,15 @@ function simSkills(){
   const kit=Object.keys(TUNE).reduce((a,k)=>a+tunePrice(k),0);
   S.fleet.filter(c=>!c.b&&!c.club&&!CLS_UP[c.up||MODELS[c.m].cls]).slice(0,3).forEach(c=>
     Object.keys(TUNE).forEach(k=>{if(S.money>kit+100000)tuneCar(c.id,k)}))}
+/* bot-15: смена диспетчера — единственный источник, который бот не мог сыграть: мини-игра живёт на rAF, а замер синхронный.
+   cfg.disp задаёт исход: 'top' — чистая смена на норму (это потолок источника), 'mid' — половина выполнена, часть сгорела.
+   Считается той же dispStat, что и игра, так что цифра не выдумана; средний район принят ×1 — спрос районов заранее неизвестен,
+   как и в билете у игрока. По умолчанию выключено, и прежние замеры остаются прежними */
+function simDisp(cfg){
+  if(!cfg.disp||!endl()||S.over||S.dispDay===S.day||activeN()<2||!featOpen('disp'))return;
+  const need=dispNeed(),top=cfg.disp==='top',done=top?need:Math.ceil(need*.5),lost=top?0:Math.ceil(need*.3);
+  S.dispDay=S.day;const st=dispStat(done,lost,done,activeN());
+  S.dispEarn=st.money;S.rep=Math.min(100,S.rep+dispRep(done));S.cnt.disp=Math.max(S.cnt.disp||0,done)}
 /* одна партия; stopDay — остановиться после конца этого дня (для free) */
 function simRun(cfg,seed,stopDay){
   Math.random=mulberry(seed);let clock=Date.UTC(2026,10,1,12);Date.now=()=>clock;
@@ -154,7 +163,7 @@ function simRun(cfg,seed,stopDay){
     simTax=false;simMorning(r);
     r.heavy=Math.max(r.heavy,(S.crisis?1:0)+(S.raid?1:0)+(S.strike||S.news.some(n=>n.id==='strike')?1:0)+(simTax?1:0)+(B(2)&&taxOn()&&isTaxDay(S.day)&&S.taxAcc>0?1:0));
     if(simTax)r.tax++;if(S.crisis&&S.crisis!==crisis0)r.crises++;crisis0=S.crisis;
-    simBuy(cfg);simShift(cfg.strat);simSkills();simDesks();
+    simBuy(cfg);simShift(cfg.strat);simSkills();simDisp(cfg);simDesks();
     const day=S.day;endDay();r.fails=S.cnt.brk||0;r.fat=S.fat||0;clock+=864e5;
     S.fleet.forEach(c=>{if(carDead(c)&&!seenD.has(c.id)){seenD.add(c.id);deadEver++}if(carWear(c)>.7&&!seenW.has(c.id)){seenW.add(c.id);wornEver++}});
     if(r.goalDay===null&&(C?C.goal(S):goalMet()))r.goalDay=day;
@@ -213,7 +222,7 @@ function simGuard(fn){
   }}
 window.__balanceSim=(o={})=>simGuard(()=>{const {diff='normal',mode='campaign',seeds=100,simple=false}=o;
   if(!['campaign','story','endless'].includes(mode))throw new Error('замер: только campaign, story или endless');
-  const r=simBatch({diff,mode,seeds,simple,strat:o.strat,agg:o.agg,chapter:o.chapter||0,days:o.days,city:o.city,hold:o.hold,target:o.target});console.table([simFlat(r)]);return r});
+  const r=simBatch({diff,mode,seeds,simple,strat:o.strat,agg:o.agg,disp:o.disp,chapter:o.chapter||0,days:o.days,city:o.city,hold:o.hold,target:o.target});console.table([simFlat(r)]);return r});
 window.__balanceSim.all=(n=100)=>simGuard(()=>{const rs=['easy','normal','hard'].map(diff=>simBatch({diff,mode:'campaign',seeds:n,simple:false,chapter:0}));console.table(rs.map(simFlat));return rs});
 window.__balanceSim.story=(n=100)=>simGuard(()=>{const rs=CHAPTERS.map((C,i)=>simBatch({diff:'normal',mode:'story',seeds:n,simple:false,chapter:i}));console.table(rs.map(simFlat));return rs});
 window.__balanceSim.free=(hours=24,streak=1)=>simGuard(()=>{
