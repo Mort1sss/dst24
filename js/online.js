@@ -158,8 +158,10 @@ async function netLoad(){if(!NET.url)return;
   if(Array.isArray(c)){netSt.cfg=c;netBC.clear()}if(Array.isArray(e))netSt.ev=e;if(c||e)netSave();if($('mCamp')&&!$('modal').hidden)pickMode()}
 // последняя правка для текущей базы баланса: новая партия запоминает её номер
 const netRevNow=()=>{let m=0;if(NET.url&&Array.isArray(netSt.cfg))for(const x of netSt.cfg)if(x&&+x.base===BAL_NEW&&+x.rev>m)m=+x.rev;return m};
-// слияние: число к числу, объект к объекту; иное — база
-const netMerge=(b,p)=>typeof b==='number'?(typeof p==='number'&&isFinite(p)?p:b):b&&typeof b==='object'&&!Array.isArray(b)?(p&&typeof p==='object'&&!Array.isArray(p)?Object.fromEntries(Object.entries(b).map(([k,x])=>[k,k in p?netMerge(x,p[k]):x])):b):b;
+// слияние: число к числу, массив к массиву по индексу, объект к объекту; иное — база.
+// Ступени найма (hirePerDay, hireTier) — массивы, и патч может быть дырявым ([45,,,…]): берём только
+// присутствующие позиции, остальные остаются из базы, иначе лестница превратилась бы в undefined
+const netMerge=(b,p)=>typeof b==='number'?(typeof p==='number'&&isFinite(p)?p:b):Array.isArray(b)?(Array.isArray(p)?b.map((x,i)=>i in p?netMerge(x,p[i]):x):b):b&&typeof b==='object'?(p&&typeof p==='object'&&!Array.isArray(p)?Object.fromEntries(Object.entries(b).map(([k,x])=>[k,k in p?netMerge(x,p[k]):x])):b):b;
 const netDeep=(a,p)=>a&&p&&typeof a==='object'&&typeof p==='object'&&!Array.isArray(a)&&!Array.isArray(p)?Object.assign({},a,Object.fromEntries(Object.entries(p).map(([k,x])=>[k,netDeep(a[k],x)]))):p;
 // слепок всех активных правок для BAL_NEW по порядку rev: новая партия берёт его целиком, выключение правки её не меняет
 function netSnap(){const o={};if(NET.url&&Array.isArray(netSt.cfg))netSt.cfg.filter(x=>x&&+x.base===BAL_NEW&&x.patch&&typeof x.patch==='object').sort((a,b)=>a.rev-b.rev).forEach(x=>{for(const k in x.patch)o[k]=netDeep(o[k],x.patch[k])});return o}

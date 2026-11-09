@@ -126,11 +126,11 @@ function sellCar(id){
 const hireUsed=()=>{if(!S.hireLog)S.hireLog=[];S.hireLog=S.hireLog.filter(d=>S.day-d<7);return S.hireLog.length};
 // пропускная способность найма за 7 дней: база + узнаваемость (репутация) + отдел «Подключение» (BAL[18]).
 // Без отдела парк был обречён стоять на 25-30 машинах: филиал нанимает 50 кликом, а парк — 6 человек в неделю
-// В бесконечном режиме (BAL[20]) каждая машина парка добавляет слот найма в неделю: потолок не душит рост парка
-const hireCap=()=>{const H=bal('hire');const base=Math.max(1,H.cap+Math.floor(S.rep/H.capRep)+(B(18)?(S.staff[0]-1)*H.hrPerStaff:0));return endl()&&B(20)?base+Math.round(carsN()*(bal('hireCar')||0)):base};
-// вакансий в день: в бесконечном режиме (BAL[21]) ступенью по размеру парка, иначе одна — малый парк не обязан переваривать очередь.
-// Ступеней ровно столько, сколько hirePerDay: индекс = сколько порогов hireTier уже пройдено, чтобы четвёртая не требовала правки здесь
-const hirePerDay=()=>{if(!(endl()&&B(21)))return 1;const t=bal('hireTier')||[],v=bal('hirePerDay');if(!Array.isArray(v))return v;let i=0;while(i<t.length&&carsN()>=t[i])i++;return v[Math.min(i,v.length-1)]};
+// В режимах роста (бесконечный и песочница, BAL[20]) каждая машина парка добавляет слот найма в неделю: потолок не душит рост парка
+const hireCap=()=>{const H=bal('hire');const base=Math.max(1,H.cap+Math.floor(S.rep/H.capRep)+(B(18)?(S.staff[0]-1)*H.hrPerStaff:0));return grow()&&B(20)?base+Math.round(carsN()*(bal('hireCar')||0)):base};
+// вакансий в день: в режимах роста (BAL[21]) ступенью по размеру парка, иначе одна — малый парк не обязан переваривать очередь.
+// Ступеней ровно столько, сколько hirePerDay: индекс = сколько порогов hireTier уже пройдено, чтобы пятая не требовала правки здесь
+const hirePerDay=()=>{if(!(grow()&&B(21)))return 1;const t=bal('hireTier')||[],v=bal('hirePerDay');if(!Array.isArray(v))return v;let i=0;while(i<t.length&&carsN()>=t[i])i++;return v[Math.min(i,v.length-1)]};
 const candName=()=>DNAMES[rand(0,DNAMES.length-1)]+' '+'АБВГДЕЖЗИКЛМНОПРСТУФХ'[rand(0,19)]+'.';
 /* отклики: слабый просит аренду выше рынка, «звезда» — ниже; рейтинг и ставка ходят вместе */
 function mkCands(boost){

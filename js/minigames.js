@@ -618,8 +618,8 @@ function checkLogin(){const k=todayKey();G.login=G.login||{};const off=offlineIn
 const rentTxt=r=>{const v=Math.round((r-1)*100);return v===0?'по рынку':(v>0?'+':'−')+Math.abs(v)+'% к рынку'};
 function vacancy(){
   if(!S.cands||!S.cands.length)return runMorning();
-  const batch=endl()&&B(21),room=batch?Math.max(0,hireCap()-hireUsed()):0;
-  // в бесконечном режиме откликов бывает десятки: список короткая витрина лучших, остальных берёт пакетная кнопка
+  const batch=grow()&&B(21),room=batch?Math.max(0,hireCap()-hireUsed()):0;
+  // в режимах роста откликов бывает десятки: список короткая витрина лучших, остальных берёт пакетная кнопка
   if(batch)S.cands.sort((a,c)=>c.r-a.r);
   const shown=batch?S.cands.slice(0,8):S.cands;
   showModal(`<span class="step">УТРО · СОБЕСЕДОВАНИЕ</span><h2>Отклики на Авито</h2>
@@ -639,8 +639,8 @@ function takeCand(i){
   S.dlist.push(nd);S.drivers=S.dlist.length;S.hireLog=(S.hireLog||[]).concat(S.day);
   addLog(`Авито: нанят ${nd.n} — ★${nd.r}, аренда ${rentTxt(nd.req)}.`);
   toast(`${nd.n} вышел на линию`);sfx('coin');syncDrivers();
-  // в бесконечном режиме (BAL[21]) отклики не сгорают: пока есть слоты за 7 дней, утром берут всех подряд
-  if(endl()&&B(21)){S.cands.splice(i,1);if(S.cands.length&&hireUsed()<hireCap()){save();render();hideModal();vacancy();return}}
+  // в режимах роста (BAL[21]) отклики не сгорают: пока есть слоты за 7 дней, утром берут всех подряд
+  if(grow()&&B(21)){S.cands.splice(i,1);if(S.cands.length&&hireUsed()<hireCap()){save();render();hideModal();vacancy();return}}
   S.cands=[];save();render();hideModal();runMorning();
 }
 // один клик вместо сотни: берут лучших по рейтингу, сколько пропускает недельный лимит слотов

@@ -197,15 +197,16 @@ function dPl(){
 const isNum=v=>typeof v==='number'&&isFinite(v);
 function balField(k,v,path){
   if(isNum(v))return`<input type="number" step="any" data-bk="${esc(path)}" data-o="${v}" value="${v}" aria-label="${esc(path)}">`;
+  if(Array.isArray(v)&&v.every(isNum))return`<div class="sub">${v.map((x,i)=>`<label>${i+1}<input type="number" step="any" data-bk="${esc(path+'.'+i)}" data-o="${x}" value="${x}"></label>`).join('')}</div>`;
   if(v&&typeof v==='object'&&!Array.isArray(v)&&Object.values(v).every(isNum))return`<div class="sub">${Object.entries(v).map(([a,x])=>`<label>${esc(a)}<input type="number" step="any" data-bk="${esc(path+'.'+a)}" data-o="${x}" value="${x}"></label>`).join('')}</div>`;
   return`<code class="ro">${esc(JSON.stringify(v))}</code>`}
 // текущее значение = BAL плюс все включённые правки этой базы по порядку rev (клиент сливает так же)
 const balCur=(obj,nv,k,cfg)=>{let v=balVal(obj,nv,k);(cfg||[]).filter(c=>c.active&&+c.base===nv&&c.patch&&typeof c.patch==='object'&&k in c.patch).sort((x,y)=>x.rev-y.rev).forEach(c=>{const p=c.patch[k];
-  if(isNum(v)&&isNum(p))v=p;else if(v&&typeof v==='object'&&!Array.isArray(v)&&p&&typeof p==='object')v=Object.fromEntries(Object.entries(v).map(([a,x])=>[a,isNum(x)&&isNum(p[a])?p[a]:x]))});return v};
+  if(isNum(v)&&isNum(p))v=p;else if(Array.isArray(v)&&Array.isArray(p))v=v.map((x,i)=>i in p&&isNum(p[i])?p[i]:x);else if(v&&typeof v==='object'&&!Array.isArray(v)&&p&&typeof p==='object')v=Object.fromEntries(Object.entries(v).map(([a,x])=>[a,isNum(x)&&isNum(p[a])?p[a]:x]))});return v};
 function dBal(){
   const{nv,obj}=D.b,keys=[...new Set(Object.values(obj).flatMap(o=>Object.keys(o)))];
   const act_=D.cfg.find(c=>c.active);
-  return`<div class="warn">Правка действует только на новые партии (версия баланса ${nv}). Начатые партии играют по своим числам. Работают только числовые ключи.</div>
+  return`<div class="warn">Правка действует только на новые партии (версия баланса ${nv}). Начатые партии играют по своим числам. Работают числовые ключи и ступени-массивы вроде hirePerDay: правится любой элемент, остальные остаются из BAL.</div>
   <div class="card px"><h2>Ключи BAL (версия ${nv})</h2><div class="bal">${keys.map(k=>{const v=balCur(obj,nv,k,D.cfg);return`<div class="it" data-w="${esc(k)}"><span class="k">${esc(k)}</span>${balField(k,v,k)}</div>`}).join('')}</div>
   <label>Заметка к правке<input id="bnote" maxlength="120" placeholder="например: легче цель на Хардкоре"></label><button class="btn" id="bsave">Сохранить правку</button></div>
   <div class="card px"><h2>Последние правки</h2>${D.cfg.length?`<div class="list">${D.cfg.map(c=>`<div class="item"><div class="top"><b>rev ${esc(c.rev)} ${c.active?'<span class="tag good">ВКЛ</span>':'<span class="tag">ВЫКЛ</span>'}</b><span class="note">${dt(c.created_at)} · база ${esc(c.base)}</span></div>
@@ -281,7 +282,7 @@ function bind(){
     document.querySelectorAll('[data-bk]').forEach(i=>{const o=+i.dataset.o,v=i.value===''?NaN:+i.value;
       if(!isFinite(v)){bad='В поле «'+i.dataset.bk+'» нужно число';return}
       if(v===o)return;const p=i.dataset.bk.split('.');
-      if(p.length===1)patch[p[0]]=v;else{(patch[p[0]]=patch[p[0]]||{})[p[1]]=v}});
+      if(p.length===1)patch[p[0]]=v;else if(/^\d+$/.test(p[1])){(patch[p[0]]=patch[p[0]]||[])[p[1]]=v}else{(patch[p[0]]=patch[p[0]]||{})[p[1]]=v}});
     if(bad)return flash(bad);if(!Object.keys(patch).length)return flash('Нечего сохранять: ничего не изменено');
     act(()=>q('/rest/v1/config',{method:'POST',body:{base:D.b.nv,patch,note:$('bnote').value.trim()||null},prefer:'return=minimal'}),'Правка сохранена, действует на новые партии')};
   if($('evf')){
